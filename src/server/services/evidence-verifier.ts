@@ -1,8 +1,10 @@
-import { Evidence } from "@/types/meeting";
+import { Evidence, EvidenceProvenance } from "@/types/meeting";
 
 export interface VerificationResult {
   verifiedEvidence: Evidence[];
   isVerified: boolean;
+  provenance: EvidenceProvenance;
+  provenanceNote: string;
 }
 
 export function verifyEvidenceQuote(
@@ -17,9 +19,13 @@ export function verifyEvidenceQuote(
           startOffset: null,
           endOffset: null,
           isVerified: false,
+          provenance: "unverified",
+          provenanceNote: "No citation quote provided.",
         },
       ],
       isVerified: false,
+      provenance: "unverified",
+      provenanceNote: "No citation quote provided.",
     };
   }
 
@@ -28,16 +34,19 @@ export function verifyEvidenceQuote(
   // Tier 1: Verbatim Exact Substring Search
   const exactIndex = rawTranscript.indexOf(trimmedQuote);
   if (exactIndex !== -1) {
-    return {
-      verifiedEvidence: [
-        {
-          quote: trimmedQuote,
-          startOffset: exactIndex,
-          endOffset: exactIndex + trimmedQuote.length,
-          isVerified: true,
-        },
-      ],
+    const ev: Evidence = {
+      quote: trimmedQuote,
+      startOffset: exactIndex,
+      endOffset: exactIndex + trimmedQuote.length,
       isVerified: true,
+      provenance: "exact_match",
+      provenanceNote: "Exact verbatim citation found in source notes.",
+    };
+    return {
+      verifiedEvidence: [ev],
+      isVerified: true,
+      provenance: "exact_match",
+      provenanceNote: ev.provenanceNote || "",
     };
   }
 
@@ -50,47 +59,67 @@ export function verifyEvidenceQuote(
       caseInsensitiveIndex,
       caseInsensitiveIndex + trimmedQuote.length
     );
-    return {
-      verifiedEvidence: [
-        {
-          quote: actualSubstr,
-          startOffset: caseInsensitiveIndex,
-          endOffset: caseInsensitiveIndex + trimmedQuote.length,
-          isVerified: true,
-        },
-      ],
+    const ev: Evidence = {
+      quote: actualSubstr,
+      startOffset: caseInsensitiveIndex,
+      endOffset: caseInsensitiveIndex + trimmedQuote.length,
       isVerified: true,
+      provenance: "normalized_match",
+      provenanceNote: "Citation found with casing normalization.",
+    };
+    return {
+      verifiedEvidence: [ev],
+      isVerified: true,
+      provenance: "normalized_match",
+      provenanceNote: ev.provenanceNote || "",
     };
   }
 
   // Tier 3: Whitespace-Normalized Search
-  // (e.g. handle differences in line breaks or multiple spaces)
   const normalizedMatch = findNormalizedMatch(rawTranscript, trimmedQuote);
   if (normalizedMatch) {
-    return {
-      verifiedEvidence: [
-        {
-          quote: normalizedMatch.matchedText,
-          startOffset: normalizedMatch.startOffset,
-          endOffset: normalizedMatch.endOffset,
-          isVerified: true,
-        },
-      ],
+    const ev: Evidence = {
+      quote: normalizedMatch.matchedText,
+      startOffset: normalizedMatch.startOffset,
+      endOffset: normalizedMatch.endOffset,
       isVerified: true,
+      provenance: "normalized_match",
+      provenanceNote: "Citation found with whitespace normalization.",
+    };
+    return {
+      verifiedEvidence: [ev],
+      isVerified: true,
+      provenance: "normalized_match",
+      provenanceNote: ev.provenanceNote || "",
     };
   }
 
   // Tier 4: Verification Failed - Do NOT silently invent offsets
-  return {
-    verifiedEvidence: [
-      {
-        quote: trimmedQuote,
-        startOffset: null,
-        endOffset: null,
-        isVerified: false,
-      },
-    ],
+  const ev: Evidence = {
+    quote: trimmedQuote,
+    startOffset: null,
+    endOffset: null,
     isVerified: false,
+    provenance: "unverified",
+    provenanceNote:
+      "Quote could not be located in source notes. Requires human verification.",
+  };
+  return {
+    verifiedEvidence: [ev],
+    isVerified: false,
+    provenance: "unverified",
+    provenanceNote: ev.provenanceNote || "",
+  };
+}
+
+export function createManualEvidence(description = "Manually created item"): Evidence {
+  return {
+    quote: description,
+    startOffset: null,
+    endOffset: null,
+    isVerified: false,
+    provenance: "manual",
+    provenanceNote: "Manually added during user review (not an AI transcript quote).",
   };
 }
 
@@ -101,11 +130,9 @@ interface NormalizedMatch {
 }
 
 function findNormalizedMatch(source: string, target: string): NormalizedMatch | null {
-  // Collapse whitespace in target to single spaces
   const targetWords = target.split(/\s+/).filter(Boolean);
   if (targetWords.length === 0) return null;
 
-  // Build regex pattern allowing flexible whitespace between tokens
   const escapedWords = targetWords.map((w) =>
     w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
   );

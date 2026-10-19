@@ -11,27 +11,30 @@ describe("Deadline Resolver (Bilingual English & Cebuano)", () => {
       timezone: "Asia/Manila",
     });
     expect(res.date).toBe("2026-10-24");
+    expect(res.time).toBeNull();
     expect(res.isAmbiguous).toBe(false);
   });
 
-  it("resolves 'ugma sa hapon' with 17:00 time", () => {
+  it("does NOT fabricate exact 17:00 timestamp for vague daypart 'ugma sa hapon'", () => {
     const res = resolveDeadline({
       phrase: "ugma sa hapon",
       meetingDate,
       timezone: "Asia/Manila",
     });
     expect(res.date).toBe("2026-10-24");
-    expect(res.time).toBe("17:00");
+    // Time should NOT be arbitrarily fabricated as 17:00 for vague dayparts
+    expect(res.time).toBeNull();
+    expect(res.originalText).toBe("ugma sa hapon");
   });
 
-  it("resolves 'tomorrow morning' with 09:00 time", () => {
+  it("extracts explicit time when specified like 'tomorrow at 5:00 pm'", () => {
     const res = resolveDeadline({
-      phrase: "tomorrow morning",
+      phrase: "tomorrow at 5:00 pm",
       meetingDate,
       timezone: "Asia/Manila",
     });
     expect(res.date).toBe("2026-10-24");
-    expect(res.time).toBe("09:00");
+    expect(res.time).toBe("17:00");
   });
 
   it("resolves 'sa sunod adlaw' as +2 days", () => {
@@ -43,13 +46,42 @@ describe("Deadline Resolver (Bilingual English & Cebuano)", () => {
     expect(res.date).toBe("2026-10-25");
   });
 
-  it("resolves 'next Monday' / 'sa lunes' to upcoming Monday", () => {
+  it("resolves 'sa lunes' (coming Monday) from Friday", () => {
     const res = resolveDeadline({
       phrase: "sa lunes",
       meetingDate, // 2026-10-23 is Friday
       timezone: "Asia/Manila",
     });
     expect(res.date).toBe("2026-10-26");
+  });
+
+  it("resolves 'karong biyernes' on Friday to the same day (today)", () => {
+    const res = resolveDeadline({
+      phrase: "karong biyernes",
+      meetingDate, // 2026-10-23 is Friday
+      timezone: "Asia/Manila",
+    });
+    expect(res.date).toBe("2026-10-23");
+  });
+
+  it("resolves 'sunod biyernes' on Friday to Friday next week (+7 days)", () => {
+    const res = resolveDeadline({
+      phrase: "sunod biyernes",
+      meetingDate, // 2026-10-23 is Friday
+      timezone: "Asia/Manila",
+    });
+    expect(res.date).toBe("2026-10-30");
+  });
+
+  it("marks generic 'next week' / 'sunod semana' as ambiguous without fabricating a specific date", () => {
+    const res = resolveDeadline({
+      phrase: "next week",
+      meetingDate,
+      timezone: "Asia/Manila",
+    });
+    expect(res.date).toBeNull();
+    expect(res.isAmbiguous).toBe(true);
+    expect(res.relation).toBe("by");
   });
 
   it("preserves 'before' relation in 'before Oct 28'", () => {
@@ -72,15 +104,35 @@ describe("Deadline Resolver (Bilingual English & Cebuano)", () => {
     expect(res.relation).toBe("by");
   });
 
-  it("marks date as ambiguous if meetingDate is unknown and phrase is relative", () => {
+  it("rejects invalid calendar dates like 'February 31'", () => {
     const res = resolveDeadline({
-      phrase: "ugma",
-      meetingDate: null, // Unknown meeting date
+      phrase: "February 31",
+      meetingDate,
       timezone: "Asia/Manila",
     });
     expect(res.date).toBeNull();
     expect(res.isAmbiguous).toBe(true);
-    expect(res.originalText).toBe("ugma");
+  });
+
+  it("marks date without year as ambiguous if meetingDate is unknown", () => {
+    const res = resolveDeadline({
+      phrase: "October 25",
+      meetingDate: null, // Unknown meeting date
+      timezone: "Asia/Manila",
+    });
+    // Should NOT assume arbitrary year default
+    expect(res.date).toBeNull();
+    expect(res.isAmbiguous).toBe(true);
+  });
+
+  it("resolves explicit date with year even if meetingDate is unknown", () => {
+    const res = resolveDeadline({
+      phrase: "October 25, 2027",
+      meetingDate: null,
+      timezone: "Asia/Manila",
+    });
+    expect(res.date).toBe("2027-10-25");
+    expect(res.isAmbiguous).toBe(false);
   });
 
   it("returns null deadline if phrase is empty", () => {

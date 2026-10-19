@@ -66,19 +66,9 @@ export function resolveDeadline(input: ResolveDeadlineInput): Deadline {
     }
   }
 
-  // Detect time of day if present
+  // Detect ONLY explicit time patterns (e.g. "5pm", "5:00 PM", "17:00")
+  // Do NOT fabricate exact times from vague dayparts like "sa hapon" or "morning"!
   let detectedTime: string | null = null;
-  if (clean.includes("buntag") || clean.includes("morning")) {
-    detectedTime = "09:00";
-  } else if (clean.includes("hapon") || clean.includes("afternoon")) {
-    detectedTime = "17:00";
-  } else if (clean.includes("gabii") || clean.includes("evening") || clean.includes("tonight") || clean.includes("night")) {
-    detectedTime = "20:00";
-  } else if (clean.includes("udto") || clean.includes("noon")) {
-    detectedTime = "12:00";
-  }
-
-  // Check for explicit time pattern e.g. "5pm", "5:00 PM", "17:00"
   const timeRegex = /\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i;
   const timeMatch = clean.match(timeRegex);
   if (timeMatch) {
@@ -88,23 +78,30 @@ export function resolveDeadline(input: ResolveDeadlineInput): Deadline {
     if (meridian === "pm" && hours < 12) hours += 12;
     if (meridian === "am" && hours === 12) hours = 0;
     detectedTime = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+  } else {
+    // 24-hour pattern e.g. "17:00", "09:30"
+    const militaryTimeMatch = clean.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+    if (militaryTimeMatch) {
+      detectedTime = `${militaryTimeMatch[1].padStart(2, "0")}:${militaryTimeMatch[2]}`;
+    }
   }
 
-  // If meetingDate is not provided or unknown, DO NOT use server current time!
+  // If meetingDate is not provided or unknown:
+  // ONLY resolve if an unambiguous 4-digit ISO or explicit year is present in phrase.
+  // DO NOT use an arbitrary default year like 2026!
   if (!meetingDate || meetingDate.trim() === "" || meetingDate === "unknown") {
-    // Attempt only explicit absolute date parsing (e.g. 2026-10-25 or Oct 25)
-    const explicitDate = parseExplicitDate(clean);
-    if (explicitDate) {
+    const explicitWithYear = parseExplicitDateWithYear(clean);
+    if (explicitWithYear) {
       return {
         originalText: phrase,
-        date: explicitDate,
+        date: explicitWithYear,
         time: detectedTime,
         timezone,
         relation: detectedRelation,
         isAmbiguous: false,
       };
     }
-    // Relative phrases without meetingDate remain unresolved
+    // Relative phrase or date without year when meetingDate is unknown -> mark ambiguous!
     return {
       originalText: phrase,
       date: null,
@@ -128,8 +125,10 @@ export function resolveDeadline(input: ResolveDeadlineInput): Deadline {
     };
   }
 
-  // 1. Check for explicit absolute dates in text (e.g., "2026-10-25" or "October 25")
-  const explicitDate = parseExplicitDate(clean, anchor.getFullYear());
+  const anchorYear = anchor.getUTCFullYear();
+
+  // 1. Check for explicit dates with or without explicit year (anchor to meetingDate year)
+  const explicitDate = parseExplicitDate(clean, anchorYear);
   if (explicitDate) {
     return {
       originalText: phrase,
@@ -156,7 +155,7 @@ export function resolveDeadline(input: ResolveDeadlineInput): Deadline {
   // 3. Relative: Tomorrow / Ugma
   if (clean.includes("ugma") || clean.includes("tomorrow")) {
     const nextDay = new Date(anchor.getTime());
-    nextDay.setDate(anchor.getDate() + 1);
+    nextDay.setUTCDate(anchor.getUTCDate() + 1);
     return {
       originalText: phrase,
       date: formatDateIso(nextDay),
@@ -170,7 +169,7 @@ export function resolveDeadline(input: ResolveDeadlineInput): Deadline {
   // 4. Relative: Day after tomorrow / Sa sunod adlaw
   if (clean.includes("sa sunod adlaw") || clean.includes("day after tomorrow")) {
     const dayAfter = new Date(anchor.getTime());
-    dayAfter.setDate(anchor.getDate() + 2);
+    dayAfter.setUTCDate(anchor.getUTCDate() + 2);
     return {
       originalText: phrase,
       date: formatDateIso(dayAfter),
@@ -181,19 +180,23 @@ export function resolveDeadline(input: ResolveDeadlineInput): Deadline {
     };
   }
 
-  // 5. Relative day of week (e.g., "karong biyernes", "this Friday", "next Monday", "sa lunes")
+  // 5. Relative day of week (e.g. "karong biyernes", "this Friday", "next Monday", "sa lunes")
   for (const [dayName, targetDayIndex] of Object.entries(CEBUANO_DAY_MAP)) {
     if (clean.includes(dayName)) {
-      const currentDayIndex = anchor.getDay();
-      let diff = targetDayIndex - currentDayIndex;
+      const currentDayIndex = anchor.getUTCDay();
+      let diff = 0;
+      const isNext = clean.includes("next") || clean.includes("sunod");
 
-      const isNextWeek = clean.includes("next") || clean.includes("sunod");
-      if (diff <= 0 || isNextWeek) {
-        diff += 7;
+      if (targetDayIndex === currentDayIndex) {
+        diff = isNext ? 7 : 0; // "karong biyernes" on a Friday means today; "sunod biyernes" means next week
+      } else if (targetDayIndex > currentDayIndex) {
+        diff = isNext ? (targetDayIndex - currentDayIndex) + 7 : targetDayIndex - currentDayIndex;
+      } else {
+        diff = (targetDayIndex - currentDayIndex) + 7;
       }
 
       const targetDate = new Date(anchor.getTime());
-      targetDate.setDate(anchor.getDate() + diff);
+      targetDate.setUTCDate(anchor.getUTCDate() + diff);
 
       return {
         originalText: phrase,
@@ -206,13 +209,12 @@ export function resolveDeadline(input: ResolveDeadlineInput): Deadline {
     }
   }
 
-  // 6. Generic "next week" / "sunod semana" (without specific day -> ambiguous)
+  // 6. Generic "next week" / "sunod semana" WITHOUT a specific day:
+  // Rule: Do NOT invent an exact date for "next week"! Keep date = null, isAmbiguous = true.
   if (clean.includes("sunod semana") || clean.includes("next week")) {
-    const nextWeekDate = new Date(anchor.getTime());
-    nextWeekDate.setDate(anchor.getDate() + 7);
     return {
       originalText: phrase,
-      date: formatDateIso(nextWeekDate),
+      date: null,
       time: detectedTime,
       timezone,
       relation: detectedRelation || "by",
@@ -237,8 +239,12 @@ function parseIsoDate(str: string): Date | null {
     const y = parseInt(parts[0], 10);
     const m = parseInt(parts[1], 10) - 1;
     const d = parseInt(parts[2], 10);
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
     const dt = new Date(Date.UTC(y, m, d));
-    return isNaN(dt.getTime()) ? null : dt;
+    // Verify valid calendar date (e.g. reject Feb 31)
+    if (dt.getUTCFullYear() === y && dt.getUTCMonth() === m && dt.getUTCDate() === d) {
+      return dt;
+    }
   }
   return null;
 }
@@ -265,33 +271,69 @@ const MONTH_MAP: Record<string, number> = {
   dec: 12, december: 12,
 };
 
-function parseExplicitDate(text: string, defaultYear = 2026): string | null {
-  // Check ISO format YYYY-MM-DD
+function isValidDateParts(year: number, month: number, day: number): boolean {
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const dt = new Date(Date.UTC(year, month - 1, day));
+  return dt.getUTCFullYear() === year && dt.getUTCMonth() === month - 1 && dt.getUTCDate() === day;
+}
+
+function parseExplicitDateWithYear(text: string): string | null {
+  // ISO format YYYY-MM-DD
   const isoMatch = text.match(/\b(20\d{2})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])\b/);
   if (isoMatch) {
-    return isoMatch[0];
+    const y = parseInt(isoMatch[1], 10);
+    const m = parseInt(isoMatch[2], 10);
+    const d = parseInt(isoMatch[3], 10);
+    if (isValidDateParts(y, m, d)) return isoMatch[0];
   }
 
-  // Check Month Day formats e.g. "Oct 25", "October 25", "Oct 25, 2026", "25 October 2026"
-  const mDayMatch = text.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b/i);
+  // Month Day Year e.g. "Oct 25, 2026" or "25 October 2026"
+  const mDayYearMatch = text.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(20\d{2})\b/i);
+  if (mDayYearMatch) {
+    const month = MONTH_MAP[mDayYearMatch[1].toLowerCase()];
+    const day = parseInt(mDayYearMatch[2], 10);
+    const year = parseInt(mDayYearMatch[3], 10);
+    if (month && isValidDateParts(year, month, day)) {
+      return `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+    }
+  }
+
+  const dayMYearMatch = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*,?\s+(20\d{2})\b/i);
+  if (dayMYearMatch) {
+    const day = parseInt(dayMYearMatch[1], 10);
+    const month = MONTH_MAP[dayMYearMatch[2].toLowerCase()];
+    const year = parseInt(dayMYearMatch[3], 10);
+    if (month && isValidDateParts(year, month, day)) {
+      return `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+    }
+  }
+
+  return null;
+}
+
+function parseExplicitDate(text: string, anchorYear: number): string | null {
+  // First try with explicit 4-digit year
+  const withYear = parseExplicitDateWithYear(text);
+  if (withYear) return withYear;
+
+  // Month Day without year (anchored to anchorYear)
+  const mDayMatch = text.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+(\d{1,2})(?:st|nd|rd|th)?\b/i);
   if (mDayMatch) {
     const monthStr = mDayMatch[1].toLowerCase();
     const monthNum = MONTH_MAP[monthStr];
     const day = parseInt(mDayMatch[2], 10);
-    const year = mDayMatch[3] ? parseInt(mDayMatch[3], 10) : defaultYear;
-    if (monthNum && day >= 1 && day <= 31) {
-      return `${year}-${monthNum.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+    if (monthNum && isValidDateParts(anchorYear, monthNum, day)) {
+      return `${anchorYear}-${monthNum.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
     }
   }
 
-  const dayMMatch = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*(?:,?\s+(\d{4}))?\b/i);
+  const dayMMatch = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\b/i);
   if (dayMMatch) {
     const day = parseInt(dayMMatch[1], 10);
     const monthStr = dayMMatch[2].toLowerCase();
     const monthNum = MONTH_MAP[monthStr];
-    const year = dayMMatch[3] ? parseInt(dayMMatch[3], 10) : defaultYear;
-    if (monthNum && day >= 1 && day <= 31) {
-      return `${year}-${monthNum.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+    if (monthNum && isValidDateParts(anchorYear, monthNum, day)) {
+      return `${anchorYear}-${monthNum.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
     }
   }
 

@@ -3,8 +3,62 @@ import { MeetingIntakeSchema } from "@/types/meeting";
 import { executeOllamaExtraction } from "@/server/services/ollama-client";
 import { preprocessTranscriptText } from "@/server/services/transcript-preprocessor";
 
+export const dynamic = "force-dynamic";
+
+// Sliding window rate limiter for expensive AI extraction endpoint
+interface RateLimitBucket {
+  count: number;
+  resetAt: number;
+}
+const rateLimitMap = new Map<string, RateLimitBucket>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 10;
+
+function isRateLimited(clientIp: string): boolean {
+  const now = Date.now();
+  const bucket = rateLimitMap.get(clientIp);
+
+  if (!bucket || now > bucket.resetAt) {
+    rateLimitMap.set(clientIp, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+
+  if (bucket.count >= MAX_REQUESTS_PER_WINDOW) {
+    return true;
+  }
+
+  bucket.count++;
+  return false;
+}
+
 export async function POST(req: NextRequest) {
   try {
+    // 1. Client IP rate limiting
+    const clientIp =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "127.0.0.1";
+
+    if (isRateLimited(clientIp)) {
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded.",
+          message:
+            "Too many extraction requests in a short time. Please wait one minute before analyzing again.",
+        },
+        { status: 429 }
+      );
+    }
+
+    // 2. Request body size check (prevent memory exhaustion attacks)
+    const contentLength = parseInt(req.headers.get("content-length") || "0", 10);
+    if (contentLength > 1024 * 1024) {
+      return NextResponse.json(
+        { error: "Payload too large. Maximum request size is 1MB." },
+        { status: 413 }
+      );
+    }
+
     const jsonBody = await req.json();
     const parseResult = MeetingIntakeSchema.safeParse(jsonBody);
 
@@ -42,29 +96,41 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(extraction, { status: 200 });
   } catch (err: any) {
-    console.error("Analysis route error:", err.message);
+    // Clean and sanitize error message to never leak internal server topology
+    const rawMsg = err.message || "";
+    const isOllamaOffline =
+      rawMsg.includes("Cannot connect") ||
+      rawMsg.includes("timed out") ||
+      rawMsg.includes("ECONNREFUSED") ||
+      rawMsg.includes("Ollama");
 
-    // If local Ollama is down or model missing, return 503 with helpful guide
-    if (
-      err.message?.includes("Cannot connect to Ollama") ||
-      err.message?.includes("timed out") ||
-      err.message?.includes("ECONNREFUSED")
-    ) {
+    if (isOllamaOffline) {
       return NextResponse.json(
         {
-          error: "Ollama inference service is currently unreachable.",
+          error: "Local AI inference service is currently offline or unreachable.",
           message:
-            "Please make sure Ollama is running locally (`ollama serve`) and the model is downloaded (`ollama pull qwen3:4b-instruct` or `ollama pull qwen2.5:3b`).",
-          details: err.message,
+            "Please ensure Ollama is running (`ollama serve`) and the configured model is installed (`ollama pull qwen3:4b-instruct`).",
         },
         { status: 503 }
+      );
+    }
+
+    if (rawMsg.includes("busy processing other requests")) {
+      return NextResponse.json(
+        {
+          error: "Inference engine busy",
+          message: rawMsg,
+        },
+        { status: 429 }
       );
     }
 
     return NextResponse.json(
       {
         error: "Failed to extract meeting action items.",
-        message: err.message || "An unexpected error occurred during processing.",
+        message: rawMsg.includes("parse")
+          ? "The AI model returned an unparseable response. Please retry with clearer notes."
+          : "An unexpected error occurred during transcript extraction.",
       },
       { status: 500 }
     );

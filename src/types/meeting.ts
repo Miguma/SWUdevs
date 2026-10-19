@@ -5,11 +5,19 @@ export type CommitmentStatus = "confirmed" | "proposed" | "unclear";
 export type PriorityLevel = "low" | "medium" | "high" | null;
 export type DeadlineRelation = "before" | "by" | "on" | "after" | null;
 
+export type EvidenceProvenance =
+  | "exact_match"
+  | "normalized_match"
+  | "unverified"
+  | "manual";
+
 export interface Evidence {
   quote: string;
   startOffset: number | null;
   endOffset: number | null;
   isVerified?: boolean;
+  provenance?: EvidenceProvenance;
+  provenanceNote?: string;
 }
 
 export interface Deadline {
@@ -33,6 +41,8 @@ export interface ActionItem {
   missingInformation: string[];
   needsReview: boolean;
   reviewStatus: ReviewStatus;
+  isUserEdited?: boolean;
+  isManual?: boolean;
 }
 
 export interface MeetingDecision {
@@ -41,6 +51,8 @@ export interface MeetingDecision {
   evidence: Evidence[];
   needsReview: boolean;
   reviewStatus: ReviewStatus;
+  isUserEdited?: boolean;
+  isManual?: boolean;
 }
 
 export interface OpenQuestion {
@@ -49,6 +61,8 @@ export interface OpenQuestion {
   evidence: Evidence[];
   needsReview: boolean;
   reviewStatus: ReviewStatus;
+  isUserEdited?: boolean;
+  isManual?: boolean;
 }
 
 export interface MeetingExtraction {

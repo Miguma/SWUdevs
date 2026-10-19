@@ -1,0 +1,9 @@
+{
+  "benchmarkDate": "2026-10-19T13:34:14.335Z",
+  "liveInferenceAttempted": true,
+  "status": "NOT_RUN",
+  "reason": "Ollama server unreachable at http://localhost:11434",
+  "configuredModel": "qwen3:4b-instruct",
+  "totalTestCases": 20,
+  "evaluatedSampleCount": 0
+}

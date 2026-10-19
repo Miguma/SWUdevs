@@ -11,19 +11,23 @@ import {
   Users,
   AlertCircle,
   CheckCircle,
-  HelpCircle,
   Loader2,
+  FileUp,
 } from "lucide-react";
-import { MeetingExtraction } from "@/types/meeting";
+import { MeetingExtraction, ActionItem } from "@/types/meeting";
 import { SAMPLE_CEBUANO_ENGLISH_MEETING } from "./SampleMeetingData";
 import { parseUploadedFileContent } from "@/server/services/transcript-preprocessor";
 import { saveDraftNotes, getDraftNotes } from "@/lib/storage/indexeddb";
 
 interface MeetingIntakeProps {
   onExtractionComplete: (extraction: MeetingExtraction) => void;
+  initialMeeting?: MeetingExtraction | null;
 }
 
-export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
+export function MeetingIntake({
+  onExtractionComplete,
+  initialMeeting,
+}: MeetingIntakeProps) {
   const [title, setTitle] = useState("");
   const [organization, setOrganization] = useState("");
   const [meetingDate, setMeetingDate] = useState(
@@ -35,15 +39,28 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
   const [rawText, setRawText] = useState("");
 
   const [loading, setLoading] = useState(false);
-  const [loadingStage, setLoadingStage] = useState("");
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [autosaveStatus, setAutosaveStatus] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Restore draft on mount
+  // Initialize from initialMeeting (when coming from "Edit Notes") OR from saved draft
   useEffect(() => {
+    if (initialMeeting) {
+      setTitle(initialMeeting.title || "");
+      setOrganization(initialMeeting.organization || "");
+      setMeetingDate(initialMeeting.meetingDate || new Date().toISOString().slice(0, 10));
+      setDateUnknown(!initialMeeting.meetingDate);
+      setTimezone(initialMeeting.timezone || "Asia/Manila");
+      setRawText(initialMeeting.rawTranscript || "");
+      setAutosaveStatus(`Loaded original notes from "${initialMeeting.title}"`);
+      setTimeout(() => setAutosaveStatus(null), 3000);
+      return;
+    }
+
+    // Otherwise, load general draft
     getDraftNotes().then((draft) => {
       if (draft && draft.rawText) {
         setTitle(draft.title || "");
@@ -53,11 +70,11 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
         setTimezone(draft.timezone || "Asia/Manila");
         setParticipants(draft.participants || "");
         setRawText(draft.rawText || "");
-        setAutosaveStatus("Restored draft from local storage");
+        setAutosaveStatus("Restored unsaved draft from local storage");
         setTimeout(() => setAutosaveStatus(null), 3000);
       }
     });
-  }, []);
+  }, [initialMeeting]);
 
   // Autosave draft debounce
   useEffect(() => {
@@ -75,7 +92,7 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
         setAutosaveStatus("Draft auto-saved");
         setTimeout(() => setAutosaveStatus(null), 2000);
       });
-    }, 1000);
+    }, 1200);
     return () => clearTimeout(timer);
   }, [title, organization, meetingDate, dateUnknown, timezone, participants, rawText]);
 
@@ -91,7 +108,7 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
   };
 
   const clearForm = () => {
-    if (rawText && !window.confirm("Clear all meeting notes and fields?")) {
+    if (rawText && !window.confirm("Clear all meeting notes and form fields?")) {
       return;
     }
     setTitle("");
@@ -103,10 +120,7 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
     setErrorBanner(null);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
@@ -118,10 +132,33 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
         }
         setErrorBanner(null);
       } else {
-        setErrorBanner(parsed.error || "Failed to read file.");
+        setErrorBanner(parsed.error || "Failed to parse file content.");
       }
     };
     reader.readAsText(file);
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  // Drag-and-drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -138,21 +175,6 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
     setLoading(true);
     setErrorBanner(null);
     setErrorDetails(null);
-
-    // Staged processing pipeline simulation for real feedback
-    setLoadingStage("Preparing notes and checking language tokens...");
-
-    const stageTimer1 = setTimeout(() => {
-      setLoadingStage("Extracting commitments, negations, and decisions with local AI...");
-    }, 1200);
-
-    const stageTimer2 = setTimeout(() => {
-      setLoadingStage("Verifying verbatim source evidence and calculating offsets...");
-    }, 2800);
-
-    const stageTimer3 = setTimeout(() => {
-      setLoadingStage("Resolving bilingual relative deadlines and organizing results...");
-    }, 4200);
 
     try {
       const res = await fetch("/api/meetings/analyze", {
@@ -175,21 +197,34 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
         throw new Error(data.message || data.error || "Extraction failed.");
       }
 
+      // Preserve previously approved edits if re-analyzing an existing meeting
+      if (initialMeeting && initialMeeting.actionItems.length > 0) {
+        const approvedPrevious = initialMeeting.actionItems.filter(
+          (t) => t.reviewStatus === "approved"
+        );
+        if (approvedPrevious.length > 0) {
+          // Merge: keep previously approved user tasks prioritized
+          const freshExtracted = data.actionItems.filter(
+            (fresh: ActionItem) =>
+              !approvedPrevious.some(
+                (prev) => prev.title.toLowerCase() === fresh.title.toLowerCase()
+              )
+          );
+          data.actionItems = [...approvedPrevious, ...freshExtracted];
+        }
+      }
+
       onExtractionComplete(data);
     } catch (err: any) {
-      console.error(err);
+      console.error("Extraction error:", err);
       setErrorBanner(err.message || "Failed to process meeting notes.");
       if (err.message?.includes("Ollama") || err.message?.includes("unreachable")) {
         setErrorDetails(
-          "Ollama must be running on your machine. Start it with `ollama serve` and pull the model with `ollama pull qwen3:4b-instruct` (or `ollama pull qwen2.5:3b`)."
+          "Ensure Ollama is running locally (`ollama serve`) and the configured model is installed (`ollama pull qwen3:4b-instruct`)."
         );
       }
     } finally {
-      clearTimeout(stageTimer1);
-      clearTimeout(stageTimer2);
-      clearTimeout(stageTimer3);
       setLoading(false);
-      setLoadingStage("");
     }
   };
 
@@ -208,7 +243,7 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
             </span>
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Paste raw notes or upload a transcript. AI extracts actions with verbatim evidence.
+            Paste raw notes or drag-and-drop a transcript file. AI extracts action items with source evidence.
           </p>
         </div>
 
@@ -217,25 +252,28 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
           <button
             type="button"
             onClick={loadSample}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-light text-primary hover:bg-primary/20 border border-primary/20 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-light text-primary hover:bg-primary/20 border border-primary/20 transition-colors cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Load Sample Meeting
+            <span>Load Sample Meeting</span>
           </button>
           <button
             type="button"
             onClick={clearForm}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100 border border-border transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100 border border-border transition-colors cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Clear
+            <span>Clear</span>
           </button>
         </div>
       </div>
 
       {/* Error alert banner */}
       {errorBanner && (
-        <div className="p-4 rounded-xl bg-danger-light border border-danger/30 text-danger flex items-start gap-3 text-sm">
+        <div
+          role="alert"
+          className="p-4 rounded-xl bg-danger-light border border-danger/30 text-danger flex items-start gap-3 text-sm animate-in fade-in"
+        >
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
             <p className="font-semibold">{errorBanner}</p>
@@ -249,27 +287,36 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
         {/* Row 1: Title and Organization */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+            <label
+              htmlFor="meeting-title"
+              className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5"
+            >
               Meeting Title <span className="text-danger">*</span>
             </label>
             <input
+              id="meeting-title"
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Weekly Sprint & Hackathon Planning"
+              placeholder="e.g. Weekly Committee Sync & Hackathon Roles"
               required
               className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm font-medium transition-all"
             />
           </div>
+
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-              Organization / Team
+            <label
+              htmlFor="meeting-org"
+              className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5"
+            >
+              Organization / Team Name
             </label>
             <input
+              id="meeting-org"
               type="text"
               value={organization}
               onChange={(e) => setOrganization(e.target.value)}
-              placeholder="e.g., SWUdevs, Student Council, Barangay Youth"
+              placeholder="e.g. SWUdevs, Student Council, Barangay Youth"
               className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm transition-all"
             />
           </div>
@@ -279,7 +326,10 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <label
+                htmlFor="meeting-date"
+                className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1"
+              >
                 <Calendar className="w-3.5 h-3.5" />
                 Meeting Date
               </label>
@@ -290,10 +340,11 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
                   onChange={(e) => setDateUnknown(e.target.checked)}
                   className="rounded text-primary focus:ring-primary h-3.5 w-3.5"
                 />
-                Date Unknown
+                <span>Date Unknown</span>
               </label>
             </div>
             <input
+              id="meeting-date"
               type="date"
               disabled={dateUnknown}
               value={meetingDate}
@@ -303,11 +354,15 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
+            <label
+              htmlFor="meeting-timezone"
+              className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1"
+            >
               <Globe className="w-3.5 h-3.5" />
               Timezone
             </label>
             <select
+              id="meeting-timezone"
               value={timezone}
               onChange={(e) => setTimezone(e.target.value)}
               className="w-full px-3.5 py-2 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm transition-all"
@@ -322,11 +377,15 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1">
+            <label
+              htmlFor="meeting-participants"
+              className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5 flex items-center gap-1"
+            >
               <Users className="w-3.5 h-3.5" />
-              Participants (Optional)
+              Attendees (Optional)
             </label>
             <input
+              id="meeting-participants"
               type="text"
               value={participants}
               onChange={(e) => setParticipants(e.target.value)}
@@ -339,7 +398,10 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
         {/* Notes Textarea & Drag and Drop File Upload */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+            <label
+              htmlFor="meeting-notes"
+              className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1"
+            >
               <FileText className="w-3.5 h-3.5" />
               Meeting Notes or Transcript <span className="text-danger">*</span>
             </label>
@@ -350,57 +412,78 @@ export function MeetingIntake({ onExtractionComplete }: MeetingIntakeProps) {
                   {autosaveStatus}
                 </span>
               )}
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground font-mono">
                 {charCount.toLocaleString()} chars · {wordCount.toLocaleString()} words
               </span>
             </div>
           </div>
 
-          <div className="relative">
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`relative rounded-xl border transition-all ${
+              isDragging
+                ? "border-primary ring-2 ring-primary/20 bg-primary-light/20"
+                : "border-border bg-background"
+            }`}
+          >
             <textarea
+              id="meeting-notes"
               rows={12}
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
-              placeholder="Paste raw meeting notes, Discord/Slack discussions, or bullet points here...
+              placeholder="Paste raw notes, chat transcripts (Discord / Slack / Teams), or bullet points here...
+Drag & drop .txt, .md, or .csv transcript files directly into this box.
+
 Example:
 - Si Ana sa poster. Ay wait, si Mark na lang diay tiwas sa poster ugma sa hapon.
-- Dili na ta mag-order ug physical shirts kay kuwang ang budget.
+- Dili na ta mag-order ug physical hoodies kay kulang ang budget.
 - Wala pa tay assigned sa food sponsors outreach..."
-              className="w-full p-4 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-sm leading-relaxed font-mono transition-all resize-y"
+              className="w-full p-4 rounded-xl border-none bg-transparent focus:outline-none text-sm leading-relaxed font-mono resize-y"
             />
 
-            {/* Quick upload button inside corner */}
+            {/* Quick upload button & drag overlay */}
             <div className="absolute right-3 bottom-3 flex items-center gap-2">
               <input
                 ref={fileInputRef}
                 type="file"
                 accept=".txt,.md,.csv"
-                onChange={handleFileUpload}
+                onChange={handleFileInputChange}
                 className="hidden"
               />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-card/90 border border-border text-foreground hover:bg-slate-100 shadow-sm transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-card/90 border border-border text-foreground hover:bg-slate-100 shadow-sm transition-colors cursor-pointer"
                 title="Upload .txt, .md, or .csv transcript file"
               >
                 <Upload className="w-3.5 h-3.5 text-accent-teal" />
-                Upload File (.txt, .md, .csv)
+                <span>Upload File</span>
               </button>
             </div>
+
+            {isDragging && (
+              <div className="absolute inset-0 bg-primary-light/80 backdrop-blur-xs rounded-xl flex items-center justify-center border-2 border-dashed border-primary">
+                <div className="text-center space-y-1 text-primary">
+                  <FileUp className="w-8 h-8 mx-auto" />
+                  <p className="font-semibold text-sm">Drop transcript file here (.txt, .md, .csv)</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Submit & Processing UI */}
         <div className="pt-2">
           {loading ? (
-            <div className="p-4 rounded-xl bg-accent-light border border-accent-teal/30 space-y-2">
+            <div className="p-4 rounded-xl bg-accent-light/60 border border-accent-teal/30 space-y-1.5">
               <div className="flex items-center gap-3 text-accent-teal font-semibold text-sm">
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Processing Meeting with Local AI...</span>
+                <span>Extracting Action Items with Local AI...</span>
               </div>
-              <p className="text-xs text-slate-700 pl-8">
-                {loadingStage || "Analyzing transcript..."}
+              <p className="text-xs text-slate-600 pl-8">
+                Inference running via Ollama (`qwen3:4b-instruct`). Source evidence quotes are being verified against raw notes.
               </p>
             </div>
           ) : (

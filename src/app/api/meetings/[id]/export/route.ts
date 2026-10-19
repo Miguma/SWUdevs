@@ -5,6 +5,8 @@ import {
 } from "@/server/services/export-service";
 import { MeetingExtraction } from "@/types/meeting";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }

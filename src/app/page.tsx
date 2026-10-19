@@ -12,14 +12,12 @@ import {
   ShieldCheck,
   CheckCircle2,
   FileText,
-  Users,
-  Download,
-  Terminal,
   Cpu,
 } from "lucide-react";
 
 export default function HomePage() {
   const [currentMeeting, setCurrentMeeting] = useState<MeetingExtraction | null>(null);
+  const [meetingToEdit, setMeetingToEdit] = useState<MeetingExtraction | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
 
@@ -38,7 +36,7 @@ export default function HomePage() {
 
   const handleExtractionComplete = async (extraction: MeetingExtraction) => {
     setCurrentMeeting(extraction);
-    // Auto save to local IndexedDB
+    setMeetingToEdit(null);
     await saveGuestMeeting(extraction);
     await refreshSavedCount();
   };
@@ -47,6 +45,11 @@ export default function HomePage() {
     setCurrentMeeting(updated);
     await saveGuestMeeting(updated);
     await refreshSavedCount();
+  };
+
+  const handleEditNotes = (meeting: MeetingExtraction) => {
+    setMeetingToEdit(meeting);
+    setCurrentMeeting(null);
   };
 
   return (
@@ -114,12 +117,15 @@ export default function HomePage() {
         {/* Dynamic Workspace Container */}
         <div className="transition-all duration-300">
           {!currentMeeting ? (
-            <MeetingIntake onExtractionComplete={handleExtractionComplete} />
+            <MeetingIntake
+              onExtractionComplete={handleExtractionComplete}
+              initialMeeting={meetingToEdit}
+            />
           ) : (
             <ReviewWorkspace
               meeting={currentMeeting}
               onUpdateMeeting={handleUpdateMeeting}
-              onReset={() => setCurrentMeeting(null)}
+              onEditNotes={handleEditNotes}
             />
           )}
         </div>
@@ -146,7 +152,10 @@ export default function HomePage() {
       <MeetingHistoryModal
         isOpen={historyOpen}
         onClose={() => setHistoryOpen(false)}
-        onSelectMeeting={(m) => setCurrentMeeting(m)}
+        onSelectMeeting={(m) => {
+          setCurrentMeeting(m);
+          setMeetingToEdit(null);
+        }}
         onMeetingsChange={refreshSavedCount}
       />
     </div>

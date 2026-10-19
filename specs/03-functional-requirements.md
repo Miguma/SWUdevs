@@ -35,12 +35,14 @@
   - `evidence`: Array of `{ quote: string, startOffset: number | null, endOffset: number | null }`.
   - `missingInformation`: Array of specific missing fields (e.g., ["assignee", "deadline"]).
   - `needsReview`: Boolean flag (true if missing owner, ambiguous deadline, proposed status, or unverified quote).
-- **FR-2.5:** Post-processing Evidence Verification:
-  - The backend service must search the raw meeting text for the exact verbatim quote.
-  - If found, calculate accurate `startOffset` and `endOffset`.
-  - If exact match fails, perform normalized whitespace matching. If still not found, flag evidence as unverified and set `needsReview = true`.
+- **FR-2.5:** Post-processing Evidence Verification & Provenance:
+  - The backend service must search the raw meeting text for the exact verbatim quote (`provenance = 'exact_match'`).
+  - If exact match fails, perform normalized whitespace and casing matching (`provenance = 'normalized_match'`).
+  - If match is not found in source text, flag as `provenance = 'unverified'` and set `needsReview = true`.
+  - User-created tasks in review are designated `provenance = 'manual'` and are never described as AI transcript quotes.
 - **FR-2.6:** Relative Deadline Resolver:
   - Relative temporal phrases ("ugma", "tomorrow", "this Friday", "next Monday", "before Oct 25") must be resolved relative to the user-provided `meetingDate` and `timezone`.
+  - Vague dayparts (e.g., "ugma sa hapon") must not have artificial exact hour timestamps fabricated (time remains null or preserved in originalText).
   - If `meetingDate` is unknown, relative dates must NOT be guessed from server system time; they must remain `date = null` with `isAmbiguous = true`.
 
 ---

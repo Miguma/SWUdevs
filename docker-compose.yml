@@ -8,13 +8,13 @@ services:
     container_name: tambayayong_web
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
       - OLLAMA_HOST=http://ollama:11434
-      - OLLAMA_MODEL=qwen3:4b-instruct
-      - DEFAULT_TIMEZONE=Asia/Manila
-      - DATABASE_URL=postgresql://tambayayong:tambayayong@postgres:5432/tambayayong_db
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3:4b-instruct}
+      - DEFAULT_TIMEZONE=${DEFAULT_TIMEZONE:-Asia/Manila}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-tambayayong}:${POSTGRES_PASSWORD:-tambayayong_dev_secret}@postgres:5432/${POSTGRES_DB:-tambayayong_db}
     depends_on:
       - postgres
       - ollama
@@ -39,9 +39,9 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     environment:
-      POSTGRES_USER: tambayayong
-      POSTGRES_PASSWORD: tambayayong
-      POSTGRES_DB: tambayayong_db
+      POSTGRES_USER: ${POSTGRES_USER:-tambayayong}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tambayayong_dev_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-tambayayong_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
