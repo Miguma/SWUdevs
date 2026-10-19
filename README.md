@@ -152,6 +152,7 @@ npm run check      # dataset + tests + types + build
 ```
 
 See [observed validation results](docs/validation.md) for exact outcomes and limitations.
+For a concise architecture and workflow reference, see the [technical and product guide](docs/PROJECT_DOCUMENTATION.md).
 
 ---
 
