@@ -1,0 +1,132 @@
+import { openDB, DBSchema, IDBPDatabase } from "idb";
+import { MeetingExtraction } from "@/types/meeting";
+
+interface TambayayongDB extends DBSchema {
+  meetings: {
+    key: string;
+    value: MeetingExtraction;
+    indexes: { "by-date": string };
+  };
+  drafts: {
+    key: string;
+    value: {
+      id: string;
+      title: string;
+      organization: string;
+      meetingDate: string;
+      dateUnknown: boolean;
+      timezone: string;
+      participants: string;
+      rawText: string;
+      savedAt: string;
+    };
+  };
+}
+
+const DB_NAME = "tambayayong_guest_db";
+const DB_VERSION = 1;
+
+let dbPromise: Promise<IDBPDatabase<TambayayongDB>> | null = null;
+
+function getDB(): Promise<IDBPDatabase<TambayayongDB>> {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("IndexedDB is only available in browser environments"));
+  }
+  if (!dbPromise) {
+    dbPromise = openDB<TambayayongDB>(DB_NAME, DB_VERSION, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains("meetings")) {
+          const meetingStore = db.createObjectStore("meetings", {
+            keyPath: "id",
+          });
+          meetingStore.createIndex("by-date", "updatedAt");
+        }
+        if (!db.objectStoreNames.contains("drafts")) {
+          db.createObjectStore("drafts", { keyPath: "id" });
+        }
+      },
+    });
+  }
+  return dbPromise;
+}
+
+export async function saveGuestMeeting(meeting: MeetingExtraction): Promise<void> {
+  const db = await getDB();
+  await db.put("meetings", {
+    ...meeting,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+export async function getAllGuestMeetings(): Promise<MeetingExtraction[]> {
+  const db = await getDB();
+  const meetings = await db.getAllFromIndex("meetings", "by-date");
+  return meetings.reverse(); // Newest first
+}
+
+export async function getGuestMeetingById(id: string): Promise<MeetingExtraction | undefined> {
+  const db = await getDB();
+  return db.get("meetings", id);
+}
+
+export async function deleteGuestMeeting(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete("meetings", id);
+}
+
+export async function duplicateGuestMeeting(id: string): Promise<MeetingExtraction | undefined> {
+  const existing = await getGuestMeetingById(id);
+  if (!existing) return undefined;
+
+  const duplicated: MeetingExtraction = {
+    ...existing,
+    id: crypto.randomUUID(),
+    title: `${existing.title} (Copy)`,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  await saveGuestMeeting(duplicated);
+  return duplicated;
+}
+
+export async function clearAllGuestData(): Promise<void> {
+  const db = await getDB();
+  await db.clear("meetings");
+  await db.clear("drafts");
+}
+
+// Auto-save intake draft
+export async function saveDraftNotes(draft: {
+  title: string;
+  organization: string;
+  meetingDate: string;
+  dateUnknown: boolean;
+  timezone: string;
+  participants: string;
+  rawText: string;
+}): Promise<void> {
+  const db = await getDB();
+  await db.put("drafts", {
+    ...draft,
+    id: "current_draft",
+    savedAt: new Date().toISOString(),
+  });
+}
+
+export async function getDraftNotes(): Promise<
+  | {
+      title: string;
+      organization: string;
+      meetingDate: string;
+      dateUnknown: boolean;
+      timezone: string;
+      participants: string;
+      rawText: string;
+      savedAt: string;
+    }
+  | undefined
+> {
+  const db = await getDB();
+  return db.get("drafts", "current_draft");
+}

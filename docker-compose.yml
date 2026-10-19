@@ -1,0 +1,56 @@
+version: "3.8"
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tambayayong_web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=qwen3:4b-instruct
+      - DEFAULT_TIMEZONE=Asia/Manila
+      - DATABASE_URL=postgresql://tambayayong:tambayayong@postgres:5432/tambayayong_db
+    depends_on:
+      - postgres
+      - ollama
+    networks:
+      - tambayayong_net
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: tambayayong_ollama
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    networks:
+      - tambayayong_net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: tambayayong_postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: tambayayong
+      POSTGRES_PASSWORD: tambayayong
+      POSTGRES_DB: tambayayong_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - tambayayong_net
+
+volumes:
+  ollama_models:
+  postgres_data:
+
+networks:
+  tambayayong_net:
+    driver: bridge

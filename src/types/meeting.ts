@@ -1,0 +1,115 @@
+import { z } from "zod";
+
+export type ReviewStatus = "pending" | "approved" | "rejected";
+export type CommitmentStatus = "confirmed" | "proposed" | "unclear";
+export type PriorityLevel = "low" | "medium" | "high" | null;
+export type DeadlineRelation = "before" | "by" | "on" | "after" | null;
+
+export interface Evidence {
+  quote: string;
+  startOffset: number | null;
+  endOffset: number | null;
+  isVerified?: boolean;
+}
+
+export interface Deadline {
+  originalText: string | null;
+  date: string | null; // ISO YYYY-MM-DD
+  time: string | null; // HH:mm
+  timezone: string;
+  relation: DeadlineRelation;
+  isAmbiguous: boolean;
+}
+
+export interface ActionItem {
+  id: string;
+  title: string;
+  description: string | null;
+  assignees: string[];
+  deadline: Deadline;
+  commitmentStatus: CommitmentStatus;
+  priority: PriorityLevel;
+  evidence: Evidence[];
+  missingInformation: string[];
+  needsReview: boolean;
+  reviewStatus: ReviewStatus;
+}
+
+export interface MeetingDecision {
+  id: string;
+  decision: string;
+  evidence: Evidence[];
+  needsReview: boolean;
+  reviewStatus: ReviewStatus;
+}
+
+export interface OpenQuestion {
+  id: string;
+  question: string;
+  evidence: Evidence[];
+  needsReview: boolean;
+  reviewStatus: ReviewStatus;
+}
+
+export interface MeetingExtraction {
+  id: string;
+  title: string;
+  organization?: string;
+  meetingDate?: string;
+  timezone: string;
+  rawTranscript: string;
+  summary: string;
+  actionItems: ActionItem[];
+  decisions: MeetingDecision[];
+  openQuestions: OpenQuestion[];
+  nextMeeting: Deadline | null;
+  warnings: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Zod schema for the model's raw extraction JSON
+export const RawExtractionResponseSchema = z.object({
+  summary: z.string().default(""),
+  actionItems: z.array(
+    z.object({
+      title: z.string(),
+      description: z.string().nullable().default(null),
+      assignees: z.array(z.string()).default([]),
+      originalDeadlineText: z.string().nullable().default(null),
+      deadlineRelation: z.enum(["before", "by", "on", "after"]).nullable().default(null),
+      commitmentStatus: z.enum(["confirmed", "proposed", "unclear"]).default("confirmed"),
+      priority: z.enum(["low", "medium", "high"]).nullable().default(null),
+      evidenceQuote: z.string().default(""),
+      missingInformation: z.array(z.string()).default([]),
+    })
+  ).default([]),
+  decisions: z.array(
+    z.object({
+      decision: z.string(),
+      evidenceQuote: z.string().default(""),
+    })
+  ).default([]),
+  openQuestions: z.array(
+    z.object({
+      question: z.string(),
+      evidenceQuote: z.string().default(""),
+    })
+  ).default([]),
+  nextMeetingText: z.string().nullable().default(null),
+});
+
+export type RawExtractionResponse = z.infer<typeof RawExtractionResponseSchema>;
+
+// Intake Form Validation Schema
+export const MeetingIntakeSchema = z.object({
+  title: z.string().min(1, "Meeting title is required").max(200, "Title is too long"),
+  organization: z.string().max(100).optional().default(""),
+  meetingDate: z.string().optional().default(""),
+  dateUnknown: z.boolean().default(false),
+  timezone: z.string().default("Asia/Manila"),
+  participants: z.string().optional().default(""),
+  rawText: z.string().min(10, "Meeting notes must be at least 10 characters long").max(100000, "Notes exceed maximum 100,000 characters limit"),
+});
+
+export type MeetingIntakeInput = z.infer<typeof MeetingIntakeSchema>;

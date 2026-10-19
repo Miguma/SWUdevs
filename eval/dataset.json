@@ -1,0 +1,322 @@
+[
+  {
+    "id": "tc-01-en-basic",
+    "language": "english",
+    "category": "confirmed tasks with owners and deadlines",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "Marketing standup on Oct 23. Maria will finalize the event poster by tomorrow afternoon. Jun will draft the announcement email before October 28. Meeting adjourned.",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Finalize event poster", "assignees": ["Maria"], "expectedDeadlineDate": "2026-10-24", "status": "confirmed" },
+        { "title": "Draft announcement email", "assignees": ["Jun"], "expectedDeadlineDate": "2026-10-28", "status": "confirmed" }
+      ],
+      "expectedDecisions": [],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-02-ceb-basic",
+    "language": "cebuano",
+    "category": "cebuano confirmed tasks with relative deadlines",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "Panagtagbo sa mga batan-on. Si Carlo ang mopalit sa mga gamit para sa stage ugma sa buntag. Si Kath ang mohangyo sa barangay hall para sa sound system sa sunod adlaw.",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Mopalit sa mga gamit para sa stage", "assignees": ["Carlo"], "expectedDeadlineDate": "2026-10-24", "status": "confirmed" },
+        { "title": "Mohangyo sa barangay hall para sa sound system", "assignees": ["Kath"], "expectedDeadlineDate": "2026-10-25", "status": "confirmed" }
+      ],
+      "expectedDecisions": [],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-03-mix-correction",
+    "language": "mixed",
+    "category": "assignment correction (diay supersedes earlier name)",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "Hackathon setup discussion. Si Ana sa social media poster. Ay, wait si Mark na lang diay kay exam week ni Ana karon. Submit the draft by Friday.",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Social media poster draft", "assignees": ["Mark"], "expectedDeadlineDate": "2026-10-30", "status": "confirmed" }
+      ],
+      "expectedDecisions": [],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-04-mix-negation",
+    "language": "mixed",
+    "category": "cancellation / negation (dili na ta mag-order)",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "Budget review meeting. Gi-propose ni Jun nga mag-print ug physical shirts, pero dili na ta mag-order ug shirts kay kuwang gyud ang pundo. Agreed ang tanan. Mag-stick na lang ta sa ID stickers.",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Prepare ID stickers", "assignees": [], "expectedDeadlineDate": null, "status": "confirmed" }
+      ],
+      "expectedDecisions": [
+        "Cancelled ordering physical shirts due to lack of budget"
+      ],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-05-ceb-unassigned",
+    "language": "cebuano",
+    "category": "missing owner (wala pay assigned)",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "Importante kaayo nga makakita ta ug 3 ka sponsors para sa snacks sa volunteers. Pero sa pagkakaron, wala pa tay assigned sa sponsors outreach. Kinahanglan ma-settle next week.",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Sponsors outreach para sa snacks", "assignees": [], "expectedDeadlineDate": "2026-10-30", "status": "confirmed" }
+      ],
+      "expectedDecisions": [],
+      "expectedOpenQuestions": [
+        "Kinsa ang mag-lead sa sponsor outreach?"
+      ]
+    }
+  },
+  {
+    "id": "tc-06-en-suggestion",
+    "language": "english",
+    "category": "distinguishing suggestion from confirmed commitment",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "Team brainstorm. Sarah mentioned maybe David could build the login page if he has spare time this weekend. David hasn't replied yet. However, Leo confirmed he will deploy the database today.",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Deploy the database", "assignees": ["Leo"], "expectedDeadlineDate": "2026-10-23", "status": "confirmed" },
+        { "title": "Build login page", "assignees": ["David"], "expectedDeadlineDate": null, "status": "proposed" }
+      ],
+      "expectedDecisions": [],
+      "expectedOpenQuestions": [
+        "Will David build the login page?"
+      ]
+    }
+  },
+  {
+    "id": "tc-07-mix-nodeadline",
+    "language": "mixed",
+    "category": "missing deadline (never invent deadline)",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "Coordination meeting. Gidawat ni Kenneth ang pag-setup sa GitHub repository and branch protection rules. Walay deadline nga gihisgutan para ani, as soon as possible lang.",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Setup GitHub repository and branch protection rules", "assignees": ["Kenneth"], "expectedDeadlineDate": null, "status": "confirmed" }
+      ],
+      "expectedDecisions": [],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-08-en-unknown-date",
+    "language": "english",
+    "category": "unknown meeting date relative resolution",
+    "meetingDate": null,
+    "timezone": "Asia/Manila",
+    "notes": "Undated scratchpad notes. Alice will compile the survey responses tomorrow. Bob will call the caterer by Friday.",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Compile survey responses", "assignees": ["Alice"], "expectedDeadlineDate": null, "status": "confirmed" },
+        { "title": "Call the caterer", "assignees": ["Bob"], "expectedDeadlineDate": null, "status": "confirmed" }
+      ],
+      "expectedDecisions": [],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-09-ceb-decisions",
+    "language": "cebuano",
+    "category": "confirmed decisions extraction",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "Panag-istorya sa Venue. Nagkasinabot ang tanan nga sa School Gymnasium na lang himuon ang Hackathon awarding ceremony aron libre ang abang. Bawal magdala ug single-use plastic bottles sa sulod.",
+    "groundTruth": {
+      "expectedTasks": [],
+      "expectedDecisions": [
+        "Sa School Gymnasium himuon ang awarding ceremony",
+        "Bawal magdala ug single-use plastic bottles"
+      ],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-10-en-openquestions",
+    "language": "english",
+    "category": "explicit open questions and follow-ups",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "Executive committee sync. We still do not know what time the Dean will arrive for the opening remarks. Also, does the AVR have an HDMI adapter or only VGA? Sarah will ask Sir John about the HDMI cord on Monday.",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Ask Sir John about HDMI adapter", "assignees": ["Sarah"], "expectedDeadlineDate": "2026-10-26", "status": "confirmed" }
+      ],
+      "expectedDecisions": [],
+      "expectedOpenQuestions": [
+        "What time will the Dean arrive for opening remarks?",
+        "Does the AVR have HDMI adapter or only VGA?"
+      ]
+    }
+  },
+  {
+    "id": "tc-11-mix-noaction",
+    "language": "mixed",
+    "category": "meeting with no actionable tasks (informational)",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "Kumustahay human sa midterms. Nangutana si Sir kinsay kapoy pa sa exams. Nangatawa ang tanan. Nag-share si Bea nga nindot ang bag-ong salida sa sinehan. Salamat sa attendance.",
+    "groundTruth": {
+      "expectedTasks": [],
+      "expectedDecisions": [],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-12-ceb-multiple-owners",
+    "language": "cebuano",
+    "category": "multiple assignees on single task",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "Security and Logistics. Sila si Joshua ug si Bryan ang mag-bantay sa entrance gate ug mag-check sa ID sa tanang moabot karong Sabado.",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Mag-bantay sa entrance gate ug mag-check sa ID", "assignees": ["Joshua", "Bryan"], "expectedDeadlineDate": "2026-10-24", "status": "confirmed" }
+      ],
+      "expectedDecisions": [],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-13-en-priority",
+    "language": "english",
+    "category": "explicit priority indicator",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "Operations sprint. Urgent and high priority: Michael must renew the domain name today before 5pm or the site goes down. Low priority: clean up old test accounts when free.",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Renew domain name", "assignees": ["Michael"], "expectedDeadlineDate": "2026-10-23", "status": "confirmed" },
+        { "title": "Clean up old test accounts", "assignees": [], "expectedDeadlineDate": null, "status": "confirmed" }
+      ],
+      "expectedDecisions": [],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-14-mix-nextmeeting",
+    "language": "mixed",
+    "category": "next meeting extraction",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "General Assembly. Regular updates shared. Next assembly will be on October 30 at 7pm via Google Meet. Everyone please be on time.",
+    "groundTruth": {
+      "expectedTasks": [],
+      "expectedDecisions": [],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-15-ceb-kutob",
+    "language": "cebuano",
+    "category": "cebuano kutob deadline relation",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "Finance committee. Kinahanglan ma-audit ni Rhea ang tanang receipts kutob October 27 aron ma-submit ang liquidation sa student affairs.",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Audit tanang receipts para liquidation", "assignees": ["Rhea"], "expectedDeadlineDate": "2026-10-27", "status": "confirmed" }
+      ],
+      "expectedDecisions": [],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-16-mix-duplicate",
+    "language": "mixed",
+    "category": "repeated discussion of same task (deduplication)",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "10:00 AM: Gilhisgutan nga si Carlo mag-contact sa speaker. Nag-break kadali. 10:45 AM: Gikumpirma usab nga si Carlo gyud ang mo-reach out sa keynote speaker ugma sa hapon.",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Contact keynote speaker", "assignees": ["Carlo"], "expectedDeadlineDate": "2026-10-24", "status": "confirmed" }
+      ],
+      "expectedDecisions": [],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-17-en-rejection",
+    "language": "english",
+    "category": "rejected proposal must not become task",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "Kevin proposed renting three smoke machines for the opening ceremony. The group voted against it because the fire alarms in the building are overly sensitive. No smoke machines will be rented.",
+    "groundTruth": {
+      "expectedTasks": [],
+      "expectedDecisions": [
+        "Voted against renting smoke machines due to sensitive fire alarms"
+      ],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-18-ceb-followup",
+    "language": "cebuano",
+    "category": "cebuano follow-up commitment",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "Community feeding program. Mo-follow up si Aling Tessie sa barangay health center ugma kabahin sa listahan sa mga bata nga beneficiaries.",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Follow up sa health center para sa listahan sa mga bata", "assignees": ["Aling Tessie"], "expectedDeadlineDate": "2026-10-24", "status": "confirmed" }
+      ],
+      "expectedDecisions": [],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-19-mix-messy",
+    "language": "mixed",
+    "category": "long messy informal chat transcript",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "[14:02] Mark: guys kinsa gani to sa food? \n[14:03] Maria: si Dave man to niingon pero absent man siya ron haha \n[14:04] Mark: ako na lang message ni Dave karong gabii to confirm \n[14:05] Kath: ok sige. by the way na-approve na sa Dean atong event permit gahapon! \n[14:06] Mark: payter! pero kinsa magkuha sa physical copy sa permit? \n[14:07] Kath: ako mokuha sa office ugma buntag",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Message Dave to confirm food role", "assignees": ["Mark"], "expectedDeadlineDate": "2026-10-23", "status": "confirmed" },
+        { "title": "Kuhaon ang physical copy sa permit sa office", "assignees": ["Kath"], "expectedDeadlineDate": "2026-10-24", "status": "confirmed" }
+      ],
+      "expectedDecisions": [
+        "Event permit approved by the Dean"
+      ],
+      "expectedOpenQuestions": []
+    }
+  },
+  {
+    "id": "tc-20-ceb-complex",
+    "language": "cebuano",
+    "category": "comprehensive community youth meeting",
+    "meetingDate": "2026-10-23",
+    "timezone": "Asia/Manila",
+    "notes": "SK Council meeting. 1. Approved ang budget nga 15,000 para sa Inter-Barangay Basketball League. 2. Si Gerald ang mopalit sa mga bola ug referee whistles ugma. 3. Si Mae ang mo-coordinate sa mga team captains karong Domingo. 4. Wala pa tay venue sa opening ceremony, mag-survey pa si Jason sa gym karong hapon.",
+    "groundTruth": {
+      "expectedTasks": [
+        { "title": "Mopalit sa mga bola ug referee whistles", "assignees": ["Gerald"], "expectedDeadlineDate": "2026-10-24", "status": "confirmed" },
+        { "title": "Coordinate sa mga team captains", "assignees": ["Mae"], "expectedDeadlineDate": "2026-10-25", "status": "confirmed" },
+        { "title": "Survey sa gym para venue", "assignees": ["Jason"], "expectedDeadlineDate": "2026-10-23", "status": "confirmed" }
+      ],
+      "expectedDecisions": [
+        "Approved ang budget nga 15,000 para sa Basketball League"
+      ],
+      "expectedOpenQuestions": [
+        "Asa ang venue sa opening ceremony?"
+      ]
+    }
+  }
+]

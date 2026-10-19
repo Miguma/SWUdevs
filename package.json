@@ -1,0 +1,42 @@
+{
+  "name": "tambayayong",
+  "version": "1.0.0",
+  "description": "From conversation to action. Walay mabilin! - Open-source bilingual meeting intelligence.",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "eval": "tsx eval/run-eval.ts"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.9.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0",
+    "drizzle-orm": "^0.35.3",
+    "idb": "^8.0.0",
+    "lucide-react": "^0.454.0",
+    "next": "^14.2.18",
+    "pg": "^8.13.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.53.1",
+    "tailwind-merge": "^2.5.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "@types/pg": "^8.11.10",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.3"
+  }
+}
