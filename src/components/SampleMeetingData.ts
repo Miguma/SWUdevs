@@ -1,3 +1,6 @@
+import { MeetingExtraction } from "@/types/meeting";
+import { verifyEvidenceQuote } from "@/server/services/evidence-verifier";
+
 export interface SampleMeeting {
   title: string;
   organization: string;
@@ -8,35 +11,179 @@ export interface SampleMeeting {
 }
 
 export const SAMPLE_CEBUANO_ENGLISH_MEETING: SampleMeeting = {
-  title: "SWUdevs Hackathon Logistics & Tech Sprint",
-  organization: "SWUdevs Community",
-  meetingDate: "2026-10-23",
+  title: "Community Outreach Planning",
+  organization: "Tambayayong",
+  meetingDate: "2026-10-19",
   timezone: "Asia/Manila",
-  participants: "Maria, Mark, Carlo, Kath, Leo, Ana",
-  rawText: `[Meeting Starts: 2:00 PM - SWUdevs Room 304]
-Attendees: Maria (Lead), Mark (Dev), Carlo (Design), Kath (Logistics), Leo (Backend), Ana (Comms)
+  participants: "Ana, Maria, John, Carlo, Lena",
+  rawText: `Tambayayong Community Outreach Planning — October 19, 2026
 
-Agenda: Hackathon 2026 Preparation, Venue, Posters, and Food Sponsors
+Ana: Maayong gabi, team! For our outreach event, need nato og posters and venue.
+Maria: Ako bahala sa poster. I'll finish it by October 23, 2026.
+John: I will reserve the barangay hall tomorrow, ugma gyud.
+Carlo: Maybe ako magdala sa sound system, pero dili pa sure.
+Ana: We agreed to hold the event on November 7, 2026.
+John: Si Lena unta sa sponsors? Wait, wala pa tay assigned sa sponsors. Who can take this?`,
+};
 
-1. MARKETING & POSTERS:
-- Si Ana man to original assigned mag-design sa event poster. Pero busy kaayo si Ana sa midterm exams karong semanaha.
-- Si Mark na lang diay ang mopuli mag-design sa poster! Mark confirmed: "Sige ako na lang tiwas sa Figma poster, submit nako ugma sa hapon."
-- Carlo suggested: "Maybe we can ask Sir Alex to review the copy?" Let's verify with Sir Alex if he is free.
+const raw = SAMPLE_CEBUANO_ENGLISH_MEETING.rawText;
 
-2. LOGISTICS & MERCHANDISE:
-- Naay nag-propose ganina nga mag-order ta ug 50 ka customized physical hoodies.
-- DECISION: Dili na ta mag-order ug physical hoodies kay kulang gyud ang budget. Nagkauyon ang tanan nga stickers ug digital certificates na lang ang ihatag.
-- Si Kath ang mag-canvass ug print shop para sa mga ID stickers kutob October 26.
-
-3. TECH STACK & DEPLOYMENT:
-- Leo confirmed: "Ako na bahala mag-setup sa PostgreSQL database and Docker containers karong gabii."
-- Urgent high priority: Someone needs to verify the campus Wi-Fi credentials with the IT department.
-
-4. SPONSORS & FOOD (PENDING):
-- Importante kaayo ang snacks para sa mga participants karong Sabado.
-- Issue: Wala pa tay assigned sa pag-reach out sa local food sponsors (Jollibee / local bakery). Unassigned pa gyud ni karon.
-- Open question: Pila man gyud ka snacks ang kailangan paliton para sa 40 ka participants?
-
-5. NEXT MEETING:
-- Next coordination sync will be on October 27 at 7:00 PM via Google Meet.`,
+export const INITIAL_SAMPLE_EXTRACTION: MeetingExtraction = {
+  id: "sample-outreach-2026-10-19",
+  title: SAMPLE_CEBUANO_ENGLISH_MEETING.title,
+  organization: SAMPLE_CEBUANO_ENGLISH_MEETING.organization,
+  meetingDate: SAMPLE_CEBUANO_ENGLISH_MEETING.meetingDate,
+  timezone: SAMPLE_CEBUANO_ENGLISH_MEETING.timezone,
+  participants: SAMPLE_CEBUANO_ENGLISH_MEETING.participants,
+  rawTranscript: raw,
+  summary:
+    "The team planned the November 7 community outreach event, assigning poster design to Maria and barangay hall reservation to John, while Carlo tentatively offered the sound system and sponsor outreach remains unassigned.",
+  actionItems: [
+    {
+      id: "sample-act-1",
+      title: "Finish event poster",
+      description: "Complete the outreach event poster for marketing.",
+      assignees: ["Maria"],
+      deadline: {
+        originalText: "October 23, 2026",
+        date: "2026-10-23",
+        time: null,
+        timezone: "Asia/Manila",
+        relation: "by",
+        isAmbiguous: false,
+      },
+      commitmentStatus: "confirmed",
+      priority: "medium",
+      evidence: verifyEvidenceQuote(
+        raw,
+        "Maria: Ako bahala sa poster. I'll finish it by October 23, 2026."
+      ).verifiedEvidence,
+      missingInformation: [],
+      needsReview: false,
+      reviewStatus: "approved",
+    },
+    {
+      id: "sample-act-2",
+      title: "Reserve the barangay hall",
+      description: "Contact and reserve the venue for the event.",
+      assignees: ["John"],
+      deadline: {
+        originalText: "tomorrow",
+        date: "2026-10-20",
+        time: null,
+        timezone: "Asia/Manila",
+        relation: "by",
+        isAmbiguous: false,
+      },
+      commitmentStatus: "confirmed",
+      priority: "high",
+      evidence: verifyEvidenceQuote(
+        raw,
+        "John: I will reserve the barangay hall tomorrow, ugma gyud."
+      ).verifiedEvidence,
+      missingInformation: [],
+      needsReview: false,
+      reviewStatus: "approved",
+    },
+    {
+      id: "sample-act-3",
+      title: "Bring the sound system",
+      description: "Prepare and bring the sound system for the event.",
+      assignees: ["Carlo"],
+      deadline: {
+        originalText: null,
+        date: null,
+        time: null,
+        timezone: "Asia/Manila",
+        relation: null,
+        isAmbiguous: true,
+      },
+      commitmentStatus: "proposed",
+      priority: "medium",
+      evidence: verifyEvidenceQuote(
+        raw,
+        "Carlo: Maybe ako magdala sa sound system, pero dili pa sure."
+      ).verifiedEvidence,
+      missingInformation: [
+        "Commitment is tentative ('dili pa sure')",
+        "No specific deadline mentioned",
+      ],
+      needsReview: true,
+      reviewStatus: "pending",
+    },
+    {
+      id: "sample-act-4",
+      title: "Find and coordinate with sponsors",
+      description: "Look for potential sponsors and coordinate with them.",
+      assignees: [],
+      deadline: {
+        originalText: null,
+        date: null,
+        time: null,
+        timezone: "Asia/Manila",
+        relation: null,
+        isAmbiguous: true,
+      },
+      commitmentStatus: "unclear",
+      priority: "medium",
+      evidence: verifyEvidenceQuote(
+        raw,
+        "John: Si Lena unta sa sponsors? Wait, wala pa tay assigned sa sponsors. Who can take this?"
+      ).verifiedEvidence,
+      missingInformation: ["Needs responsible person", "No deadline specified"],
+      needsReview: true,
+      reviewStatus: "pending",
+    },
+    {
+      id: "sample-act-5",
+      title: "Hold the outreach event",
+      description: "Target date for the community outreach event.",
+      assignees: ["Team"],
+      deadline: {
+        originalText: "November 7, 2026",
+        date: "2026-11-07",
+        time: null,
+        timezone: "Asia/Manila",
+        relation: "on",
+        isAmbiguous: false,
+      },
+      commitmentStatus: "confirmed",
+      priority: "high",
+      evidence: verifyEvidenceQuote(
+        raw,
+        "Ana: We agreed to hold the event on November 7, 2026."
+      ).verifiedEvidence,
+      missingInformation: [],
+      needsReview: false,
+      reviewStatus: "approved",
+    },
+  ],
+  decisions: [
+    {
+      id: "sample-dec-1",
+      decision: "Hold the community outreach event on November 7, 2026.",
+      evidence: verifyEvidenceQuote(
+        raw,
+        "Ana: We agreed to hold the event on November 7, 2026."
+      ).verifiedEvidence,
+      needsReview: false,
+      reviewStatus: "approved",
+    },
+  ],
+  openQuestions: [
+    {
+      id: "sample-q-1",
+      question: "Who will be assigned to find and coordinate with sponsors?",
+      evidence: verifyEvidenceQuote(
+        raw,
+        "John: Si Lena unta sa sponsors? Wait, wala pa tay assigned sa sponsors. Who can take this?"
+      ).verifiedEvidence,
+      needsReview: true,
+      reviewStatus: "pending",
+    },
+  ],
+  nextMeeting: null,
+  warnings: [],
+  createdAt: "2026-10-19T14:00:00.000Z",
+  updatedAt: "2026-10-19T14:00:00.000Z",
 };

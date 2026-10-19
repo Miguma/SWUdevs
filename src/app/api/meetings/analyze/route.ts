@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MeetingIntakeSchema } from "@/types/meeting";
-import { executeOllamaExtraction } from "@/server/services/ollama-client";
+import { executeOllamaExtraction, InferenceError } from "@/server/services/ollama-client";
 import { preprocessTranscriptText } from "@/server/services/transcript-preprocessor";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +59,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const jsonBody = await req.json();
+    const body = await req.text();
+    if (new TextEncoder().encode(body).length > 1024 * 1024) return NextResponse.json({ error: "Payload too large. Maximum request size is 1MB." }, { status: 413 });
+    let jsonBody: unknown;
+    try { jsonBody = JSON.parse(body); } catch { return NextResponse.json({ error: "Invalid JSON request." }, { status: 400 }); }
     const parseResult = MeetingIntakeSchema.safeParse(jsonBody);
 
     if (!parseResult.success) {
@@ -72,7 +75,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { title, organization, meetingDate, dateUnknown, timezone, participants, rawText } =
+    const { title, organization, meetingDate, dateUnknown, timezone, participants, rawText, model } =
       parseResult.data;
 
     const preprocessed = preprocessTranscriptText(rawText);
@@ -91,11 +94,13 @@ export async function POST(req: NextRequest) {
       meetingDate: effectiveDate,
       timezone,
       participants,
-      rawText: preprocessed.normalizedText,
+      rawText,
+      model,
     });
 
     return NextResponse.json(extraction, { status: 200 });
   } catch (err: any) {
+    if (err instanceof InferenceError) return NextResponse.json({ error: err.message, message: err.message }, { status: err.status });
     // Clean and sanitize error message to never leak internal server topology
     const rawMsg = err.message || "";
     const isOllamaOffline =

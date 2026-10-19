@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import appPackage from "../../../../package.json";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +8,9 @@ export async function GET() {
     status: "healthy",
     product: "Tambayayong",
     tagline: "From conversation to action. Walay mabilin!",
-    version: "1.0.0",
+    version: appPackage.version,
+    release: "unified-ui-preview",
+    accountAccess: "preview-only",
     timestamp: new Date().toISOString(),
   });
 }

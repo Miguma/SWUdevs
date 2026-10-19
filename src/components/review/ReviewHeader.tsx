@@ -2,29 +2,25 @@ import React from "react";
 import { ArrowLeft, Save, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { MeetingExtraction } from "@/types/meeting";
 import { formatDateDisplay } from "@/lib/utils";
+import { getReviewProgress } from "@/lib/meeting-workflow";
 
 interface ReviewHeaderProps {
   meeting: MeetingExtraction;
   onEditNotes: () => void;
   onSaveMeeting: () => void;
-  saveSuccess: boolean;
 }
 
 export function ReviewHeader({
   meeting,
   onEditNotes,
   onSaveMeeting,
-  saveSuccess,
 }: ReviewHeaderProps) {
   // Accurate review calculation: considers all action items
-  const totalTasks = meeting.actionItems.length;
-  const approvedTasks = meeting.actionItems.filter((t) => t.reviewStatus === "approved").length;
-  const rejectedTasks = meeting.actionItems.filter((t) => t.reviewStatus === "rejected").length;
-  const reviewedTasks = approvedTasks + rejectedTasks;
-  const percentReviewed = totalTasks > 0 ? Math.round((reviewedTasks / totalTasks) * 100) : 100;
+  const { total: totalTasks, reviewed: reviewedTasks, percent: percentReviewed } = getReviewProgress(meeting);
 
   let reviewLabel = "Awaiting Review";
   let reviewColor = "bg-amber-100 text-amber-800 border-amber-300";
+  if (totalTasks === 0) reviewLabel = "No items to review";
   if (reviewedTasks === totalTasks && totalTasks > 0) {
     reviewLabel = "Fully Reviewed";
     reviewColor = "bg-primary-light text-primary border-primary/30";
@@ -36,7 +32,7 @@ export function ReviewHeader({
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card rounded-2xl border border-border p-5 shadow-sm">
       <div className="space-y-1">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={onEditNotes}
             type="button"
@@ -59,7 +55,7 @@ export function ReviewHeader({
       </div>
 
       {/* Progress & Save */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <div className="text-right">
           <div className="flex items-center gap-2 justify-end">
             <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${reviewColor}`}>
@@ -69,7 +65,7 @@ export function ReviewHeader({
               {reviewedTasks} / {totalTasks} reviewed ({percentReviewed}%)
             </span>
           </div>
-          <div className="w-48 h-2 bg-slate-100 rounded-full mt-1.5 overflow-hidden border border-border">
+          <div role="progressbar" aria-label="Items reviewed" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percentReviewed} className="w-48 h-2 bg-slate-100 rounded-full mt-1.5 overflow-hidden border border-border">
             <div
               className="h-full bg-primary rounded-full transition-all duration-300"
               style={{ width: `${percentReviewed}%` }}
@@ -83,7 +79,7 @@ export function ReviewHeader({
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-primary-light text-primary hover:bg-primary/20 border border-primary/20 transition-colors shadow-sm cursor-pointer"
         >
           <Save className="w-3.5 h-3.5" />
-          <span>{saveSuccess ? "Saved Locally!" : "Save Meeting"}</span>
+          <span>Save Meeting</span>
         </button>
       </div>
     </div>

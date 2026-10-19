@@ -1,9 +1,12 @@
 {
-  "benchmarkDate": "2026-10-19T13:34:14.335Z",
-  "liveInferenceAttempted": true,
-  "status": "NOT_RUN",
-  "reason": "Ollama server unreachable at http://localhost:11434",
-  "configuredModel": "qwen3:4b-instruct",
+  "benchmarkDate": "2026-10-19T14:13:35.116Z",
+  "mode": "LIVE_MODEL_INFERENCE",
+  "model": "qwen3:4b",
+  "datasetSha256": "642ab8e189910e98156d8757858dad15cef7ca8cbfdc3ef84a6b1155a62afa5d",
   "totalTestCases": 20,
-  "evaluatedSampleCount": 0
+  "matcher": "Maximum one-to-one lexical token Dice >= 0.6; multilingual paraphrases require human audit.",
+  "status": "NOT_RUN",
+  "reason": "Ollama unreachable",
+  "evaluatedSampleCount": 0,
+  "metrics": null
 }

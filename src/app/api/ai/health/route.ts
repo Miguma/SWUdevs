@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const status = await checkOllamaHealth();
-  if (!status.ollamaConnected) {
+  if (!status.ollamaConnected || !status.modelAvailable) {
     return NextResponse.json(status, { status: 503 });
   }
   return NextResponse.json(status, { status: 200 });

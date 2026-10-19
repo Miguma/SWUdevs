@@ -11,7 +11,7 @@ module.exports = {
       colors: {
         background: "#F8FAF8",
         foreground: "#172B24",
-        "muted-foreground": "#687B72",
+        "muted-foreground": "#52665B",
         primary: {
           DEFAULT: "#247D59",
           hover: "#1D6648",
@@ -19,6 +19,7 @@ module.exports = {
           light: "#EAF5ED",
         },
         accent: {
+          light: "#EAF5ED",
           teal: "#2C8C89",
           "teal-hover": "#23726F",
           "teal-light": "#E8F4F4",

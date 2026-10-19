@@ -16,15 +16,15 @@ It transforms unstructured multilingual meeting notes, chat logs, and transcript
 ## 🌟 Key Features
 
 1. **Bilingual Extraction (English & Cebuano / Bisaya):**
-   - Seamless understanding of English, Cebuano, and code-switched meeting notes.
+   - Model-assisted extraction from English, Cebuano, and code-switched meeting notes.
    - Intelligent relative deadline resolution (*"ugma sa hapon"*, *"karong biyernes"*, *"sa sunod adlaw"*, *"kutob Oct 26"*, *"next week"* anchored to the meeting date and `Asia/Manila` timezone).
-   - Accurately respects negations (*"dili na ta mag-order ug physical hoodies"*) and mid-meeting corrections (*"si Ana sa poster... ay si Mark na lang diay"*).
+   - Prompts the model to respect negations (*"dili na ta mag-order ug physical hoodies"*) and mid-meeting corrections (*"si Ana sa poster... ay si Mark na lang diay"*).
 2. **100% Local & Private Open-Source AI:**
-   - Powered by **Qwen3-4B-Instruct** (or **Qwen 2.5**) running locally through **Ollama**.
+   - Powered by **Qwen3-4B** (or **Qwen 2.5**) running locally through **Ollama**.
    - Zero proprietary AI APIs (No OpenAI, Claude, or external cloud LLM dependencies).
-   - Transcripts never leave your self-hosted machine.
+   - Transcripts are sent to your app server and its configured Ollama host. Self-host both on trusted infrastructure; guest history stays in the browser.
 3. **Verbatim Source Evidence Grounding & Provenance:**
-   - Every extracted action item, decision, and unresolved question cites an exact quotation from the raw notes.
+   - Citations are checked against the exact source text. Unsupported names/deadline phrases are removed or flagged; a matching quote is not proof of semantic correctness.
    - Provenance tracking distinguishes exact verbatim matches, normalized matches, user manual entries, and unverified citations.
 4. **Human-In-The-Loop Review Workspace:**
    - AI acts as the first-pass drafter; humans retain full control to edit, reassign, approve, or reject items.
@@ -48,7 +48,7 @@ It transforms unstructured multilingual meeting notes, chat logs, and transcript
 - **Backend:** Next.js Route Handlers with a modular Service Layer (`ollama-client`, `deadline-resolver`, `evidence-verifier`, `transcript-preprocessor`, `export-service`).
 - **Database:** PostgreSQL with Drizzle ORM (Server) + IndexedDB (Guest Mode via `idb`).
 - **AI Inference:** Ollama native chat API with schema-constrained JSON structured outputs.
-- **Testing & Benchmarking:** Vitest (36 Unit & Integration tests) + tsx Evaluation Runner.
+- **Testing & Benchmarking:** Vitest unit and integration tests + tsx Evaluation Runner.
 
 ---
 
@@ -59,11 +59,11 @@ Copy `.env.example` to `.env.local` to configure:
 | Variable | Description | Default |
 |---|---|---|
 | `OLLAMA_HOST` | URL of the local Ollama daemon | `http://localhost:11434` |
-| `OLLAMA_MODEL` | Open-source extraction model identifier | `qwen3:4b-instruct` |
+| `OLLAMA_MODEL` | Open-source extraction model identifier | `qwen3:4b` |
 | `DEFAULT_TIMEZONE` | Fallback IANA timezone for relative dates | `Asia/Manila` |
 | `DATABASE_URL` | Optional PostgreSQL connection string | `postgresql://tambayayong:...@localhost:5432/tambayayong_db` |
 | `INFERENCE_TIMEOUT_MS` | Max timeout for model inference | `90000` (90 seconds) |
-| `MAX_PROMPT_CHARS` | Max input transcript size | `100000` |
+| `MAX_PROMPT_CHARS` | Input limit before inference; larger notes are rejected | `24000` |
 | `MAX_CONCURRENT_INFERENCES` | Max concurrent AI extractions | `2` |
 
 ---
@@ -71,7 +71,7 @@ Copy `.env.example` to `.env.local` to configure:
 ## 🚀 Quick Start (Local Development)
 
 ### 1. Prerequisites
-- **Node.js**: v18+ (tested on Node v20/v24)
+- **Node.js**: v20+ (CI uses Node 20)
 - **Ollama**: Installed from [ollama.com](https://ollama.com)
 
 ### 2. Pull the Open-Source Model
@@ -80,8 +80,8 @@ Copy `.env.example` to `.env.local` to configure:
 ollama serve
 
 # Pull the primary recommended model (Apache 2.0 license)
-ollama pull qwen3:4b-instruct
-# Alternatively, lightweight fallback:
+ollama pull qwen3:4b
+# To use a different model, install and select that exact tag explicitly:
 # ollama pull qwen2.5:3b
 ```
 
@@ -92,13 +92,13 @@ git clone https://github.com/Miguma/SWUdevs.git
 cd SWUdevs
 
 # Install dependencies
-npm install
+npm ci
 
 # Start development server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000) in your browser. Choose an installed model in **Local AI model** and refresh after pulling models. No automatic fallback occurs. The review screen records the model used.
 
 ---
 
@@ -112,7 +112,7 @@ docker compose up -d
 
 > [!NOTE]
 > Ensure Docker Desktop is running on your host machine. Once started, pull the model inside the Ollama container:
-> `docker exec -it tambayayong_ollama ollama pull qwen3:4b-instruct`
+> `docker exec -it tambayayong_ollama ollama pull qwen3:4b`
 
 ---
 
@@ -121,7 +121,7 @@ docker compose up -d
 Tambayayong provides two independent evaluation commands:
 
 ### 1. Benchmark Dataset & Rule Validator
-Validates the syntax, ground-truth consistency, and deterministic business logic across the 20 test scenarios without claiming LLM accuracy:
+Validates annotation syntax, dates, timezones, unique IDs, and referenced owner names across 20 cases. This does not measure model accuracy or prove semantic label correctness:
 ```bash
 npm run eval:validate
 ```
@@ -143,12 +143,15 @@ Run the test suite:
 ```bash
 npm test
 ```
-All 36 tests pass across 5 test suites:
-- **`deadline-resolver.test.ts` (14 tests):** Relative dates, non-fabricated daypart times, calendar validations, timezone anchoring.
-- **`evidence-verifier.test.ts` (5 tests):** Exact vs normalized matches, unverified flags, manual provenance.
-- **`transcript-preprocessor.test.ts` (5 tests):** Multi-format parsing (`.txt`, `.md`, `.csv`) and CRLF normalization.
-- **`export-service.test.ts` (3 tests):** Markdown checklist formatting and RFC 4180 CSV escaping.
-- **`workflow-security.test.ts` (9 tests):** Formula injection neutralization (`=`, `+`, `-`, `@`, `\t`, `\r`), intake schema validations, manual provenance preservation.
+The suite covers deadlines, original-source offsets, exports, input validation, explicit model selection, inference failures, IndexedDB upserts, save ordering, re-analysis, review progress, and evaluation isolation.
+
+```bash
+npm run typecheck  # includes tests and evaluation code
+npm run build
+npm run check      # dataset + tests + types + build
+```
+
+See [observed validation results](docs/validation.md) for exact outcomes and limitations.
 
 ---
 
@@ -202,4 +205,17 @@ All architectural decisions and specifications are maintained in `/specs`:
 ## 📄 License
 
 This project is licensed under the **Apache License 2.0**. See [LICENSE](LICENSE) for details.
-Open-source model: **Qwen3-4B-Instruct** (Apache 2.0 license).
+Open-source model: **Qwen3-4B** (Apache 2.0 license).
+## Codex handoff and operational limits
+
+See [AGENTS.md](AGENTS.md) for the development workflow and [validation report](docs/validation.md) for the CI blocker and checks. Re-analysis retains the meeting ID and human work, replaces the AI pass, and requests renewed review when source or extracted content changes. A conservative lexical matcher handles obvious duplicates; semantic paraphrases may still need human reconciliation.
+
+The inference context is 16,384 tokens with a 4,096-token output budget. Oversized or apparently truncated responses fail explicitly. Long transcript chunking is not implemented. Guest mode is browser-local; the PostgreSQL schema is not a cloud sync feature. CLI evaluation uses shell environment variables, so set `OLLAMA_MODEL`/`OLLAMA_HOST` in the shell if they differ from the defaults. Model reports include the dataset hash, actual predictions, exact-set owner accuracy, commitment accuracy, errors, and coverage. Lexical title matching is a reproducible approximation; review multilingual paraphrases manually.
+
+## Account screen preview
+
+The UI includes `/sign-in` and `/sign-up`, with password visibility controls and guest access. These are explicitly labeled previews: account creation, password recovery, and real sign-in will be connected in a later update. The preview never claims a successful account operation and does not send/store passwords. See [UI validation](docs/ui-preview.md).
+
+## Current workspace
+
+The home page opens with an empty review area and keeps meeting notes beside the plan. **Explore example** loads a hand-authored review preview, clearly labeled as illustrative and never saved as an AI result. The intake form shows installed local Ollama models; analysis requires selecting an exact installed tag. Source quotes are presented for human verification, not as proof that a task, owner, commitment, or date is correct.

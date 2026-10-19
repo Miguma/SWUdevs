@@ -50,31 +50,7 @@ export function verifyEvidenceQuote(
     };
   }
 
-  // Tier 2: Case-Insensitive Search
-  const lowerTranscript = rawTranscript.toLowerCase();
-  const lowerQuote = trimmedQuote.toLowerCase();
-  const caseInsensitiveIndex = lowerTranscript.indexOf(lowerQuote);
-  if (caseInsensitiveIndex !== -1) {
-    const actualSubstr = rawTranscript.slice(
-      caseInsensitiveIndex,
-      caseInsensitiveIndex + trimmedQuote.length
-    );
-    const ev: Evidence = {
-      quote: actualSubstr,
-      startOffset: caseInsensitiveIndex,
-      endOffset: caseInsensitiveIndex + trimmedQuote.length,
-      isVerified: true,
-      provenance: "normalized_match",
-      provenanceNote: "Citation found with casing normalization.",
-    };
-    return {
-      verifiedEvidence: [ev],
-      isVerified: true,
-      provenance: "normalized_match",
-      provenanceNote: ev.provenanceNote || "",
-    };
-  }
-
+  // Match against the original source so Unicode casing never shifts offsets.
   // Tier 3: Whitespace-Normalized Search
   const normalizedMatch = findNormalizedMatch(rawTranscript, trimmedQuote);
   if (normalizedMatch) {
@@ -136,7 +112,7 @@ function findNormalizedMatch(source: string, target: string): NormalizedMatch | 
   const escapedWords = targetWords.map((w) =>
     w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
   );
-  const pattern = new RegExp(escapedWords.join("\\s+"), "i");
+  const pattern = new RegExp(escapedWords.join("\\s+"), "iu");
   const match = pattern.exec(source);
 
   if (match) {

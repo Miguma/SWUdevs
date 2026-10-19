@@ -30,6 +30,8 @@ export interface Deadline {
 }
 
 export interface ActionItem {
+  sourceTitle?: string;
+  retainedFromReview?: boolean;
   id: string;
   title: string;
   description: string | null;
@@ -46,6 +48,7 @@ export interface ActionItem {
 }
 
 export interface MeetingDecision {
+  retainedFromReview?: boolean;
   id: string;
   decision: string;
   evidence: Evidence[];
@@ -56,6 +59,7 @@ export interface MeetingDecision {
 }
 
 export interface OpenQuestion {
+  retainedFromReview?: boolean;
   id: string;
   question: string;
   evidence: Evidence[];
@@ -72,6 +76,8 @@ export interface MeetingExtraction {
   meetingDate?: string;
   timezone: string;
   rawTranscript: string;
+  participants?: string;
+  analysis?: { model: string; analyzedAt: string };
   summary: string;
   actionItems: ActionItem[];
   decisions: MeetingDecision[];
@@ -84,32 +90,37 @@ export interface MeetingExtraction {
 
 // Zod schema for the model's raw extraction JSON
 export const RawExtractionResponseSchema = z.object({
-  summary: z.string().default(""),
+  summary: z.string(),
   actionItems: z.array(
     z.object({
       title: z.string(),
       description: z.string().nullable().default(null),
       assignees: z.array(z.string()).default([]),
       originalDeadlineText: z.string().nullable().default(null),
-      deadlineRelation: z.enum(["before", "by", "on", "after"]).nullable().default(null),
-      commitmentStatus: z.enum(["confirmed", "proposed", "unclear"]).default("confirmed"),
+      deadlineRelation: z
+        .enum(["before", "by", "on", "after"])
+        .nullable()
+        .default(null),
+      commitmentStatus: z
+        .enum(["confirmed", "proposed", "unclear"])
+        .default("confirmed"),
       priority: z.enum(["low", "medium", "high"]).nullable().default(null),
       evidenceQuote: z.string().default(""),
       missingInformation: z.array(z.string()).default([]),
-    })
-  ).default([]),
+    }),
+  ),
   decisions: z.array(
     z.object({
       decision: z.string(),
       evidenceQuote: z.string().default(""),
-    })
-  ).default([]),
+    }),
+  ),
   openQuestions: z.array(
     z.object({
       question: z.string(),
       evidenceQuote: z.string().default(""),
-    })
-  ).default([]),
+    }),
+  ),
   nextMeetingText: z.string().nullable().default(null),
 });
 
@@ -117,13 +128,42 @@ export type RawExtractionResponse = z.infer<typeof RawExtractionResponseSchema>;
 
 // Intake Form Validation Schema
 export const MeetingIntakeSchema = z.object({
-  title: z.string().min(1, "Meeting title is required").max(200, "Title is too long"),
+  title: z
+    .string()
+    .trim()
+    .min(1, "Meeting title is required")
+    .max(200, "Title is too long"),
   organization: z.string().max(100).optional().default(""),
-  meetingDate: z.string().optional().default(""),
+  meetingDate: z
+    .string()
+    .refine(
+      (value) =>
+        !value ||
+        (/^\d{4}-\d{2}-\d{2}$/.test(value) &&
+          !Number.isNaN(Date.parse(value)) &&
+          new Date(value).toISOString().slice(0, 10) === value),
+      "Invalid meeting date",
+    )
+    .optional()
+    .default(""),
   dateUnknown: z.boolean().default(false),
-  timezone: z.string().default("Asia/Manila"),
+  timezone: z
+    .string()
+    .refine((value) => {
+      try {
+        new Intl.DateTimeFormat("en", { timeZone: value });
+        return true;
+      } catch {
+        return false;
+      }
+    }, "Invalid timezone")
+    .default("Asia/Manila"),
+  model: z.string().max(200).optional(),
   participants: z.string().optional().default(""),
-  rawText: z.string().min(10, "Meeting notes must be at least 10 characters long").max(100000, "Notes exceed maximum 100,000 characters limit"),
+  rawText: z
+    .string()
+    .min(10, "Meeting notes must be at least 10 characters long")
+    .max(100000, "Notes exceed maximum 100,000 characters limit"),
 });
 
 export type MeetingIntakeInput = z.infer<typeof MeetingIntakeSchema>;

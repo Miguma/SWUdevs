@@ -8,8 +8,22 @@
     "notes": "Marketing standup on Oct 23. Maria will finalize the event poster by tomorrow afternoon. Jun will draft the announcement email before October 28. Meeting adjourned.",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Finalize event poster", "assignees": ["Maria"], "expectedDeadlineDate": "2026-10-24", "status": "confirmed" },
-        { "title": "Draft announcement email", "assignees": ["Jun"], "expectedDeadlineDate": "2026-10-28", "status": "confirmed" }
+        {
+          "title": "Finalize event poster",
+          "assignees": [
+            "Maria"
+          ],
+          "expectedDeadlineDate": "2026-10-24",
+          "status": "confirmed"
+        },
+        {
+          "title": "Draft announcement email",
+          "assignees": [
+            "Jun"
+          ],
+          "expectedDeadlineDate": "2026-10-28",
+          "status": "confirmed"
+        }
       ],
       "expectedDecisions": [],
       "expectedOpenQuestions": []
@@ -24,12 +38,27 @@
     "notes": "Panagtagbo sa mga batan-on. Si Carlo ang mopalit sa mga gamit para sa stage ugma sa buntag. Si Kath ang mohangyo sa barangay hall para sa sound system sa sunod adlaw.",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Mopalit sa mga gamit para sa stage", "assignees": ["Carlo"], "expectedDeadlineDate": "2026-10-24", "status": "confirmed" },
-        { "title": "Mohangyo sa barangay hall para sa sound system", "assignees": ["Kath"], "expectedDeadlineDate": "2026-10-25", "status": "confirmed" }
+        {
+          "title": "Mopalit sa mga gamit para sa stage",
+          "assignees": [
+            "Carlo"
+          ],
+          "expectedDeadlineDate": "2026-10-24",
+          "status": "confirmed"
+        },
+        {
+          "title": "Mohangyo sa barangay hall para sa sound system",
+          "assignees": [
+            "Kath"
+          ],
+          "expectedDeadlineDate": "2026-10-24",
+          "status": "confirmed"
+        }
       ],
       "expectedDecisions": [],
       "expectedOpenQuestions": []
-    }
+    },
+    "annotationNote": "Sa sunod adlaw means the next day; day after tomorrow is a different phrase."
   },
   {
     "id": "tc-03-mix-correction",
@@ -37,14 +66,22 @@
     "category": "assignment correction (diay supersedes earlier name)",
     "meetingDate": "2026-10-23",
     "timezone": "Asia/Manila",
-    "notes": "Hackathon setup discussion. Si Ana sa social media poster. Ay, wait si Mark na lang diay kay exam week ni Ana karon. Submit the draft by Friday.",
+    "notes": "Hackathon setup discussion. Si Ana sa social media poster. Ay, wait si Mark na lang diay kay exam week ni Ana karon. Submit the draft by next Friday.",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Social media poster draft", "assignees": ["Mark"], "expectedDeadlineDate": "2026-10-30", "status": "confirmed" }
+        {
+          "title": "Social media poster draft",
+          "assignees": [
+            "Mark"
+          ],
+          "expectedDeadlineDate": "2026-10-30",
+          "status": "confirmed"
+        }
       ],
       "expectedDecisions": [],
       "expectedOpenQuestions": []
-    }
+    },
+    "annotationNote": "Explicit next Friday makes the intended 2026-10-30 deadline unambiguous from Friday 2026-10-23."
   },
   {
     "id": "tc-04-mix-negation",
@@ -55,7 +92,12 @@
     "notes": "Budget review meeting. Gi-propose ni Jun nga mag-print ug physical shirts, pero dili na ta mag-order ug shirts kay kuwang gyud ang pundo. Agreed ang tanan. Mag-stick na lang ta sa ID stickers.",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Prepare ID stickers", "assignees": [], "expectedDeadlineDate": null, "status": "confirmed" }
+        {
+          "title": "Prepare ID stickers",
+          "assignees": [],
+          "expectedDeadlineDate": null,
+          "status": "confirmed"
+        }
       ],
       "expectedDecisions": [
         "Cancelled ordering physical shirts due to lack of budget"
@@ -72,13 +114,19 @@
     "notes": "Importante kaayo nga makakita ta ug 3 ka sponsors para sa snacks sa volunteers. Pero sa pagkakaron, wala pa tay assigned sa sponsors outreach. Kinahanglan ma-settle next week.",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Sponsors outreach para sa snacks", "assignees": [], "expectedDeadlineDate": "2026-10-30", "status": "confirmed" }
+        {
+          "title": "Sponsors outreach para sa snacks",
+          "assignees": [],
+          "expectedDeadlineDate": null,
+          "status": "confirmed"
+        }
       ],
       "expectedDecisions": [],
       "expectedOpenQuestions": [
         "Kinsa ang mag-lead sa sponsor outreach?"
       ]
-    }
+    },
+    "annotationNote": "Next week does not specify a calendar day; leave the deadline unresolved."
   },
   {
     "id": "tc-06-en-suggestion",
@@ -89,8 +137,22 @@
     "notes": "Team brainstorm. Sarah mentioned maybe David could build the login page if he has spare time this weekend. David hasn't replied yet. However, Leo confirmed he will deploy the database today.",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Deploy the database", "assignees": ["Leo"], "expectedDeadlineDate": "2026-10-23", "status": "confirmed" },
-        { "title": "Build login page", "assignees": ["David"], "expectedDeadlineDate": null, "status": "proposed" }
+        {
+          "title": "Deploy the database",
+          "assignees": [
+            "Leo"
+          ],
+          "expectedDeadlineDate": "2026-10-23",
+          "status": "confirmed"
+        },
+        {
+          "title": "Build login page",
+          "assignees": [
+            "David"
+          ],
+          "expectedDeadlineDate": null,
+          "status": "proposed"
+        }
       ],
       "expectedDecisions": [],
       "expectedOpenQuestions": [
@@ -107,7 +169,14 @@
     "notes": "Coordination meeting. Gidawat ni Kenneth ang pag-setup sa GitHub repository and branch protection rules. Walay deadline nga gihisgutan para ani, as soon as possible lang.",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Setup GitHub repository and branch protection rules", "assignees": ["Kenneth"], "expectedDeadlineDate": null, "status": "confirmed" }
+        {
+          "title": "Setup GitHub repository and branch protection rules",
+          "assignees": [
+            "Kenneth"
+          ],
+          "expectedDeadlineDate": null,
+          "status": "confirmed"
+        }
       ],
       "expectedDecisions": [],
       "expectedOpenQuestions": []
@@ -122,8 +191,22 @@
     "notes": "Undated scratchpad notes. Alice will compile the survey responses tomorrow. Bob will call the caterer by Friday.",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Compile survey responses", "assignees": ["Alice"], "expectedDeadlineDate": null, "status": "confirmed" },
-        { "title": "Call the caterer", "assignees": ["Bob"], "expectedDeadlineDate": null, "status": "confirmed" }
+        {
+          "title": "Compile survey responses",
+          "assignees": [
+            "Alice"
+          ],
+          "expectedDeadlineDate": null,
+          "status": "confirmed"
+        },
+        {
+          "title": "Call the caterer",
+          "assignees": [
+            "Bob"
+          ],
+          "expectedDeadlineDate": null,
+          "status": "confirmed"
+        }
       ],
       "expectedDecisions": [],
       "expectedOpenQuestions": []
@@ -154,7 +237,14 @@
     "notes": "Executive committee sync. We still do not know what time the Dean will arrive for the opening remarks. Also, does the AVR have an HDMI adapter or only VGA? Sarah will ask Sir John about the HDMI cord on Monday.",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Ask Sir John about HDMI adapter", "assignees": ["Sarah"], "expectedDeadlineDate": "2026-10-26", "status": "confirmed" }
+        {
+          "title": "Ask Sir John about HDMI adapter",
+          "assignees": [
+            "Sarah"
+          ],
+          "expectedDeadlineDate": "2026-10-26",
+          "status": "confirmed"
+        }
       ],
       "expectedDecisions": [],
       "expectedOpenQuestions": [
@@ -185,7 +275,15 @@
     "notes": "Security and Logistics. Sila si Joshua ug si Bryan ang mag-bantay sa entrance gate ug mag-check sa ID sa tanang moabot karong Sabado.",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Mag-bantay sa entrance gate ug mag-check sa ID", "assignees": ["Joshua", "Bryan"], "expectedDeadlineDate": "2026-10-24", "status": "confirmed" }
+        {
+          "title": "Mag-bantay sa entrance gate ug mag-check sa ID",
+          "assignees": [
+            "Joshua",
+            "Bryan"
+          ],
+          "expectedDeadlineDate": "2026-10-24",
+          "status": "confirmed"
+        }
       ],
       "expectedDecisions": [],
       "expectedOpenQuestions": []
@@ -200,8 +298,20 @@
     "notes": "Operations sprint. Urgent and high priority: Michael must renew the domain name today before 5pm or the site goes down. Low priority: clean up old test accounts when free.",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Renew domain name", "assignees": ["Michael"], "expectedDeadlineDate": "2026-10-23", "status": "confirmed" },
-        { "title": "Clean up old test accounts", "assignees": [], "expectedDeadlineDate": null, "status": "confirmed" }
+        {
+          "title": "Renew domain name",
+          "assignees": [
+            "Michael"
+          ],
+          "expectedDeadlineDate": "2026-10-23",
+          "status": "confirmed"
+        },
+        {
+          "title": "Clean up old test accounts",
+          "assignees": [],
+          "expectedDeadlineDate": null,
+          "status": "confirmed"
+        }
       ],
       "expectedDecisions": [],
       "expectedOpenQuestions": []
@@ -229,7 +339,14 @@
     "notes": "Finance committee. Kinahanglan ma-audit ni Rhea ang tanang receipts kutob October 27 aron ma-submit ang liquidation sa student affairs.",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Audit tanang receipts para liquidation", "assignees": ["Rhea"], "expectedDeadlineDate": "2026-10-27", "status": "confirmed" }
+        {
+          "title": "Audit tanang receipts para liquidation",
+          "assignees": [
+            "Rhea"
+          ],
+          "expectedDeadlineDate": "2026-10-27",
+          "status": "confirmed"
+        }
       ],
       "expectedDecisions": [],
       "expectedOpenQuestions": []
@@ -244,7 +361,14 @@
     "notes": "10:00 AM: Gilhisgutan nga si Carlo mag-contact sa speaker. Nag-break kadali. 10:45 AM: Gikumpirma usab nga si Carlo gyud ang mo-reach out sa keynote speaker ugma sa hapon.",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Contact keynote speaker", "assignees": ["Carlo"], "expectedDeadlineDate": "2026-10-24", "status": "confirmed" }
+        {
+          "title": "Contact keynote speaker",
+          "assignees": [
+            "Carlo"
+          ],
+          "expectedDeadlineDate": "2026-10-24",
+          "status": "confirmed"
+        }
       ],
       "expectedDecisions": [],
       "expectedOpenQuestions": []
@@ -274,7 +398,14 @@
     "notes": "Community feeding program. Mo-follow up si Aling Tessie sa barangay health center ugma kabahin sa listahan sa mga bata nga beneficiaries.",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Follow up sa health center para sa listahan sa mga bata", "assignees": ["Aling Tessie"], "expectedDeadlineDate": "2026-10-24", "status": "confirmed" }
+        {
+          "title": "Follow up sa health center para sa listahan sa mga bata",
+          "assignees": [
+            "Aling Tessie"
+          ],
+          "expectedDeadlineDate": "2026-10-24",
+          "status": "confirmed"
+        }
       ],
       "expectedDecisions": [],
       "expectedOpenQuestions": []
@@ -289,8 +420,22 @@
     "notes": "[14:02] Mark: guys kinsa gani to sa food? \n[14:03] Maria: si Dave man to niingon pero absent man siya ron haha \n[14:04] Mark: ako na lang message ni Dave karong gabii to confirm \n[14:05] Kath: ok sige. by the way na-approve na sa Dean atong event permit gahapon! \n[14:06] Mark: payter! pero kinsa magkuha sa physical copy sa permit? \n[14:07] Kath: ako mokuha sa office ugma buntag",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Message Dave to confirm food role", "assignees": ["Mark"], "expectedDeadlineDate": "2026-10-23", "status": "confirmed" },
-        { "title": "Kuhaon ang physical copy sa permit sa office", "assignees": ["Kath"], "expectedDeadlineDate": "2026-10-24", "status": "confirmed" }
+        {
+          "title": "Message Dave to confirm food role",
+          "assignees": [
+            "Mark"
+          ],
+          "expectedDeadlineDate": "2026-10-23",
+          "status": "confirmed"
+        },
+        {
+          "title": "Kuhaon ang physical copy sa permit sa office",
+          "assignees": [
+            "Kath"
+          ],
+          "expectedDeadlineDate": "2026-10-24",
+          "status": "confirmed"
+        }
       ],
       "expectedDecisions": [
         "Event permit approved by the Dean"
@@ -307,9 +452,30 @@
     "notes": "SK Council meeting. 1. Approved ang budget nga 15,000 para sa Inter-Barangay Basketball League. 2. Si Gerald ang mopalit sa mga bola ug referee whistles ugma. 3. Si Mae ang mo-coordinate sa mga team captains karong Domingo. 4. Wala pa tay venue sa opening ceremony, mag-survey pa si Jason sa gym karong hapon.",
     "groundTruth": {
       "expectedTasks": [
-        { "title": "Mopalit sa mga bola ug referee whistles", "assignees": ["Gerald"], "expectedDeadlineDate": "2026-10-24", "status": "confirmed" },
-        { "title": "Coordinate sa mga team captains", "assignees": ["Mae"], "expectedDeadlineDate": "2026-10-25", "status": "confirmed" },
-        { "title": "Survey sa gym para venue", "assignees": ["Jason"], "expectedDeadlineDate": "2026-10-23", "status": "confirmed" }
+        {
+          "title": "Mopalit sa mga bola ug referee whistles",
+          "assignees": [
+            "Gerald"
+          ],
+          "expectedDeadlineDate": "2026-10-24",
+          "status": "confirmed"
+        },
+        {
+          "title": "Coordinate sa mga team captains",
+          "assignees": [
+            "Mae"
+          ],
+          "expectedDeadlineDate": "2026-10-25",
+          "status": "confirmed"
+        },
+        {
+          "title": "Survey sa gym para venue",
+          "assignees": [
+            "Jason"
+          ],
+          "expectedDeadlineDate": "2026-10-23",
+          "status": "confirmed"
+        }
       ],
       "expectedDecisions": [
         "Approved ang budget nga 15,000 para sa Basketball League"

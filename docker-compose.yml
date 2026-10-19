@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   web:
     build:
@@ -12,7 +10,7 @@ services:
     environment:
       - NODE_ENV=production
       - OLLAMA_HOST=http://ollama:11434
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3:4b-instruct}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3:4b}
       - DEFAULT_TIMEZONE=${DEFAULT_TIMEZONE:-Asia/Manila}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-tambayayong}:${POSTGRES_PASSWORD:-tambayayong_dev_secret}@postgres:5432/${POSTGRES_DB:-tambayayong_db}
     depends_on:

@@ -77,7 +77,7 @@ export function resolveDeadline(input: ResolveDeadlineInput): Deadline {
     const meridian = timeMatch[3].toLowerCase();
     if (meridian === "pm" && hours < 12) hours += 12;
     if (meridian === "am" && hours === 12) hours = 0;
-    detectedTime = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+    if (Number(timeMatch[1]) >= 1 && Number(timeMatch[1]) <= 12 && minutes <= 59) detectedTime = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
   } else {
     // 24-hour pattern e.g. "17:00", "09:30"
     const militaryTimeMatch = clean.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
@@ -152,27 +152,19 @@ export function resolveDeadline(input: ResolveDeadlineInput): Deadline {
     };
   }
 
-  // 3. Relative: Tomorrow / Ugma
-  if (clean.includes("ugma") || clean.includes("tomorrow")) {
+  // Check the longer English phrase before "tomorrow"; Cebuano "sunod adlaw" is next day.
+  if (clean.includes("day after tomorrow")) {
+    const date = new Date(anchor.getTime());
+    date.setUTCDate(date.getUTCDate() + 2);
+    return { ...defaultResult, date: formatDateIso(date), time: detectedTime, relation: detectedRelation || "by" };
+  }
+  // 3. Relative: Tomorrow / Ugma / Sa sunod adlaw
+  if (clean.includes("ugma") || clean.includes("tomorrow") || clean.includes("sa sunod adlaw")) {
     const nextDay = new Date(anchor.getTime());
     nextDay.setUTCDate(anchor.getUTCDate() + 1);
     return {
       originalText: phrase,
       date: formatDateIso(nextDay),
-      time: detectedTime,
-      timezone,
-      relation: detectedRelation || "by",
-      isAmbiguous: false,
-    };
-  }
-
-  // 4. Relative: Day after tomorrow / Sa sunod adlaw
-  if (clean.includes("sa sunod adlaw") || clean.includes("day after tomorrow")) {
-    const dayAfter = new Date(anchor.getTime());
-    dayAfter.setUTCDate(anchor.getUTCDate() + 2);
-    return {
-      originalText: phrase,
-      date: formatDateIso(dayAfter),
       time: detectedTime,
       timezone,
       relation: detectedRelation || "by",

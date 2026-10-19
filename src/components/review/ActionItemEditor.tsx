@@ -37,6 +37,7 @@ export function ActionItemEditor({
 
     const updated: ActionItem = {
       ...task,
+      sourceTitle: task.sourceTitle || task.title,
       title: title.trim(),
       description: desc.trim() || null,
       assignees: parsedAssignees,
@@ -44,9 +45,10 @@ export function ActionItemEditor({
       deadline: {
         ...task.deadline,
         date: deadlineDate || null,
-        isAmbiguous: false, // Explicit user edit resolves date ambiguity
+        isAmbiguous: false,
       },
-      needsReview: false,
+      reviewStatus: "pending",
+      needsReview: true,
       isUserEdited: true,
     };
 
@@ -56,71 +58,63 @@ export function ActionItemEditor({
   return (
     <form
       onSubmit={handleSubmit}
-      className="p-4 rounded-xl border border-primary/30 bg-primary-light/30 space-y-3"
+      className="p-4 rounded-xl border border-primary/40 bg-card shadow-xs space-y-3"
     >
-      <div className="flex items-center justify-between">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-primary">
-          Edit Action Item
-        </h4>
-        <span className="text-[11px] text-muted-foreground">Press Esc to cancel</span>
-      </div>
-
       <div className="space-y-2">
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Task title"
+          placeholder="Task title *"
           required
-          className="w-full px-3 py-1.5 text-sm font-semibold rounded-lg border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/20"
+          autoFocus
+          className="w-full px-3 py-1.5 text-sm font-semibold rounded-lg border border-border bg-background focus:outline-none focus:border-primary"
         />
 
         <textarea
           rows={2}
           value={desc}
           onChange={(e) => setDesc(e.target.value)}
-          placeholder="Context or notes..."
-          className="w-full px-3 py-1.5 text-xs rounded-lg border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/20"
+          placeholder="Additional context or notes (optional)"
+          className="w-full px-3 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:border-primary"
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div>
-            <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-              Assignees (comma-separated)
+            <label className="text-[11px] font-medium text-muted-foreground block mb-1">
+              Assignees
             </label>
             <input
               type="text"
               value={assignees}
               onChange={(e) => setAssignees(e.target.value)}
-              placeholder="e.g. Maria, Mark"
-              className="w-full px-2.5 py-1 text-xs rounded-lg border border-border bg-card focus:ring-2 focus:ring-primary/20"
+              placeholder="Maria, Mark"
+              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:border-primary"
             />
           </div>
 
           <div>
-            <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
-              Confirmed Deadline
+            <label className="text-[11px] font-medium text-muted-foreground block mb-1">
+              Deadline
             </label>
             <input
               type="date"
               value={deadlineDate}
               onChange={(e) => setDeadlineDate(e.target.value)}
-              className="w-full px-2.5 py-1 text-xs rounded-lg border border-border bg-card focus:ring-2 focus:ring-primary/20"
+              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:border-primary"
             />
           </div>
 
           <div>
-            <label className="text-[11px] font-semibold text-muted-foreground block mb-1">
+            <label className="text-[11px] font-medium text-muted-foreground block mb-1">
               Priority
             </label>
             <select
               value={priority || ""}
-              onChange={(e) =>
-                setPriority((e.target.value as any) || null)
-              }
-              className="w-full px-2.5 py-1 text-xs rounded-lg border border-border bg-card focus:ring-2 focus:ring-primary/20"
+              onChange={(e) => setPriority((e.target.value as any) || null)}
+              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:border-primary"
             >
-              <option value="">None</option>
+              <option value="">Normal</option>
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
@@ -129,20 +123,23 @@ export function ActionItemEditor({
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-1">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-3 py-1 text-xs text-muted-foreground hover:bg-slate-100 rounded-lg"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="px-3.5 py-1 text-xs font-semibold bg-primary text-white rounded-lg hover:bg-primary-hover shadow-sm"
-        >
-          Save Changes
-        </button>
+      <div className="flex items-center justify-between pt-1">
+        <span className="text-[11px] text-muted-foreground">Esc to cancel</span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-slate-100 rounded-lg cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-3.5 py-1.5 text-xs font-semibold bg-primary text-white rounded-lg hover:bg-primary-hover cursor-pointer"
+          >
+            Save
+          </button>
+        </div>
       </div>
     </form>
   );

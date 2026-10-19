@@ -45,17 +45,15 @@ function getDB(): Promise<IDBPDatabase<TambayayongDB>> {
           db.createObjectStore("drafts", { keyPath: "id" });
         }
       },
-    });
+    }).catch((error) => { dbPromise = null; throw error; });
   }
   return dbPromise;
 }
 
 export async function saveGuestMeeting(meeting: MeetingExtraction): Promise<void> {
   const db = await getDB();
-  await db.put("meetings", {
-    ...meeting,
-    updatedAt: new Date().toISOString(),
-  });
+  // The caller owns revision time. Re-saving must not invent a new revision.
+  await db.put("meetings", meeting);
 }
 
 export async function getAllGuestMeetings(): Promise<MeetingExtraction[]> {
@@ -105,16 +103,16 @@ export async function saveDraftNotes(draft: {
   timezone: string;
   participants: string;
   rawText: string;
-}): Promise<void> {
+}, meetingId?: string): Promise<void> {
   const db = await getDB();
   await db.put("drafts", {
     ...draft,
-    id: "current_draft",
+    id: meetingId ? `meeting:${meetingId}` : "current_draft",
     savedAt: new Date().toISOString(),
   });
 }
 
-export async function getDraftNotes(): Promise<
+export async function getDraftNotes(meetingId?: string): Promise<
   | {
       title: string;
       organization: string;
@@ -128,5 +126,5 @@ export async function getDraftNotes(): Promise<
   | undefined
 > {
   const db = await getDB();
-  return db.get("drafts", "current_draft");
+  return db.get("drafts", meetingId ? `meeting:${meetingId}` : "current_draft");
 }

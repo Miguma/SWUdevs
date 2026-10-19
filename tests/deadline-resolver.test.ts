@@ -3,6 +3,12 @@ import { resolveDeadline } from "../src/server/services/deadline-resolver";
 
 describe("Deadline Resolver (Bilingual English & Cebuano)", () => {
   const meetingDate = "2026-10-23"; // Friday
+  it("resolves day after tomorrow before the shorter tomorrow phrase", () => {
+    expect(resolveDeadline({ phrase: "day after tomorrow", meetingDate }).date).toBe("2026-10-25");
+  });
+  it("does not turn invalid 12-hour times into impossible clock values", () => {
+    expect(resolveDeadline({ phrase: "tomorrow at 13pm", meetingDate }).time).toBeNull();
+  });
 
   it("resolves 'ugma' relative to meeting date as next day", () => {
     const res = resolveDeadline({
@@ -37,13 +43,13 @@ describe("Deadline Resolver (Bilingual English & Cebuano)", () => {
     expect(res.time).toBe("17:00");
   });
 
-  it("resolves 'sa sunod adlaw' as +2 days", () => {
+  it("resolves 'sa sunod adlaw' as the next day", () => {
     const res = resolveDeadline({
       phrase: "sa sunod adlaw",
       meetingDate,
       timezone: "Asia/Manila",
     });
-    expect(res.date).toBe("2026-10-25");
+    expect(res.date).toBe("2026-10-24");
   });
 
   it("resolves 'sa lunes' (coming Monday) from Friday", () => {

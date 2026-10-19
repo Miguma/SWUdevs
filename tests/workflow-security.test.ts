@@ -5,6 +5,7 @@ import { MeetingIntakeSchema, MeetingExtraction, ActionItem } from "../src/types
 
 describe("Workflow Security & Formula Injection Defense", () => {
   it("neutralizes dangerous spreadsheet formula prefixes", () => {
+    expect(sanitizeCsvField("  =SUM(A1:A10)")).toBe(`"'  =SUM(A1:A10)"`);
     // Formula prefixes: '=', '+', '-', '@', '\t', '\r'
     expect(sanitizeCsvField("=SUM(A1:A10)")).toBe(`"'=SUM(A1:A10)"`);
     expect(sanitizeCsvField("+1234567890")).toBe(`"'+1234567890"`);
@@ -27,6 +28,13 @@ describe("Workflow Security & Formula Injection Defense", () => {
 
 describe("Evidence Provenance & Verification Integrity", () => {
   const transcript = "Meeting notes: Carlo will finalize the poster by Friday afternoon. No physical hoodies.";
+  it("uses offsets in the original string despite Unicode case expansion before the quote", () => {
+    const source = "İ: CARLO will finalize the poster.";
+    const result = verifyEvidenceQuote(source, "carlo will finalize the poster");
+    const evidence = result.verifiedEvidence[0];
+    expect(source.slice(evidence.startOffset!, evidence.endOffset!)).toBe(evidence.quote);
+    expect(evidence.startOffset).toBe(3);
+  });
 
   it("classifies exact transcript matches as 'exact_match'", () => {
     const res = verifyEvidenceQuote(transcript, "Carlo will finalize the poster");

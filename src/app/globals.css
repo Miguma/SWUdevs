@@ -3,28 +3,94 @@
 @tailwind utilities;
 
 :root {
-  --background: #F8FAF8;
-  --foreground: #172B24;
-  --muted-foreground: #687B72;
-  --primary: #247D59;
-  --primary-hover: #1D6648;
-  --primary-foreground: #FFFFFF;
-  --accent-teal: #2C8C89;
-  --accent-light: #EAF5ED;
-  --card: #FFFFFF;
-  --border: #DEE8E1;
-  --warning: #A86E19;
-  --warning-bg: #FEF7E8;
-  --danger: #B42318;
-  --danger-bg: #FEF3F2;
+  --background: #f8faf8;
+  --foreground: #172b24;
+  --muted-foreground: #52665b;
+  --primary: #247d59;
+  --primary-hover: #1d6648;
+  --primary-foreground: #ffffff;
+  --accent-teal: #2c8c89;
+  --accent-light: #eaf5ed;
+  --card: #ffffff;
+  --border: #dee8e1;
+  --warning: #a86e19;
+  --warning-bg: #fef7e8;
+  --danger: #b42318;
+  --danger-bg: #fef3f2;
   --radius: 0.75rem;
 }
 
 body {
+  font-family: "Segoe UI", Arial, sans-serif;
   color: var(--foreground);
   background: var(--background);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   min-height: 100vh;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 7rem;
+}
+::selection {
+  background: #cce8d6;
+  color: #173f32;
+}
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@layer components {
+  .ui-button-primary {
+    @apply inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-hover;
+  }
+  .ui-button-secondary {
+    @apply inline-flex min-h-12 items-center gap-2 rounded-xl border border-border bg-white px-5 py-3 text-sm font-semibold text-foreground transition-colors hover:border-primary/30 hover:bg-primary-light/40;
+  }
+  .auth-label {
+    @apply mb-2 block text-xs font-semibold text-foreground;
+  }
+  .auth-input-wrap {
+    @apply flex min-h-12 items-center gap-3 rounded-xl border border-border bg-background px-3.5 transition-colors focus-within:border-primary focus-within:bg-white focus-within:ring-2 focus-within:ring-primary/10;
+  }
+  .auth-input {
+    @apply w-full min-w-0 bg-transparent py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/70;
+  }
+  .auth-input:focus-visible {
+    outline: none;
+  }
+}
+
+:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+input,
+textarea,
+select {
+  min-width: 0;
+}
+main {
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Custom scrollbars */
@@ -36,9 +102,9 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #CBDAD0;
+  background: #cbdad0;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #A5BAAC;
+  background: #a5baac;
 }

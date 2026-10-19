@@ -8,10 +8,6 @@ import {
   Calendar,
   Trash2,
   Copy,
-  ExternalLink,
-  ShieldCheck,
-  AlertCircle,
-  Database,
 } from "lucide-react";
 import { MeetingExtraction } from "@/types/meeting";
 import {
@@ -71,7 +67,7 @@ export function MeetingHistoryModal({
   const handleClearAll = async () => {
     if (
       !window.confirm(
-        "Are you sure you want to delete all locally saved meetings and drafts? This cannot be undone."
+        "Delete all locally saved meetings and drafts? This cannot be undone."
       )
     ) {
       return;
@@ -84,45 +80,44 @@ export function MeetingHistoryModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-card rounded-2xl border border-border max-w-3xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+      <div className="bg-card rounded-2xl border border-border max-w-2xl w-full p-5 shadow-xl space-y-4 max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border pb-3 flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-primary-light text-primary">
-              <History className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-lg bg-primary-light text-primary flex items-center justify-center">
+              <History className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-lg text-foreground">
-                Saved Meeting History
+              <h3 className="font-bold text-base text-foreground leading-tight">
+                Saved Meetings
               </h3>
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Database className="w-3 h-3 text-accent-teal" />
-                Stored in browser-local IndexedDB (Guest Mode)
+              <p className="text-xs text-muted-foreground">
+                Stored locally in your browser
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-foreground transition-colors"
+            className="p-1.5 rounded-lg hover:bg-slate-100 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content list */}
-        <div className="flex-1 overflow-y-auto space-y-3 py-2 pr-1">
+        <div className="flex-1 overflow-y-auto space-y-2.5 py-1 pr-1">
           {loading ? (
-            <div className="text-center py-12 text-sm text-muted-foreground">
-              Loading local meetings...
+            <div className="text-center py-10 text-xs text-muted-foreground">
+              Loading saved meetings...
             </div>
           ) : meetings.length === 0 ? (
-            <div className="text-center py-12 space-y-2">
-              <FileText className="w-8 h-8 text-slate-300 mx-auto" />
-              <p className="text-sm font-medium text-foreground">
-                No saved meetings yet.
+            <div className="text-center py-10 space-y-1.5">
+              <FileText className="w-7 h-7 text-slate-300 mx-auto" />
+              <p className="text-sm font-semibold text-foreground">
+                No saved meetings yet
               </p>
-              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                When you analyze notes and approve actions, your meetings will appear here automatically for easy reopening.
+              <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                Analyzed meetings are automatically saved here so you can reopen and export them anytime.
               </p>
             </div>
           ) : (
@@ -139,44 +134,44 @@ export function MeetingHistoryModal({
                     onSelectMeeting(m);
                     onClose();
                   }}
-                  className="p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-slate-50/80 transition-all cursor-pointer flex items-center justify-between gap-4 group"
+                  className="p-3.5 rounded-xl border border-border hover:border-primary/40 hover:bg-slate-50/70 transition-all cursor-pointer flex items-center justify-between gap-3 group"
                 >
-                  <div className="space-y-1 flex-1">
+                  <div className="space-y-1 flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                      <h4 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors truncate">
                         {m.title}
                       </h4>
                       {m.organization && (
-                        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                        <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-muted-foreground">
                           {m.organization}
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" />
+                        <Calendar className="w-3 h-3" />
                         {formatDateDisplay(m.meetingDate)}
                       </span>
                       <span>·</span>
                       <span>
-                        {approvedCount} of {totalCount} approved
+                        {approvedCount}/{totalCount} approved
                       </span>
                       <span>·</span>
                       <span>{m.decisions.length} decisions</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       onClick={(e) => handleDuplicate(m.id, e)}
-                      className="p-2 rounded-lg text-slate-400 hover:text-foreground hover:bg-slate-200/60 transition-colors"
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-slate-200/60 transition-colors cursor-pointer"
                       title="Duplicate meeting"
                     >
                       <Copy className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={(e) => handleDelete(m.id, e)}
-                      className="p-2 rounded-lg text-slate-400 hover:text-danger hover:bg-danger-light transition-colors"
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-danger hover:bg-danger-light transition-colors cursor-pointer"
                       title="Delete meeting"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -189,20 +184,16 @@ export function MeetingHistoryModal({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-border pt-3 flex items-center justify-between text-xs text-muted-foreground flex-shrink-0">
-          <div className="flex items-center gap-1 text-[11px]">
-            <ShieldCheck className="w-3.5 h-3.5 text-accent-teal" />
-            <span>Zero server retention for guest data</span>
-          </div>
-          {meetings.length > 0 && (
+        {meetings.length > 0 && (
+          <div className="border-t border-border pt-3 flex items-center justify-end text-xs flex-shrink-0">
             <button
               onClick={handleClearAll}
-              className="text-danger hover:underline text-xs font-medium"
+              className="text-danger hover:underline text-xs font-medium cursor-pointer"
             >
-              Clear All Saved Data
+              Clear all saved data
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

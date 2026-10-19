@@ -78,7 +78,7 @@ export function generateMarkdownExport(
       lines.push(`  - Due: ${due}${relation}`);
 
       if (task.evidence && task.evidence.length > 0 && task.evidence[0].quote) {
-        lines.push(`  - Source: _"${task.evidence[0].quote}"_`);
+        lines.push(`  - Source (${task.evidence[0].provenance || "unverified"}${task.isUserEdited ? "; item edited by reviewer" : ""}): _"${task.evidence[0].quote}"_`);
       }
       lines.push("");
     }
@@ -94,7 +94,7 @@ export function generateMarkdownExport(
       const pendingTag = dec.reviewStatus === "pending" ? " `[PENDING REVIEW]`" : "";
       lines.push(`- ${dec.decision}${pendingTag}`);
       if (dec.evidence && dec.evidence.length > 0 && dec.evidence[0].quote) {
-        lines.push(`  - _Evidence: "${dec.evidence[0].quote}"_`);
+        lines.push(`  - _Evidence (${dec.evidence[0].provenance || "unverified"}): "${dec.evidence[0].quote}"_`);
       }
     }
   }
@@ -109,7 +109,7 @@ export function generateMarkdownExport(
       const pendingTag = q.reviewStatus === "pending" ? " `[PENDING REVIEW]`" : "";
       lines.push(`- ❓ ${q.question}${pendingTag}`);
       if (q.evidence && q.evidence.length > 0 && q.evidence[0].quote) {
-        lines.push(`  - _Evidence: "${q.evidence[0].quote}"_`);
+        lines.push(`  - _Evidence (${q.evidence[0].provenance || "unverified"}): "${q.evidence[0].quote}"_`);
       }
     }
   }
@@ -134,7 +134,7 @@ export function sanitizeCsvField(value: any): string {
 
   // Formula Injection Defense (CWE-1236)
   // If field starts with =, +, -, @, \t, or \r, prepend single quote
-  if (/^[\=\+\-\@\t\r]/.test(str)) {
+  if (/^[\s\uFEFF]*[=+@-]/.test(str) || /^[\t\r\n]/.test(str)) {
     str = "'" + str;
   }
 
@@ -166,6 +166,11 @@ export function generateCsvExport(
     "Priority",
     "Review Status",
     "Source Evidence",
+    "Source Provenance",
+    "User Edited",
+    "Deadline Relation",
+    "Deadline Time",
+    "Deadline Timezone",
   ];
 
   const rows: string[] = [headers.map(sanitizeCsvField).join(",")];
@@ -182,6 +187,11 @@ export function generateCsvExport(
       task.priority || "",
       task.reviewStatus,
       task.evidence.map((e) => e.quote).filter(Boolean).join(" | "),
+      task.evidence.map((e) => e.provenance || "unverified").join(" | "),
+      task.isUserEdited ? "yes" : "no",
+      task.deadline.relation || "",
+      task.deadline.time || "",
+      task.deadline.timezone,
     ];
     rows.push(row.map(sanitizeCsvField).join(","));
   }

@@ -1,121 +1,55 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Sparkles, History, Cpu, AlertCircle, CheckCircle2, ShieldCheck } from "lucide-react";
-import { OllamaHealthStatus } from "@/server/services/ollama-client";
+import { History, Plus } from "lucide-react";
+import type { OllamaHealthStatus } from "@/server/services/ollama-client";
 
 interface HeaderProps {
   onOpenHistory: () => void;
   savedMeetingsCount: number;
+  onResetHome: () => void;
 }
 
-export function Header({ onOpenHistory, savedMeetingsCount }: HeaderProps) {
+export function Header({ onOpenHistory, savedMeetingsCount, onResetHome }: HeaderProps) {
   const [aiStatus, setAiStatus] = useState<OllamaHealthStatus | null>(null);
-  const [loadingHealth, setLoadingHealth] = useState(true);
-
-  const fetchHealth = async () => {
-    try {
-      setLoadingHealth(true);
-      const res = await fetch("/api/ai/health");
-      const data = await res.json();
-      setAiStatus(data);
-    } catch {
-      setAiStatus({
-        ollamaConnected: false,
-        modelAvailable: false,
-        configuredModel: "qwen3:4b-instruct",
-        availableModels: [],
-        inferenceHost: "http://localhost:11434",
-        error: "Failed to connect to /api/ai/health",
-      });
-    } finally {
-      setLoadingHealth(false);
-    }
-  };
 
   useEffect(() => {
-    fetchHealth();
-    // Poll every 30 seconds
-    const interval = setInterval(fetchHealth, 30000);
-    return () => clearInterval(interval);
+    let active = true;
+    const refresh = async () => {
+      try {
+        const response = await fetch("/api/ai/health");
+        const status: OllamaHealthStatus = await response.json();
+        if (active) setAiStatus(status);
+      } catch {
+        if (active) setAiStatus(null);
+      }
+    };
+    refresh();
+    const timer = setInterval(refresh, 30000);
+    return () => { active = false; clearInterval(timer); };
   }, []);
 
+  const ready = Boolean(aiStatus?.ollamaConnected && aiStatus.modelAvailable);
+
   return (
-    <header className="border-b border-border bg-card/90 backdrop-blur-sm sticky top-0 z-30 transition-all">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Brand identity */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent-teal flex items-center justify-center text-white shadow-sm font-bold text-lg">
-            T
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-xl tracking-tight text-foreground">
-                Tambayayong
-              </span>
-              <span className="text-[11px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                Open Source AI
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground hidden sm:block">
-              From conversation to action. <span className="text-primary font-medium">Walay mabilin!</span>
-            </p>
-          </div>
-        </div>
+    <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-md">
+      <div className="mx-auto flex h-[72px] max-w-[1320px] items-center justify-between gap-3 px-4 sm:px-8">
+        <button type="button" onClick={onResetHome} className="flex min-w-0 items-center gap-3 rounded-lg text-left" aria-label="Tambayayong, new meeting">
+          <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-xl font-bold text-white">T<span className="text-emerald-200">.</span></span>
+          <span className="truncate text-base font-bold tracking-tight sm:text-lg">Tambayayong<span className="text-primary">.</span></span>
+        </button>
 
-        {/* Right Controls: AI status & History */}
-        <div className="flex items-center gap-3">
-          {/* AI Status Badge */}
-          <div
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              loadingHealth
-                ? "bg-slate-100 text-slate-600 border-slate-200"
-                : aiStatus?.ollamaConnected
-                ? "bg-primary-light text-primary border-primary/30"
-                : "bg-warning-light text-warning border-warning/30"
-            }`}
-            title={
-              aiStatus?.ollamaConnected
-                ? `Ollama Active (${aiStatus.configuredModel}) at ${aiStatus.inferenceHost}`
-                : "Ollama not running. Click for local setup instructions."
-            }
-          >
-            <Cpu className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">
-              {loadingHealth
-                ? "Checking AI..."
-                : aiStatus?.ollamaConnected
-                ? `Local AI: ${aiStatus.configuredModel}`
-                : "Ollama Offline (Guest Mode Active)"}
-            </span>
-            <span className="md:hidden">
-              {aiStatus?.ollamaConnected ? "Local AI Ready" : "AI Offline"}
-            </span>
-            {aiStatus?.ollamaConnected ? (
-              <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-            ) : (
-              <AlertCircle className="w-3.5 h-3.5 text-warning" />
-            )}
-          </div>
-
-          {/* Privacy badge */}
-          <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium bg-slate-50 text-muted-foreground border border-border">
-            <ShieldCheck className="w-3.5 h-3.5 text-accent-teal" />
-            <span>100% Private & Self-Hosted</span>
-          </div>
-
-          {/* Saved meetings history button */}
-          <button
-            onClick={onOpenHistory}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium border border-border bg-card hover:bg-slate-50 transition-colors shadow-sm text-foreground"
-          >
-            <History className="w-4 h-4 text-primary" />
-            <span className="hidden sm:inline">Saved Meetings</span>
-            {savedMeetingsCount > 0 && (
-              <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-xs bg-primary text-white font-semibold">
-                {savedMeetingsCount}
-              </span>
-            )}
+        <div className="flex items-center gap-2 sm:gap-4">
+          <span className="hidden items-center gap-2 rounded-full border border-border bg-white px-3 py-1.5 text-xs font-medium text-muted-foreground md:inline-flex" title={aiStatus?.error || aiStatus?.configuredModel || "Checking local AI"}>
+            <span className={`h-2 w-2 rounded-full ${ready ? "bg-primary" : "bg-warning"}`} aria-hidden="true" />
+            {ready ? `Local AI ready · ${aiStatus?.configuredModel}` : "Local AI offline"}
+          </span>
+          <button type="button" onClick={onOpenHistory} className="inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:bg-primary-light hover:text-foreground sm:px-3">
+            <History className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Saved</span>
+            {savedMeetingsCount > 0 && <span className="rounded-full bg-primary-light px-1.5 text-xs text-primary">{savedMeetingsCount}</span>}
+          </button>
+          <button type="button" onClick={onResetHome} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-white hover:bg-primary-hover sm:px-4">
+            <Plus className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">New meeting</span><span className="sr-only sm:hidden">New meeting</span>
           </button>
         </div>
       </div>

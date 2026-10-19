@@ -1,10 +1,20 @@
-# Tambayayong Live Model Evaluation Report
-- **Date:** 10/19/2026, 9:34:14 PM
-- **Status:** **NOT RUN (OLLAMA UNREACHABLE)**
-- **Configured Model:** `qwen3:4b-instruct`
-- **Host:** `http://localhost:11434`
+# Tambayayong live model evaluation
 
-> [!WARNING]
-> Ollama daemon was not running when `npm run eval:model` was executed.
-> In accordance with strict Spec-Driven Development rules, ground truth answers are **never** substituted for live predictions.
-> Start Ollama with `ollama serve` and re-run this command.
+Ground truth is used only for scoring. Empty predictions remain empty; failed inference never becomes a prediction.
+
+Metrics cover successful inference only; inspect errors and coverage before quoting scores. Null means no denominator. Lexical matching is an approximation.
+
+```json
+{
+  "benchmarkDate": "2026-10-19T14:13:35.116Z",
+  "mode": "LIVE_MODEL_INFERENCE",
+  "model": "qwen3:4b",
+  "datasetSha256": "642ab8e189910e98156d8757858dad15cef7ca8cbfdc3ef84a6b1155a62afa5d",
+  "totalTestCases": 20,
+  "matcher": "Maximum one-to-one lexical token Dice >= 0.6; multilingual paraphrases require human audit.",
+  "status": "NOT_RUN",
+  "reason": "Ollama unreachable",
+  "evaluatedSampleCount": 0,
+  "metrics": null
+}
+```
