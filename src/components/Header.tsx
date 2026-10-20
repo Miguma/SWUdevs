@@ -19,6 +19,10 @@ export function Header({ onOpenHistory, savedMeetingsCount, onResetHome, canExpo
     const refresh = async () => {
       try {
         const response = await fetch("/api/ai/health");
+        if (!response.ok) {
+          if (active) setAiStatus(null);
+          return;
+        }
         const status: GroqHealthStatus = await response.json();
         if (active) setAiStatus(status);
       } catch {

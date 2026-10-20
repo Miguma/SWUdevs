@@ -92,6 +92,10 @@ export function MeetingIntake({
     setCheckingModels(true);
     try {
       const response = await fetch("/api/ai/health", { cache: "no-store" });
+      if (!response.ok) {
+        setAiStatus(null);
+        return;
+      }
       const status: GroqHealthStatus = await response.json();
       setAiStatus(status);
     } catch {
@@ -224,9 +228,14 @@ export function MeetingIntake({
           method: "POST",
           body: formData,
         });
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          setErrorBanner(data.error || "Failed to extract text from PDF.");
+        let data: any = null;
+        try {
+          data = await res.json();
+        } catch {
+          // In case of HTML error page from server or proxy
+        }
+        if (!res.ok || !data?.success) {
+          setErrorBanner(data?.error || `Failed to extract text from PDF (HTTP ${res.status}).`);
           return;
         }
         setRawText(data.text);
@@ -234,8 +243,8 @@ export function MeetingIntake({
           setTitle(file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " "));
         }
         setErrorBanner(null);
-      } catch {
-        setErrorBanner("Failed to upload and parse PDF file.");
+      } catch (err: any) {
+        setErrorBanner(err?.message || "Failed to upload and parse PDF file.");
       } finally {
         setIsParsingFile(false);
       }
@@ -327,10 +336,23 @@ export function MeetingIntake({
         }),
       });
 
-      const data = await res.json();
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {
+        // Dev server or reverse proxy returned non-JSON (e.g. HTML 500 error page)
+      }
 
       if (!res.ok) {
-        throw new Error(data.message || data.error || "Extraction failed.");
+        throw new Error(
+          data?.message ||
+          data?.error ||
+          `Analysis service error (HTTP ${res.status}). Please try again.`
+        );
+      }
+
+      if (!data) {
+        throw new Error("Received an invalid response from the server. Please try again.");
       }
 
       const finalExtraction =
