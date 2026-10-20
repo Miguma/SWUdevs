@@ -207,4 +207,57 @@ describe("Deadline Resolver (Bilingual English & Cebuano)", () => {
       expect(resBy.date).toBe("2026-10-24");
     });
   });
+
+  describe("Cebuano & Filipino Explicit Dates and Calendar Validity", () => {
+    const meetingDate = "2026-10-23";
+
+    it("resolves explicit Cebuano date 'Oktubre 28, 2026'", () => {
+      const res = resolveDeadline({ phrase: "Oktubre 28, 2026", meetingDate });
+      expect(res.date).toBe("2026-10-28");
+      expect(res.isAmbiguous).toBe(false);
+    });
+
+    it("resolves Cebuano month with preposition 'sa Oktubre 28' anchored to meeting year", () => {
+      const res = resolveDeadline({ phrase: "sa Oktubre 28", meetingDate });
+      expect(res.date).toBe("2026-10-28");
+      expect(res.isAmbiguous).toBe(false);
+    });
+
+    it("resolves day-month-year with Cebuano ordinal 'ika-28 sa Oktubre 2026'", () => {
+      const res = resolveDeadline({ phrase: "ika-28 sa Oktubre 2026", meetingDate });
+      expect(res.date).toBe("2026-10-28");
+      expect(res.isAmbiguous).toBe(false);
+    });
+
+    it("resolves relation with Cebuano 'kutob Nobyembre 15, 2026'", () => {
+      const res = resolveDeadline({ phrase: "kutob Nobyembre 15, 2026", meetingDate });
+      expect(res.date).toBe("2026-11-15");
+      expect(res.relation).toBe("by");
+      expect(res.isAmbiguous).toBe(false);
+    });
+
+    it("rejects impossible calendar date 'Pebrero 31, 2026' and marks ambiguous", () => {
+      const res = resolveDeadline({ phrase: "Pebrero 31, 2026", meetingDate });
+      expect(res.date).toBeNull();
+      expect(res.isAmbiguous).toBe(true);
+    });
+
+    it("rejects impossible calendar date 'Abril 31, 2026' and marks ambiguous", () => {
+      const res = resolveDeadline({ phrase: "Abril 31, 2026", meetingDate });
+      expect(res.date).toBeNull();
+      expect(res.isAmbiguous).toBe(true);
+    });
+
+    it("rejects leap day on non-leap year 'Pebrero 29, 2025' and marks ambiguous", () => {
+      const res = resolveDeadline({ phrase: "Pebrero 29, 2025", meetingDate: "2025-01-10" });
+      expect(res.date).toBeNull();
+      expect(res.isAmbiguous).toBe(true);
+    });
+
+    it("accepts valid leap day on leap year 'Pebrero 29, 2028'", () => {
+      const res = resolveDeadline({ phrase: "Pebrero 29, 2028", meetingDate: "2028-01-10" });
+      expect(res.date).toBe("2028-02-29");
+      expect(res.isAmbiguous).toBe(false);
+    });
+  });
 });

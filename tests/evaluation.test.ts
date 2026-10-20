@@ -142,4 +142,83 @@ describe("Honest model scoring", () => {
       vi.doUnmock("../src/server/services/groq-client");
     }
   });
+
+  it("detects semantic object substitutions like shovels for brooms", () => {
+    const semanticCase: BenchmarkCase = {
+      id: "sem-01",
+      language: "cebuano",
+      category: "tools",
+      meetingDate: "2026-10-23",
+      timezone: "Asia/Manila",
+      notes: "Mangita og sako, gloves, ug silhig para sa pagpanglimpyo.",
+      groundTruth: {
+        expectedTasks: [
+          {
+            title: "Prepare sacks, gloves, and brooms",
+            assignees: [],
+            expectedDeadlineDate: null,
+            status: "confirmed",
+            semanticMustInclude: ["sacks", "gloves", "brooms"],
+            semanticMustNotInclude: ["shovel", "shovels", "spade"],
+          },
+        ],
+        expectedDecisions: [],
+        expectedOpenQuestions: [],
+      },
+    };
+
+    // 1. Prediction with invalid substitution (shovels instead of brooms)
+    const badPred = assembleMeetingExtraction(
+      { title: "Test", rawText: semanticCase.notes, meetingDate: "2026-10-23" },
+      RawExtractionResponseSchema.parse({
+        summary: "Cleanup supplies",
+        actionItems: [
+          {
+            title: "Prepare sacks, gloves, and shovels",
+            assignees: [],
+            originalDeadlineText: null,
+            deadlineRelation: null,
+            commitmentStatus: "confirmed",
+            priority: null,
+            evidenceQuote: "Mangita og sako, gloves, ug silhig",
+            missingInformation: ["assignee", "deadline"],
+          },
+        ],
+        decisions: [],
+        openQuestions: [],
+      }),
+    );
+    const badScore = scoreCase(badPred, semanticCase);
+    expect(badScore.tasks.matched).toBe(1);
+    expect(badScore.semanticViolations).toBe(1);
+    expect(badScore.correctSemantics).toBe(0);
+    expect(aggregateScores([badScore]).semanticAccuracy).toBe(0);
+
+    // 2. Prediction with correct semantics (brooms)
+    const goodPred = assembleMeetingExtraction(
+      { title: "Test", rawText: semanticCase.notes, meetingDate: "2026-10-23" },
+      RawExtractionResponseSchema.parse({
+        summary: "Cleanup supplies",
+        actionItems: [
+          {
+            title: "Prepare sacks, gloves, and brooms",
+            assignees: [],
+            originalDeadlineText: null,
+            deadlineRelation: null,
+            commitmentStatus: "confirmed",
+            priority: null,
+            evidenceQuote: "Mangita og sako, gloves, ug silhig",
+            missingInformation: ["assignee", "deadline"],
+          },
+        ],
+        decisions: [],
+        openQuestions: [],
+      }),
+    );
+    const goodScore = scoreCase(goodPred, semanticCase);
+    expect(goodScore.tasks.matched).toBe(1);
+    expect(goodScore.semanticViolations).toBe(0);
+    expect(goodScore.correctSemantics).toBe(1);
+    expect(aggregateScores([goodScore]).semanticAccuracy).toBe(1);
+  });
 });

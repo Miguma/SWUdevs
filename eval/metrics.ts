@@ -14,6 +14,8 @@ export interface BenchmarkCase {
       assignees: string[];
       expectedDeadlineDate: string | null;
       status: string;
+      semanticMustInclude?: string[];
+      semanticMustNotInclude?: string[];
     }[];
     expectedDecisions: string[];
     expectedOpenQuestions: string[];
@@ -103,13 +105,46 @@ export function scoreCase(prediction: MeetingExtraction, tc: BenchmarkCase) {
     JSON.stringify(Array.from(new Set(names.map(normalize))).sort());
   let correctOwners = 0,
     correctDeadlines = 0,
-    correctCommitments = 0;
+    correctCommitments = 0,
+    correctSemantics = 0,
+    semanticViolations = 0;
   for (const match of matches) {
     const actual = prediction.actionItems[match.prediction],
       label = expected[match.label];
     if (owners(actual.assignees) === owners(label.assignees)) correctOwners++;
     if (actual.deadline.date === label.expectedDeadlineDate) correctDeadlines++;
     if (actual.commitmentStatus === label.status) correctCommitments++;
+
+    // Semantic fidelity evaluation
+    const actualText = `${actual.title} ${actual.description || ""}`.toLowerCase();
+    const actualWords = new Set(normalize(actualText).split(" "));
+    let hasSemanticViolation = false;
+
+    // 1. Forbidden semantic substitutions (e.g. "shovel" when text means "silhig" / "broom")
+    if (label.semanticMustNotInclude && label.semanticMustNotInclude.length > 0) {
+      for (const forbidden of label.semanticMustNotInclude) {
+        if (actualWords.has(normalize(forbidden))) {
+          hasSemanticViolation = true;
+          break;
+        }
+      }
+    }
+
+    // 2. Required semantic keywords (e.g. "broom", "sack")
+    if (!hasSemanticViolation && label.semanticMustInclude && label.semanticMustInclude.length > 0) {
+      for (const required of label.semanticMustInclude) {
+        if (!actualWords.has(normalize(required))) {
+          hasSemanticViolation = true;
+          break;
+        }
+      }
+    }
+
+    if (hasSemanticViolation) {
+      semanticViolations++;
+    } else {
+      correctSemantics++;
+    }
   }
   const allItems = [
     ...prediction.actionItems,
@@ -150,6 +185,8 @@ export function scoreCase(prediction: MeetingExtraction, tc: BenchmarkCase) {
     correctOwners,
     correctDeadlines,
     correctCommitments,
+    correctSemantics,
+    semanticViolations,
     verifiedItems,
     totalItems: allItems.length,
     matches,
@@ -162,6 +199,8 @@ export function aggregateScores(rows: ReturnType<typeof scoreCase>[]) {
       | "correctOwners"
       | "correctDeadlines"
       | "correctCommitments"
+      | "correctSemantics"
+      | "semanticViolations"
       | "verifiedItems"
       | "totalItems",
   ) => rows.reduce((total, row) => total + row[key], 0);
@@ -196,6 +235,10 @@ export function aggregateScores(rows: ReturnType<typeof scoreCase>[]) {
     commitmentAccuracy: tasks.matched
       ? sum("correctCommitments") / tasks.matched
       : null,
+    semanticAccuracy: tasks.matched
+      ? sum("correctSemantics") / tasks.matched
+      : null,
+    semanticViolations: sum("semanticViolations"),
     evidenceValidity: sum("totalItems")
       ? sum("verifiedItems") / sum("totalItems")
       : null,

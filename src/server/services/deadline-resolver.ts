@@ -319,6 +319,7 @@ function formatDateIso(d: Date): string {
 }
 
 const MONTH_MAP: Record<string, number> = {
+  // English
   jan: 1, january: 1,
   feb: 2, february: 2,
   mar: 3, march: 3,
@@ -331,12 +332,42 @@ const MONTH_MAP: Record<string, number> = {
   oct: 10, october: 10,
   nov: 11, november: 11,
   dec: 12, december: 12,
+
+  // Cebuano / Bisaya / Tagalog / Filipino
+  enero: 1, ener: 1, en: 1,
+  pebrero: 2, pebr: 2, peb: 2,
+  marso: 3,
+  abril: 4, abr: 4,
+  mayo: 5,
+  hunyo: 6, hun: 6,
+  hulyo: 7, hul: 7,
+  agosto: 8, ago: 8,
+  setyembre: 9, septiyembre: 9, set: 9,
+  oktubre: 10, okt: 10,
+  nobyembre: 11, nobiyembre: 11, nob: 11,
+  disyembre: 12, desyembre: 12, dis: 12, des: 12,
 };
+
+const MONTH_PATTERN =
+  "jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec|enero|pebrero|marso|abril|mayo|hunyo|hulyo|agosto|setyembre|septiyembre|oktubre|nobyembre|nobiyembre|disyembre|desyembre|en|peb|abr|hun|hul|ago|set|okt|nob|dis|des";
+
+function getMonthNumber(token: string): number | null {
+  const clean = token.toLowerCase();
+  if (MONTH_MAP[clean]) return MONTH_MAP[clean];
+  for (const [name, num] of Object.entries(MONTH_MAP)) {
+    if (clean.startsWith(name)) return num;
+  }
+  return null;
+}
 
 function isValidDateParts(year: number, month: number, day: number): boolean {
   if (month < 1 || month > 12 || day < 1 || day > 31) return false;
   const dt = new Date(Date.UTC(year, month - 1, day));
-  return dt.getUTCFullYear() === year && dt.getUTCMonth() === month - 1 && dt.getUTCDate() === day;
+  return (
+    dt.getUTCFullYear() === year &&
+    dt.getUTCMonth() === month - 1 &&
+    dt.getUTCDate() === day
+  );
 }
 
 function parseExplicitDateWithYear(text: string): string | null {
@@ -349,10 +380,14 @@ function parseExplicitDateWithYear(text: string): string | null {
     if (isValidDateParts(y, m, d)) return isoMatch[0];
   }
 
-  // Month Day Year e.g. "Oct 25, 2026" or "25 October 2026"
-  const mDayYearMatch = text.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(20\d{2})\b/i);
+  // Month Day Year e.g. "Oct 25, 2026", "Oktubre 28, 2026", "25 October 2026"
+  const mDayYearRegex = new RegExp(
+    `\\b(${MONTH_PATTERN})[a-z]*\\s+(?:ika-)?(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(20\\d{2})\\b`,
+    "i",
+  );
+  const mDayYearMatch = text.match(mDayYearRegex);
   if (mDayYearMatch) {
-    const month = MONTH_MAP[mDayYearMatch[1].toLowerCase()];
+    const month = getMonthNumber(mDayYearMatch[1]);
     const day = parseInt(mDayYearMatch[2], 10);
     const year = parseInt(mDayYearMatch[3], 10);
     if (month && isValidDateParts(year, month, day)) {
@@ -360,10 +395,14 @@ function parseExplicitDateWithYear(text: string): string | null {
     }
   }
 
-  const dayMYearMatch = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*,?\s+(20\d{2})\b/i);
+  const dayMYearRegex = new RegExp(
+    `\\b(?:ika-)?(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+|sa\\s+|ng\\s+)?(${MONTH_PATTERN})[a-z]*,?\\s+(20\\d{2})\\b`,
+    "i",
+  );
+  const dayMYearMatch = text.match(dayMYearRegex);
   if (dayMYearMatch) {
     const day = parseInt(dayMYearMatch[1], 10);
-    const month = MONTH_MAP[dayMYearMatch[2].toLowerCase()];
+    const month = getMonthNumber(dayMYearMatch[2]);
     const year = parseInt(dayMYearMatch[3], 10);
     if (month && isValidDateParts(year, month, day)) {
       return `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
@@ -379,21 +418,27 @@ function parseExplicitDate(text: string, anchorYear: number): string | null {
   if (withYear) return withYear;
 
   // Month Day without year (anchored to anchorYear)
-  const mDayMatch = text.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+(\d{1,2})(?:st|nd|rd|th)?\b/i);
+  const mDayRegex = new RegExp(
+    `\\b(${MONTH_PATTERN})[a-z]*\\s+(?:ika-)?(\\d{1,2})(?:st|nd|rd|th)?\\b`,
+    "i",
+  );
+  const mDayMatch = text.match(mDayRegex);
   if (mDayMatch) {
-    const monthStr = mDayMatch[1].toLowerCase();
-    const monthNum = MONTH_MAP[monthStr];
+    const monthNum = getMonthNumber(mDayMatch[1]);
     const day = parseInt(mDayMatch[2], 10);
     if (monthNum && isValidDateParts(anchorYear, monthNum, day)) {
       return `${anchorYear}-${monthNum.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
     }
   }
 
-  const dayMMatch = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\b/i);
+  const dayMRegex = new RegExp(
+    `\\b(?:ika-)?(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:of\\s+|sa\\s+|ng\\s+)?(${MONTH_PATTERN})[a-z]*\\b`,
+    "i",
+  );
+  const dayMMatch = text.match(dayMRegex);
   if (dayMMatch) {
     const day = parseInt(dayMMatch[1], 10);
-    const monthStr = dayMMatch[2].toLowerCase();
-    const monthNum = MONTH_MAP[monthStr];
+    const monthNum = getMonthNumber(dayMMatch[2]);
     if (monthNum && isValidDateParts(anchorYear, monthNum, day)) {
       return `${anchorYear}-${monthNum.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
     }

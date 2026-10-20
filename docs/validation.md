@@ -1,5 +1,57 @@
 # Tambayayong — Codex validation and handoff
 
+## Cebuano Semantic Fidelity & Multilingual Vocabulary Upgrade — 20 October 2026
+
+Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, dedicated feature branch `codex/cebuano-semantic-fidelity` (based on `main` at `b9f5ede`).
+
+### Observed Error Addressed
+- **Input:** `"Mangita og sako, gloves, ug silhig"`
+- **Prior Incorrect Output:** `"Source bags, gloves, and shovels"` (semantic hallucination: `silhig` substituted with `shovels`, `sako` downgraded to generic `bags`).
+- **Correct Output:** `"Source sacks, gloves, and brooms"` / `"Prepare sacks, gloves, and brooms"`.
+
+### Implemented Capabilities & Fixes
+1. **Strict Semantic Fidelity & Vocabulary Rules:**
+   - Updated `EXTRACTION_SYSTEM_PROMPT` and `buildExtractionPrompt` in `src/server/services/extraction-core.ts` with explicit rules banning object substitutions.
+   - Mandated specific vocabulary distinctions:
+     * `silhig` (Bisaya) / `walis` (Tagalog) = broom (for sweeping). NEVER shovel, spade, or rake.
+     * `pala` = shovel / spade (for digging/scooping). NEVER broom.
+     * `sako` = sack / burlap sack (heavy-duty woven sack for debris or waste).
+     * `gwantes` / `gloves` = gloves (hand protection).
+     * `pahibalo` = announcement / notice.
+     * `boluntaryo` = volunteer (unpaid helper).
+   - Verbs: `mangita` / `pangita` = find / source; `mag-andam` = prepare; `magdala` = bring; `palihug` = please.
+2. **Review Status Investigation & Verification:**
+   - Audited the pipeline: all AI-extracted action items, decisions, and open questions in `assembleMeetingExtraction` are initialized strictly as `reviewStatus: "pending"`.
+   - Re-analysis via `reconcileMeeting` preserves user manual work and forces changed sources to `reviewStatus: "pending"`.
+   - Only explicit human interaction in `ReviewWorkspace` sets `reviewStatus: "approved"`.
+3. **Cebuano Explicit Date Interpretation & Calendar Validity:**
+   - Extended `src/server/services/deadline-resolver.ts` with complete Cebuano and Filipino month parsing (Enero, Pebrero, Marso, Abril, Mayo, Hunyo, Hulyo, Agosto, Setyembre, Oktubre, Nobyembre, Disyembre).
+   - Accurately resolves explicit dates like `"Oktubre 28, 2026"`, `"sa Oktubre 28"`, `"ika-28 sa Oktubre 2026"`, and `"kutob Nobyembre 15, 2026"`.
+   - Enforces calendar validity: impossible dates (e.g. `"Pebrero 31, 2026"`, `"Abril 31, 2026"`, `"Pebrero 29, 2025"`) are rejected and marked `isAmbiguous: true` with `date: null`.
+4. **Semantic Accuracy Scoring in Evaluation Framework:**
+   - Enhanced `eval/metrics.ts` with `semanticMustInclude`, `semanticMustNotInclude`, `semanticAccuracy`, and `semanticViolations`.
+   - Updated `eval/dataset.json` cases `ceb-14` and `ceb-15` with semantic constraints.
+   - Updated `eval/validate-dataset.ts` CaseSchema to validate semantic fields.
+5. **Live Model Verification with Pinned `qwen/qwen3.8-27b` via Groq:**
+   - Verified live extraction with real notes:
+     * `"Oplan Kalimpyo sa Purok: Mangita og sako, gloves, ug silhig para sa pagpanglimpyo sa Sabado. Si Nestor ang mag-coordinate."` -> Output: `"Source sacks, gloves, and brooms"` (assignees: `[]`, `missingInformation: ["assignee"]`), `sourceTitle: "Mangita og sako, gloves, ug silhig"`, exact verified quotation, and `reviewStatus: "pending"`. Zero shovels!
+     * `"SK Training meeting: Si Grace magpagawas og pahibalo para sa mga boluntaryo kutob Oktubre 28, 2026."` -> Output: `"Issue announcement for volunteers"`, `deadline.date: "2026-10-28"`, `relation: "by"`, `isAmbiguous: false`, `reviewStatus: "pending"`.
+6. **Regression Test Suite:**
+   - 145 tests passing across 15 test files (8 new date tests in `tests/deadline-resolver.test.ts`, 2 new extraction tests in `tests/multilingual-extraction.test.ts`, 1 new evaluation test in `tests/evaluation.test.ts`).
+
+| Check | Observed result |
+| :--- | :--- |
+| `npm ci` | Passed; clean package tree. |
+| `npm run eval:validate` | Passed: 70 dataset cases validated (15 english, 15 cebuano, 15 tagalog, 15 mixed, 10 edge_cases). |
+| `npm test` | Passed: 145 tests in 15 files (100% passing). |
+| `npm run typecheck` | Passed: 0 TypeScript errors (`tsc --noEmit -p tsconfig.check.json`). |
+| `npm run build` | Passed: Next.js 14.2.35 production build compiled successfully; all 6 static routes generated. |
+| Live Groq Extraction | Verified on Cebuano cleanup supplies (`silhig` -> `brooms`, `sako` -> `sacks`) and explicit date (`Oktubre 28, 2026`). |
+| Model & Fallback Check | Pinned to `qwen/qwen3.8-27b` on Groq server-side. Zero proprietary fallback. |
+| Docker | Engine unavailable at `dockerDesktopLinuxEngine`; container execution skipped as documented. |
+
+---
+
 ## Multilingual AI Intelligence Upgrade — 20 October 2026
 
 Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, feature branch `codex/multilingual-ai-upgrade` (based on `main` at `fb3ff2f`).

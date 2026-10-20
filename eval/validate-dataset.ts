@@ -18,6 +18,8 @@ const CaseSchema = z.object({
         assignees: z.array(z.string().min(1)),
         expectedDeadlineDate: date.nullable(),
         status: z.enum(["confirmed", "proposed", "unclear"]),
+        semanticMustInclude: z.array(z.string().min(1)).optional(),
+        semanticMustNotInclude: z.array(z.string().min(1)).optional(),
       }),
     ),
     expectedDecisions: z.array(z.string().min(1)),

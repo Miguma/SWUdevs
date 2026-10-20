@@ -794,19 +794,29 @@
   {
     "id": "ceb-14",
     "language": "cebuano",
-    "category": "cleanliness drive monitoring",
+    "category": "cleanliness drive monitoring and tools",
     "meetingDate": "2026-10-23",
     "timezone": "Asia/Manila",
-    "notes": "Oplan Kalimpyo. Si Nestor ang mag-inspeksyon sa mga kanal sa lunes sa buntag. Gikasabutan nga magbutang og trash bins sa matag eskina.",
+    "notes": "Oplan Kalimpyo sa Purok. Si Nestor mangita og sako, gloves, ug silhig para sa pagpanglimpyo sa lunes. Gikasabutan nga magbutang og trash bins sa matag eskina.",
     "groundTruth": {
       "expectedTasks": [
         {
-          "title": "Inspect drainage canals",
+          "title": "Prepare sacks, gloves, and brooms",
           "assignees": [
             "Nestor"
           ],
           "expectedDeadlineDate": "2026-10-26",
-          "status": "confirmed"
+          "status": "confirmed",
+          "semanticMustInclude": [
+            "sacks",
+            "gloves",
+            "brooms"
+          ],
+          "semanticMustNotInclude": [
+            "shovel",
+            "shovels",
+            "spade"
+          ]
         }
       ],
       "expectedDecisions": [
@@ -818,10 +828,10 @@
   {
     "id": "ceb-15",
     "language": "cebuano",
-    "category": "youth leadership training",
+    "category": "youth leadership training and volunteers",
     "meetingDate": "2026-10-23",
     "timezone": "Asia/Manila",
-    "notes": "Training sa SK. Si Bryan ang mag-print sa certificate sa participants ugma. Si Grace ang mag-order sa snacks kutob Oktubre 29.",
+    "notes": "Training sa SK. Si Bryan ang mag-print sa certificate sa participants ugma. Si Grace magpagawas og pahibalo para sa mga boluntaryo kutob Oktubre 28, 2026.",
     "groundTruth": {
       "expectedTasks": [
         {
@@ -833,12 +843,20 @@
           "status": "confirmed"
         },
         {
-          "title": "Order snacks for training",
+          "title": "Release announcement for volunteers",
           "assignees": [
             "Grace"
           ],
-          "expectedDeadlineDate": "2026-10-29",
-          "status": "confirmed"
+          "expectedDeadlineDate": "2026-10-28",
+          "status": "confirmed",
+          "semanticMustInclude": [
+            "announcement",
+            "volunteers"
+          ],
+          "semanticMustNotInclude": [
+            "shovel",
+            "brooms"
+          ]
         }
       ],
       "expectedDecisions": [],

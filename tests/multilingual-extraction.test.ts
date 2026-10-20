@@ -316,5 +316,92 @@ describe("Multilingual AI Intelligence & Intent Recognition", () => {
       expect(meeting.actionItems[1].commitmentStatus).toBe("proposed");
       expect(meeting.actionItems[1].assignees).toEqual(["Lisa"]);
     });
+
+    it("preserves exact semantic meaning of Cebuano tools without substituting shovels for brooms", () => {
+      const notes = "Oplan Kalimpyo: Mangita og sako, gloves, ug silhig para sa pagpanglimpyo sa Sabado.";
+      const raw = RawExtractionResponseSchema.parse({
+        summary: "Community cleanup drive preparations.",
+        actionItems: [
+          {
+            title: "Prepare sacks, gloves, and brooms",
+            sourceTitle: "Mangita og sako, gloves, ug silhig",
+            description: "Prepare sacks, gloves, and brooms for the cleanup drive",
+            assignees: [],
+            originalDeadlineText: "sa Sabado",
+            deadlineRelation: "by",
+            commitmentStatus: "confirmed",
+            priority: "medium",
+            evidenceQuote: "Mangita og sako, gloves, ug silhig para sa pagpanglimpyo sa Sabado.",
+            missingInformation: ["assignee"],
+          },
+        ],
+        decisions: [],
+        openQuestions: [],
+        nextMeetingText: null,
+      });
+
+      const meeting = assembleMeetingExtraction(
+        { title: "Cleanup Drive", rawText: notes, meetingDate: "2026-10-23" },
+        raw,
+      );
+
+      const task = meeting.actionItems[0];
+      // Title must reflect brooms (silhig) and sacks (sako), not shovels
+      expect(task.title.toLowerCase()).toContain("brooms");
+      expect(task.title.toLowerCase()).toContain("sacks");
+      expect(task.title.toLowerCase()).not.toContain("shovel");
+      expect(task.sourceTitle).toBe("Mangita og sako, gloves, ug silhig");
+      expect(task.evidence[0].quote).toBe("Mangita og sako, gloves, ug silhig para sa pagpanglimpyo sa Sabado.");
+      expect(task.evidence[0].isVerified).toBe(true);
+      // Review status MUST be pending - never automatically approved
+      expect(task.reviewStatus).toBe("pending");
+      // Unassigned task correctly has empty assignees and flags missing assignee
+      expect(task.assignees).toEqual([]);
+      expect(task.missingInformation).toContain("assignee");
+      expect(task.needsReview).toBe(true);
+    });
+
+    it("ensures all extracted tasks, decisions, and questions start as pending review", () => {
+      const notes = "Si Sarah ang magdala og pala. Nagkasabot nga mag-meeting sa Sabado. Kinsa ang mag-lead?";
+      const raw = RawExtractionResponseSchema.parse({
+        summary: "Meeting test",
+        actionItems: [
+          {
+            title: "Bring shovel",
+            sourceTitle: "magdala og pala",
+            description: null,
+            assignees: ["Sarah"],
+            originalDeadlineText: null,
+            deadlineRelation: null,
+            commitmentStatus: "confirmed",
+            priority: null,
+            evidenceQuote: "Si Sarah ang magdala og pala.",
+            missingInformation: ["deadline"],
+          },
+        ],
+        decisions: [
+          {
+            decision: "Meet on Saturday",
+            evidenceQuote: "Nagkasabot nga mag-meeting sa Sabado.",
+          },
+        ],
+        openQuestions: [
+          {
+            question: "Who will lead the meeting?",
+            evidenceQuote: "Kinsa ang mag-lead?",
+          },
+        ],
+        nextMeetingText: null,
+      });
+
+      const meeting = assembleMeetingExtraction(
+        { title: "Review Status Test", rawText: notes, meetingDate: "2026-10-23" },
+        raw,
+      );
+
+      expect(meeting.actionItems[0].reviewStatus).toBe("pending");
+      expect(meeting.decisions[0].reviewStatus).toBe("pending");
+      expect(meeting.openQuestions[0].reviewStatus).toBe("pending");
+    });
   });
 });
