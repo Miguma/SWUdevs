@@ -14,6 +14,9 @@ import {
   ListChecks,
   UserRoundX,
   Users,
+  Kanban,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
 import {
   MeetingExtraction,
@@ -21,10 +24,17 @@ import {
   MeetingDecision,
   OpenQuestion,
   ReviewStatus,
+  TaskStatus,
+  QuestionAnswerStatus,
   Evidence,
 } from "@/types/meeting";
 import { createManualEvidence } from "@/server/services/evidence-verifier";
-import { getReviewProgress } from "@/lib/meeting-workflow";
+import {
+  getReviewProgress,
+  getExecutionProgress,
+  getClarificationReasons,
+  isTaskOverdue,
+} from "@/lib/meeting-workflow";
 import { formatDateDisplay } from "@/lib/utils";
 
 import { ActionItemCard } from "./review/ActionItemCard";
@@ -44,8 +54,12 @@ export function ReviewWorkspace({
   meeting,
   onUpdateMeeting,
 }: ReviewWorkspaceProps) {
+  const [viewMode, setViewMode] = useState<"review" | "board" | "clarifications">("review");
   const [filter, setFilter] = useState<
     "all" | "pending" | "approved" | "needs_info"
+  >("all");
+  const [boardFilter, setBoardFilter] = useState<
+    "all" | "todo" | "in_progress" | "blocked" | "completed"
   >("all");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(
     meeting.actionItems.find((t) => t.reviewStatus === "pending")?.id ||
@@ -82,6 +96,13 @@ export function ReviewWorkspace({
     commitMeetingUpdate({ ...meeting, actionItems: updatedTasks });
   };
 
+  const handleSetTaskExecutionStatus = (taskId: string, status: TaskStatus) => {
+    const updatedTasks = meeting.actionItems.map((task) =>
+      task.id === taskId ? { ...task, status, isUserEdited: true } : task
+    );
+    commitMeetingUpdate({ ...meeting, actionItems: updatedTasks });
+  };
+
   const handleDeleteTask = (taskId: string) => {
     const updatedTasks = meeting.actionItems.filter((t) => t.id !== taskId);
     commitMeetingUpdate({ ...meeting, actionItems: updatedTasks });
@@ -114,6 +135,7 @@ export function ReviewWorkspace({
       },
       commitmentStatus: "confirmed",
       priority: null,
+      status: "todo",
       evidence: [
         createManualEvidence("Manually added action item during review"),
       ],
@@ -143,6 +165,13 @@ export function ReviewWorkspace({
     });
   };
 
+  const handleEditDecision = (id: string, newText: string) => {
+    const updated = meeting.decisions.map((d) =>
+      d.id === id ? { ...d, decision: newText, isUserEdited: true } : d
+    );
+    commitMeetingUpdate({ ...meeting, decisions: updated });
+  };
+
   const handleDeleteDecision = (id: string) => {
     commitMeetingUpdate({
       ...meeting,
@@ -164,6 +193,26 @@ export function ReviewWorkspace({
     });
   };
 
+  const handleEditQuestion = (id: string, newText: string) => {
+    const updated = meeting.openQuestions.map((q) =>
+      q.id === id ? { ...q, question: newText, isUserEdited: true } : q
+    );
+    commitMeetingUpdate({ ...meeting, openQuestions: updated });
+  };
+
+  const handleAnswerQuestion = (
+    id: string,
+    status: QuestionAnswerStatus,
+    answer?: string | null
+  ) => {
+    const updated = meeting.openQuestions.map((q) =>
+      q.id === id
+        ? { ...q, status, answer: answer ?? null, isUserEdited: true }
+        : q
+    );
+    commitMeetingUpdate({ ...meeting, openQuestions: updated });
+  };
+
   const handleDeleteQuestion = (id: string) => {
     commitMeetingUpdate({
       ...meeting,
@@ -180,9 +229,10 @@ export function ReviewWorkspace({
 
   // Metrics calculation
   const totalTasks = meeting.actionItems.length;
-  const approvedCount = meeting.actionItems.filter(
+  const approvedTasks = meeting.actionItems.filter(
     (t) => t.reviewStatus === "approved"
-  ).length;
+  );
+  const approvedCount = approvedTasks.length;
   const pendingCount = meeting.actionItems.filter(
     (t) => t.reviewStatus === "pending"
   ).length;
@@ -202,6 +252,17 @@ export function ReviewWorkspace({
   const needsInfoCount = meeting.actionItems.filter(isTaskNeedsInfo).length;
   const reviewProgress = getReviewProgress(meeting);
 
+  // Phase 3: Execution progress metrics
+  const execProgress = getExecutionProgress(meeting);
+  const overdueApprovedCount = approvedTasks.filter((t) =>
+    isTaskOverdue(t)
+  ).length;
+
+  // Phase 3: Clarification tasks
+  const clarificationTasks = meeting.actionItems.filter(
+    (t) => t.reviewStatus !== "rejected" && getClarificationReasons(t).length > 0
+  );
+
   const filteredTasks = meeting.actionItems.filter((t) => {
     if (filter === "all") return true;
     if (filter === "pending") return t.reviewStatus === "pending";
@@ -210,9 +271,22 @@ export function ReviewWorkspace({
     return true;
   });
 
+  const boardFilteredTasks = approvedTasks.filter((t) => {
+    if (boardFilter === "all") return true;
+    const taskStatus = t.status || "todo";
+    return taskStatus === boardFilter;
+  });
+
+  const activeDisplayTasks =
+    viewMode === "board"
+      ? boardFilteredTasks
+      : viewMode === "clarifications"
+      ? clarificationTasks
+      : filteredTasks;
+
   const selectedTask =
     meeting.actionItems.find((t) => t.id === selectedTaskId) ||
-    filteredTasks[0] ||
+    activeDisplayTasks[0] ||
     null;
 
   const selectedEvidence = selectedTask?.evidence?.[0] || null;
@@ -237,7 +311,7 @@ export function ReviewWorkspace({
 
   return (
     <div className="workspace-panel bg-card rounded-2xl border border-border p-5 sm:p-6 space-y-5">
-      {/* Step 2 Header */}
+      {/* Top Bar: Title + View Mode Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="workspace-step flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-light text-lg font-bold text-primary">
@@ -245,80 +319,233 @@ export function ReviewWorkspace({
           </div>
           <div>
             <h2 className="text-lg font-bold text-foreground leading-tight">
-              Action items
+              {viewMode === "board"
+                ? "Action tracker"
+                : viewMode === "clarifications"
+                ? "Clarification queue"
+                : "Action items"}
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Review, edit, and confirm the extracted items.
+              {viewMode === "board"
+                ? "Track execution status of approved commitments."
+                : viewMode === "clarifications"
+                ? "Review and resolve tasks with missing or tentative information."
+                : "Review, edit, and confirm extracted items."}
             </p>
           </div>
         </div>
 
-        {/* Review Progress Bar */}
-        <div className="sm:text-right space-y-1">
-          <div className="text-xs font-bold text-foreground">
-            {reviewProgress.reviewed} of {reviewProgress.total} reviewed
+        {/* View Mode Switcher Tabs */}
+        <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl border border-border/70 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setViewMode("review")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              viewMode === "review"
+                ? "bg-card text-foreground shadow-2xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Review List
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("board")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              viewMode === "board"
+                ? "bg-card text-foreground shadow-2xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Kanban className="w-3.5 h-3.5 text-primary" />
+            <span>Action Board</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-primary/10 text-primary font-bold">
+              {execProgress.totalApproved}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("clarifications")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              viewMode === "clarifications"
+                ? "bg-card text-foreground shadow-2xs"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+            <span>Clarify</span>
+            {clarificationTasks.length > 0 && (
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 font-bold">
+                {clarificationTasks.length}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Progress & Stats based on View Mode */}
+      {viewMode === "review" && (
+        <>
+          <div className="flex items-center justify-between border-t border-border pt-3">
+            <span className="text-xs font-semibold text-muted-foreground">
+              Review Completion
+            </span>
+            <span className="text-xs font-bold text-foreground">
+              {reviewProgress.reviewed} of {reviewProgress.total} reviewed ({reviewProgress.percent}%)
+            </span>
           </div>
-          <div className="w-full sm:w-44 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-primary rounded-full transition-all duration-300"
               style={{ width: `${reviewProgress.percent}%` }}
             />
           </div>
-        </div>
-      </div>
 
-      <div className="review-stats grid grid-cols-2 gap-2 border-t border-border pt-4 sm:grid-cols-5" aria-label="Action item summary">
-        {[
-          { label: "Action items", value: totalTasks, icon: ListChecks, tone: "blue" },
-          { label: "Reviewed", value: reviewProgress.reviewed, icon: CheckCircle2, tone: "green" },
-          { label: "With assignees", value: totalTasks - needOwnerCount, icon: Users, tone: "teal" },
-          { label: "Need dates", value: needDatesCount, icon: CalendarDays, tone: "amber" },
-          { label: "Need owner", value: needOwnerCount, icon: UserRoundX, tone: "red" },
-        ].map(({ label, value, icon: Icon, tone }) => (
-          <div key={label} className="review-stat">
-            <span className={`review-stat-icon tone-${tone}`}><Icon className="h-4 w-4" aria-hidden="true" /></span>
-            <span><strong>{value}</strong><small>{label}</small></span>
+          <div className="review-stats grid grid-cols-2 gap-2 border-t border-border pt-3 sm:grid-cols-5" aria-label="Action item summary">
+            {[
+              { label: "Action items", value: totalTasks, icon: ListChecks, tone: "blue" },
+              { label: "Reviewed", value: reviewProgress.reviewed, icon: CheckCircle2, tone: "green" },
+              { label: "With assignees", value: totalTasks - needOwnerCount, icon: Users, tone: "teal" },
+              { label: "Need dates", value: needDatesCount, icon: CalendarDays, tone: "amber" },
+              { label: "Need owner", value: needOwnerCount, icon: UserRoundX, tone: "red" },
+            ].map(({ label, value, icon: Icon, tone }) => (
+              <div key={label} className="review-stat">
+                <span className={`review-stat-icon tone-${tone}`}><Icon className="h-4 w-4" aria-hidden="true" /></span>
+                <span><strong>{value}</strong><small>{label}</small></span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* Filter Pills + Add Manual Task */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {(
-            [
-              { id: "all", label: `All (${totalTasks})` },
-              { id: "pending", label: `Pending review (${pendingCount})` },
-              { id: "approved", label: `Approved (${approvedCount})` },
-              { id: "needs_info", label: `Needs info (${needsInfoCount})` },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setFilter(tab.id)}
-              className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
-                filter === tab.id
-                  ? "bg-primary-light/80 text-primary border-primary/30 font-semibold"
-                  : "bg-slate-50 text-muted-foreground border-border/80 hover:text-foreground"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {/* Filter Pills + Add Manual Task */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(
+                [
+                  { id: "all", label: `All (${totalTasks})` },
+                  { id: "pending", label: `Pending review (${pendingCount})` },
+                  { id: "approved", label: `Approved (${approvedCount})` },
+                  { id: "needs_info", label: `Needs info (${needsInfoCount})` },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setFilter(tab.id)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                    filter === tab.id
+                      ? "bg-primary-light/80 text-primary border-primary/30 font-semibold"
+                      : "bg-slate-50 text-muted-foreground border-border/80 hover:text-foreground"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {!isAddingTask && (
+              <button
+                onClick={() => setIsAddingTask(true)}
+                type="button"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-card border border-border hover:bg-slate-50 text-xs font-semibold text-foreground transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 text-primary" />
+                <span>Add task</span>
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
+      {viewMode === "board" && (
+        <>
+          <div className="flex items-center justify-between border-t border-border pt-3">
+            <span className="text-xs font-semibold text-muted-foreground">
+              Execution Progress (Approved Tasks)
+            </span>
+            <span className="text-xs font-bold text-foreground">
+              {execProgress.completed} of {execProgress.totalApproved} completed ({execProgress.percent}%)
+            </span>
+          </div>
+          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+              style={{ width: `${execProgress.percent}%` }}
+            />
+          </div>
+
+          <div className="review-stats grid grid-cols-2 gap-2 border-t border-border pt-3 sm:grid-cols-5" aria-label="Action board summary">
+            {[
+              { label: "Approved tasks", value: execProgress.totalApproved, icon: ListChecks, tone: "blue" },
+              { label: "To do", value: execProgress.todo, icon: Clock, tone: "blue" },
+              { label: "In progress", value: execProgress.in_progress, icon: CheckCircle2, tone: "teal" },
+              { label: "Blocked", value: execProgress.blocked, icon: AlertTriangle, tone: "amber" },
+              { label: "Overdue", value: overdueApprovedCount, icon: UserRoundX, tone: "red" },
+            ].map(({ label, value, icon: Icon, tone }) => (
+              <div key={label} className="review-stat">
+                <span className={`review-stat-icon tone-${tone}`}><Icon className="h-4 w-4" aria-hidden="true" /></span>
+                <span><strong>{value}</strong><small>{label}</small></span>
+              </div>
+            ))}
+          </div>
+
+          {/* Action Board Status Filters */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(
+                [
+                  { id: "all", label: `All (${execProgress.totalApproved})` },
+                  { id: "todo", label: `To do (${execProgress.todo})` },
+                  { id: "in_progress", label: `In progress (${execProgress.in_progress})` },
+                  { id: "blocked", label: `Blocked (${execProgress.blocked})` },
+                  { id: "completed", label: `Completed (${execProgress.completed})` },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setBoardFilter(tab.id)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                    boardFilter === tab.id
+                      ? "bg-primary-light/80 text-primary border-primary/30 font-semibold"
+                      : "bg-slate-50 text-muted-foreground border-border/80 hover:text-foreground"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {!isAddingTask && (
+              <button
+                onClick={() => setIsAddingTask(true)}
+                type="button"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-card border border-border hover:bg-slate-50 text-xs font-semibold text-foreground transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 text-primary" />
+                <span>Add task</span>
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
+      {viewMode === "clarifications" && (
+        <div className="border-t border-border pt-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-foreground">
+              {clarificationTasks.length === 0
+                ? "No tasks need clarification"
+                : `${clarificationTasks.length} task${clarificationTasks.length === 1 ? "" : "s"} require attention`}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Missing owners, ambiguous dates, or unverified quotes
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Resolve warnings directly using the edit and approval controls below. Tasks update automatically as details are clarified.
+          </p>
         </div>
-
-        {!isAddingTask && (
-          <button
-            onClick={() => setIsAddingTask(true)}
-            type="button"
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-card border border-border hover:bg-slate-50 text-xs font-semibold text-foreground transition-colors cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5 text-primary" />
-            <span>Add task</span>
-          </button>
-        )}
-      </div>
+      )}
 
       {/* Add Manual Task Inline Form */}
       {isAddingTask && (
@@ -373,13 +600,30 @@ export function ReviewWorkspace({
       <div className="grid grid-cols-1 2xl:grid-cols-12 gap-4 items-start">
         {/* Left: Action Items + Decisions + Open Questions */}
         <div className="2xl:col-span-7 space-y-3">
-          {filteredTasks.length === 0 ? (
-            <div className="text-center py-8 bg-background/50 rounded-xl border border-border text-muted-foreground text-xs">
-              No action items under this filter.
+          {activeDisplayTasks.length === 0 ? (
+            <div className="text-center py-8 bg-background/50 rounded-xl border border-border text-muted-foreground text-xs space-y-2">
+              <p>
+                {viewMode === "board"
+                  ? approvedTasks.length === 0
+                    ? "No approved tasks yet. Approve items in the Review List to track their execution here."
+                    : `No tasks found matching "${boardFilter}" status.`
+                  : viewMode === "clarifications"
+                  ? "All action items are clear! No missing owners, dates, or unverified citations."
+                  : "No action items under this filter."}
+              </p>
+              {viewMode === "board" && approvedTasks.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => setViewMode("review")}
+                  className="px-3 py-1 rounded-lg text-xs font-semibold bg-primary text-white hover:bg-primary-hover cursor-pointer"
+                >
+                  Go to Review List
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-2.5">
-              {filteredTasks.map((task) => {
+              {activeDisplayTasks.map((task) => {
                 if (editingTaskId === task.id) {
                   return (
                     <ActionItemEditor
@@ -398,9 +642,11 @@ export function ReviewWorkspace({
                     isSelected={selectedTask?.id === task.id}
                     onSelect={() => setSelectedTaskId(task.id)}
                     onSetStatus={handleSetTaskStatus}
+                    onSetExecutionStatus={handleSetTaskExecutionStatus}
                     onEdit={() => setEditingTaskId(task.id)}
                     onDelete={handleDeleteTask}
                     onInspectEvidence={(ev) => setActiveEvidence(ev)}
+                    showExecutionControls={viewMode === "board"}
                   />
                 );
               })}
@@ -412,6 +658,7 @@ export function ReviewWorkspace({
             <DecisionSection
               decisions={meeting.decisions}
               onAddDecision={handleAddDecision}
+              onEditDecision={handleEditDecision}
               onDeleteDecision={handleDeleteDecision}
               onSetStatus={handleSetDecisionStatus}
               onInspectEvidence={(ev) => setActiveEvidence(ev)}
@@ -420,6 +667,8 @@ export function ReviewWorkspace({
             <OpenQuestionsSection
               questions={meeting.openQuestions}
               onAddQuestion={handleAddQuestion}
+              onEditQuestion={handleEditQuestion}
+              onAnswerQuestion={handleAnswerQuestion}
               onDeleteQuestion={handleDeleteQuestion}
               onSetStatus={handleSetQuestionStatus}
               onInspectEvidence={(ev) => setActiveEvidence(ev)}

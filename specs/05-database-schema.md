@@ -47,6 +47,7 @@ erDiagram
         string commitment_status
         string priority
         string review_status
+        string status
         string original_deadline_text
         date resolved_deadline
         string deadline_relation
@@ -77,6 +78,8 @@ erDiagram
         uuid meeting_id FK
         text question
         string review_status
+        string status
+        text answer
         boolean needs_review
         timestamp created_at
     }
@@ -112,6 +115,8 @@ erDiagram
 import { pgTable, uuid, text, timestamp, boolean, integer, date, jsonb, pgEnum } from "drizzle-orm/pg-core";
 
 export const reviewStatusEnum = pgEnum("review_status", ["pending", "approved", "rejected"]);
+export const taskStatusEnum = pgEnum("task_status", ["todo", "in_progress", "blocked", "completed"]);
+export const questionStatusEnum = pgEnum("question_status", ["open", "answered"]);
 export const commitmentStatusEnum = pgEnum("commitment_status", ["confirmed", "proposed", "unclear"]);
 export const priorityEnum = pgEnum("priority", ["low", "medium", "high"]);
 export const deadlineRelationEnum = pgEnum("deadline_relation", ["before", "by", "on", "after"]);
@@ -147,6 +152,7 @@ export const actionItems = pgTable("action_items", {
   commitmentStatus: commitmentStatusEnum("commitment_status").default("confirmed").notNull(),
   priority: priorityEnum("priority"),
   reviewStatus: reviewStatusEnum("review_status").default("pending").notNull(),
+  status: taskStatusEnum("status").default("todo").notNull(),
   originalDeadlineText: text("original_deadline_text"),
   resolvedDeadline: date("resolved_deadline"),
   deadlineTime: text("deadline_time"),
@@ -179,6 +185,8 @@ export const openQuestions = pgTable("open_questions", {
   meetingId: uuid("meeting_id").references(() => meetings.id, { onDelete: "cascade" }).notNull(),
   question: text("question").notNull(),
   reviewStatus: reviewStatusEnum("review_status").default("pending").notNull(),
+  status: questionStatusEnum("status").default("open").notNull(),
+  answer: text("answer"),
   needsReview: boolean("needs_review").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

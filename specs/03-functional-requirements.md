@@ -47,31 +47,36 @@
 
 ---
 
-## 3. Human-In-The-Loop Review Workspace (FR-3)
-- **FR-3.1:** Extracted items shall display in an interactive review list with statuses: `pending`, `approved`, `rejected`.
-- **FR-3.2:** Users can modify all fields of an action item inline without losing original AI extraction history.
-- **FR-3.3:** Users can add new manual action items, decisions, and open questions.
-- **FR-3.4:** Users can permanently delete extracted or manual items.
-- **FR-3.5:** Review progress bar dynamically displays percent and count of items reviewed.
-- **FR-3.6:** Highlighting interaction: Clicking an evidence quote highlights the corresponding characters in the original transcript view.
+## 3. Human-In-The-Loop Review Workspace & Action Tracker (FR-3)
+- **FR-3.1 Review Status Separation:** Extracted items shall display in an interactive review list with review statuses: `pending`, `approved`, `rejected`. Review status is strictly decoupled from work execution status.
+- **FR-3.2 Task Execution Status:** Approved tasks possess an execution status: `todo`, `in_progress`, `blocked`, `completed`. Updating execution status persists to IndexedDB and never silently alters review status.
+- **FR-3.3 Action Board:** A compact action board surfaces approved tasks with title, assignees, deadline, execution status, evidence inspector access, and edit controls. Supports filtering by execution status (`all`, `todo`, `in_progress`, `blocked`, `completed`).
+- **FR-3.4 Overdue Alerting:** Tasks whose deadline date is strictly before the current date and whose execution status is not `completed` are visibly flagged as overdue.
+- **FR-3.5 Clarification Workflow:** A dedicated queue isolates tasks needing attention (missing assignees, missing or ambiguous deadlines, proposed/unclear commitment, or unverified quotes). Users resolve clarifications in-place using existing edit controls without re-running LLM extraction.
+- **FR-3.6 Decisions & Questions In-Place Editing:** Users can edit decisions and questions in-place, preserving provenance and marking them as user-edited. Questions support resolution tracking (`open` | `answered`) and optional answer notes.
+- **FR-3.7 Progress Metrics:** Dynamic progress meters separately report review verification progress and approved action item execution progress.
+- **FR-3.8 Highlighting interaction:** Clicking an evidence quote highlights the corresponding characters in the original transcript view.
 
 ---
 
 ## 4. Export Generation (FR-4)
 - **FR-4.1 Markdown Export:**
   - Generates downloadable `.md` file and provides a 1-click "Copy to Clipboard" button.
-  - Markdown layout includes metadata header, summary, approved tasks with markdown checkboxes (`- [ ]`), owner and due date, decisions list, open questions list, and next meeting.
+  - Markdown layout includes metadata header, summary, approved tasks with markdown checkboxes (`- [x]` for completed, `- [ ]` otherwise), execution status tags (`[Status: ...]`), clarification warnings, decisions list, open questions with recorded answers, and next meeting.
   - Option to include pending items with a `[PENDING REVIEW]` tag (rejected items are strictly excluded).
 - **FR-4.2 CSV Export:**
   - Generates downloadable `.csv` file compliant with RFC 4180.
-  - Headers: `Meeting Title, Task Title, Description, Assignees, Deadline, Original Deadline Text, Commitment Status, Priority, Review Status, Source Evidence`.
-  - Sanitizes all fields to prevent CSV Formula Injection by prepending `'` to values starting with `=`, `+`, `-`, `@`, `\t`, or `\r`.
+  - Headers: `Meeting Title, Task Title, Description, Assignees, Deadline, Original Deadline Text, Commitment Status, Priority, Review Status, Execution Status, Clarification Warnings, Source Evidence`.
+  - Sanitizes all fields to prevent CSV Formula Injection (CWE-1236) by prepending `'` to values starting with `=`, `+`, `-`, `@`, `\t`, or `\r`.
+- **FR-4.3 Meeting Minutes Export:**
+  - Generates downloadable structured Meeting Minutes document (`.md`).
+  - Formats: Meeting Details, Executive Overview, Decisions Reached, Action Items & Work Assignment table with owners and execution status, and Open Inquiries with recorded resolutions.
 
 ---
 
 ## 5. Persistence & History (FR-5)
-- **FR-5.1:** Guest mode stores meetings in browser IndexedDB (store name: `tambayayong_meetings`).
+- **FR-5.1:** Guest mode stores meetings in browser IndexedDB (store name: `tambayayong_meetings`). Backward compatibility guarantees legacy meeting records without execution status default safely to `todo`.
 - **FR-5.2:** Meeting history view provides list of past meetings sorted by last updated timestamp.
-- **FR-5.3:** Ability to view, re-edit, duplicate, or delete any locally saved meeting.
+- **FR-5.3:** Ability to view, re-edit, duplicate, or delete any locally saved meeting. Re-analysis strictly preserves user-managed task execution status and open question answers.
 - **FR-5.4:** Storage indicator shows approximate storage used and offers "Clear all local data" option.
 - **FR-5.5:** Server persistence schema defined in PostgreSQL with Drizzle ORM ready for authenticated organization workspaces.

@@ -8,18 +8,22 @@ import {
   Clock,
   Flag,
   Link2,
+  AlertTriangle,
 } from "lucide-react";
-import { ActionItem, ReviewStatus, Evidence } from "@/types/meeting";
+import { ActionItem, ReviewStatus, TaskStatus, Evidence } from "@/types/meeting";
 import { formatDateDisplay } from "@/lib/utils";
+import { isTaskOverdue, getClarificationReasons } from "@/lib/meeting-workflow";
 
 interface ActionItemCardProps {
   task: ActionItem;
   isSelected?: boolean;
   onSelect?: () => void;
   onSetStatus: (taskId: string, status: ReviewStatus) => void;
+  onSetExecutionStatus?: (taskId: string, status: TaskStatus) => void;
   onEdit: (task: ActionItem) => void;
   onDelete: (taskId: string) => void;
   onInspectEvidence: (evidence: Evidence) => void;
+  showExecutionControls?: boolean;
 }
 
 export function ActionItemCard({
@@ -27,9 +31,11 @@ export function ActionItemCard({
   isSelected = false,
   onSelect,
   onSetStatus,
+  onSetExecutionStatus,
   onEdit,
   onDelete,
   onInspectEvidence,
+  showExecutionControls = false,
 }: ActionItemCardProps) {
   const isUnassigned = task.assignees.length === 0;
   const hasMissingOrAmbiguousDate =
@@ -37,6 +43,9 @@ export function ActionItemCard({
   const primaryEvidence = task.evidence && task.evidence[0];
   const isApproved = task.reviewStatus === "approved";
   const isRejected = task.reviewStatus === "rejected";
+  const overdue = isTaskOverdue(task);
+  const clarificationReasons = getClarificationReasons(task);
+  const currentExecStatus = task.status || "todo";
 
   // Status badge logic matching reference design
   let statusBadge = {
@@ -118,6 +127,13 @@ export function ActionItemCard({
               >
                 {statusBadge.label}
               </span>
+
+              {overdue && (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md border bg-danger-light text-danger border-danger/30 inline-flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  <span>Overdue</span>
+                </span>
+              )}
             </div>
 
             <div
@@ -150,9 +166,54 @@ export function ActionItemCard({
             </p>
           )}
 
+          {/* Clarification Reasons (if any) */}
+          {clarificationReasons.length > 0 && !isRejected && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              {clarificationReasons.map((reason) => (
+                <span
+                  key={reason}
+                  className="text-[10px] font-medium px-2 py-0.5 rounded-md border bg-amber-50 text-amber-800 border-amber-200 inline-flex items-center gap-1"
+                >
+                  <AlertTriangle className="w-2.5 h-2.5 text-amber-600" />
+                  <span>{reason}</span>
+                </span>
+              ))}
+            </div>
+          )}
+
           {/* Bottom Metadata Pills + Source Link */}
           <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px]">
             <div className="flex flex-wrap items-center gap-1.5">
+              {/* Execution Status Selector for Approved/Tracker items */}
+              {(isApproved || showExecutionControls) && onSetExecutionStatus && (
+                <div
+                  className="inline-flex items-center gap-1 mr-1"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <select
+                    value={currentExecStatus}
+                    onChange={(e) =>
+                      onSetExecutionStatus(task.id, e.target.value as TaskStatus)
+                    }
+                    aria-label={`Execution status for ${task.title}`}
+                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border transition-colors cursor-pointer focus:outline-none ${
+                      currentExecStatus === "completed"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                        : currentExecStatus === "in_progress"
+                        ? "bg-blue-50 text-blue-700 border-blue-300"
+                        : currentExecStatus === "blocked"
+                        ? "bg-rose-50 text-rose-700 border-rose-300"
+                        : "bg-slate-100 text-slate-700 border-slate-300"
+                    }`}
+                  >
+                    <option value="todo">To do</option>
+                    <option value="in_progress">In progress</option>
+                    <option value="blocked">Blocked</option>
+                    <option value="completed">Completed</option>
+                  </select>
+                </div>
+              )}
+
               {/* Assignee */}
               <span
                 className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border ${

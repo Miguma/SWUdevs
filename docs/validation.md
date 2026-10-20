@@ -1,5 +1,51 @@
 # Tambayayong — Codex validation and handoff
 
+## Phase 3: From Meeting Notes to Action Tracking — 20 October 2026
+
+Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, feature branch `codex/phase3-action-tracking` (based on `main` at `d4c5375`).
+
+### CI Failure Diagnosis
+Inspection of the latest GitHub Actions CI run (`39262958568`) confirmed that the failure was caused by an account-level lock on GitHub (`The account is locked due to a billing issue`), not an application regression or broken code. All local and repository tests pass cleanly.
+
+### Implemented Capabilities
+1. **Task Execution Status (`TaskStatus`):**
+   - Introduced `"todo" | "in_progress" | "blocked" | "completed"`, strictly separated from `reviewStatus` (`"pending" | "approved" | "rejected"`).
+   - Only approved tasks populate active execution trackers; updating work status never silently modifies review status.
+   - Backward compatibility ensures legacy meetings missing execution status default safely to `"todo"`.
+   - Re-analysis preserves human-managed task progress and open question answers.
+2. **Compact Action Board:**
+   - Tabbed workspace switcher between `Review List`, `Action Board`, and `Clarify`.
+   - Action Board displays approved tasks with title, assignees, deadline, execution status selector, source evidence access, and edit controls.
+   - Lightweight status filters: `All`, `To do`, `In progress`, `Blocked`, `Completed`.
+   - Visual overdue alerting flags tasks whose resolved deadline is before today when not completed.
+3. **Clarification Workflow:**
+   - Dedicated queue isolates tasks needing attention (missing owners, missing or ambiguous deadlines, tentative proposals, or unverified quotes).
+   - Users resolve issues in-place via existing edit and approval controls without running extra AI extraction calls.
+   - Tasks are automatically acknowledged and cleared as ambiguities or missing fields are resolved.
+4. **Decisions & Open Questions Improvements:**
+   - In-place editing of decisions and questions with provenance preservation (`isUserEdited = true`).
+   - Open questions support resolution tracking (`"open" | "answered"`) and recording of verified answer text.
+5. **Enhanced Exports & Meeting Minutes:**
+   - Enhanced Markdown export with execution status tags (`[Status: ...]`), checkbox completion (`- [x]` vs `- [ ]`), and clarification warnings.
+   - Enhanced formula-safe CSV export with `Execution Status` and `Clarification Warnings` columns.
+   - New downloadable structured Meeting Minutes export (`.md`) detailing meeting metadata, executive summary, decisions reached, action items table with execution status, and follow-up inquiries.
+6. **AI & Storage Constraints Preserved:**
+   - Maintained pinned Groq open-weight `qwen/qwen3.8-27b` cloud inference with strict JSON Schema structured outputs.
+   - Preserved guest IndexedDB storage with zero schema wipe.
+   - Minimalist green-and-white visual identity preserved.
+
+| Check | Observed result |
+| :--- | :--- |
+| `npm ci` | Passed; 175 packages installed from lockfile. |
+| `npm run eval:validate` | Passed: 20 dataset cases (6 English, 7 Cebuano, 7 mixed). Schema and source annotation validation only. |
+| `npm test` | Passed: 85 tests in 12 files (including 10 new regression tests in `tests/action-tracking.test.ts`). |
+| `npm run typecheck` | Passed: 0 TypeScript errors (`tsc --noEmit -p tsconfig.check.json`). |
+| `npm run build` | Passed: Next.js 14.2.35 production build compiled successfully; all 6 static routes generated. |
+| Model & Fallback Check | Pinned to `qwen/qwen3.8-27b` on Groq server-side. Zero proprietary fallback. |
+| Docker | Engine unavailable at `dockerDesktopLinuxEngine`; container execution skipped as documented. |
+
+---
+
 ## Groq key and first live inference — 20 October 2026
 
 The user supplied a Groq API key, which was placed in ignored `.env.local` and not committed. After stopping the old server and restarting the production app, `GET /api/ai/health` returned HTTP 200 with `configured=true`, `modelAvailable=true`, `provider=groq`, and the exact pinned `qwen/qwen3.8-27b` model. One consented request using only public sample notes returned HTTP 200 with two action items, zero decisions, zero open questions, and `analysis.provider=groq` with the pinned model. This confirms live routing and extraction, not correctness on the 20-case benchmark or semantic accuracy. The existing `eval/model-eval-report.*` remains `NOT_RUN` because its CLI check ran before the key was saved; a full benchmark was not run against the free-tier quota.

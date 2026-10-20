@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 export type ReviewStatus = "pending" | "approved" | "rejected";
+export type TaskStatus = "todo" | "in_progress" | "blocked" | "completed";
+export type QuestionAnswerStatus = "open" | "answered";
 export type CommitmentStatus = "confirmed" | "proposed" | "unclear";
 export type PriorityLevel = "low" | "medium" | "high" | null;
 export type DeadlineRelation = "before" | "by" | "on" | "after" | null;
@@ -43,6 +45,7 @@ export interface ActionItem {
   missingInformation: string[];
   needsReview: boolean;
   reviewStatus: ReviewStatus;
+  status?: TaskStatus;
   isUserEdited?: boolean;
   isManual?: boolean;
 }
@@ -65,6 +68,8 @@ export interface OpenQuestion {
   evidence: Evidence[];
   needsReview: boolean;
   reviewStatus: ReviewStatus;
+  status?: QuestionAnswerStatus;
+  answer?: string | null;
   isUserEdited?: boolean;
   isManual?: boolean;
 }

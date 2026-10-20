@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ActionItem, PriorityLevel } from "@/types/meeting";
+import { ActionItem, PriorityLevel, TaskStatus } from "@/types/meeting";
 
 interface ActionItemEditorProps {
   task: ActionItem;
@@ -17,6 +17,7 @@ export function ActionItemEditor({
   const [assignees, setAssignees] = useState(task.assignees.join(", "));
   const [deadlineDate, setDeadlineDate] = useState(task.deadline.date || "");
   const [priority, setPriority] = useState<PriorityLevel>(task.priority);
+  const [status, setStatus] = useState<TaskStatus>(task.status || "todo");
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -42,13 +43,14 @@ export function ActionItemEditor({
       description: desc.trim() || null,
       assignees: parsedAssignees,
       priority,
+      status,
       deadline: {
         ...task.deadline,
         date: deadlineDate || null,
         isAmbiguous: false,
       },
-      reviewStatus: "pending",
-      needsReview: true,
+      reviewStatus: task.reviewStatus,
+      needsReview: task.reviewStatus === "approved" ? false : task.needsReview,
       isUserEdited: true,
     };
 
@@ -79,7 +81,7 @@ export function ActionItemEditor({
           className="w-full px-3 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:border-primary"
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
           <div>
             <label className="text-[11px] font-medium text-muted-foreground block mb-1">
               Assignees
@@ -103,6 +105,22 @@ export function ActionItemEditor({
               onChange={(e) => setDeadlineDate(e.target.value)}
               className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:border-primary"
             />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-medium text-muted-foreground block mb-1">
+              Work Status
+            </label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as TaskStatus)}
+              className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-border bg-background focus:outline-none focus:border-primary font-medium"
+            >
+              <option value="todo">To do</option>
+              <option value="in_progress">In progress</option>
+              <option value="blocked">Blocked</option>
+              <option value="completed">Completed</option>
+            </select>
           </div>
 
           <div>

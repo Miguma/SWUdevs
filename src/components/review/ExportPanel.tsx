@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { FileDown, FileText, Table, Check, Copy } from "lucide-react";
+import { FileDown, FileText, Table, Check, Copy, ScrollText } from "lucide-react";
 import { MeetingExtraction } from "@/types/meeting";
 import {
   generateMarkdownExport,
   generateCsvExport,
+  generateMeetingMinutesExport,
 } from "@/server/services/export-service";
 
 interface ExportPanelProps {
@@ -12,7 +13,7 @@ interface ExportPanelProps {
 
 export function ExportPanel({ meeting }: ExportPanelProps) {
   const [includePending, setIncludePending] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const handleDownloadMarkdown = () => {
     const md = generateMarkdownExport(meeting, { includePending });
@@ -22,7 +23,7 @@ export function ExportPanel({ meeting }: ExportPanelProps) {
     a.href = url;
     a.download = `tambayayong-${meeting.title
       .toLowerCase()
-      .replace(/[^a-z0-9]/g, "-")}.md`;
+      .replace(/[^a-z0-9]/g, "-")}-actions.md`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -30,8 +31,21 @@ export function ExportPanel({ meeting }: ExportPanelProps) {
   const handleCopyMarkdown = () => {
     const md = generateMarkdownExport(meeting, { includePending });
     navigator.clipboard.writeText(md);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopied("md");
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const handleDownloadMinutes = () => {
+    const minutes = generateMeetingMinutesExport(meeting, { includePending });
+    const blob = new Blob([minutes], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tambayayong-${meeting.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "-")}-minutes.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleDownloadCsv = () => {
@@ -59,7 +73,7 @@ export function ExportPanel({ meeting }: ExportPanelProps) {
               Export results
             </h3>
             <p className="text-[11px] text-muted-foreground">
-              Download your action plan.
+              Download your action plan or official minutes.
             </p>
           </div>
         </div>
@@ -68,9 +82,9 @@ export function ExportPanel({ meeting }: ExportPanelProps) {
           type="button"
           onClick={handleCopyMarkdown}
           className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-          title="Copy Markdown to clipboard"
+          title="Copy Action Plan Markdown to clipboard"
         >
-          {copied ? (
+          {copied === "md" ? (
             <>
               <Check className="w-3 h-3 text-primary" />
               <span className="text-primary">Copied</span>
@@ -84,21 +98,33 @@ export function ExportPanel({ meeting }: ExportPanelProps) {
         </button>
       </div>
 
-      {/* Side-by-side Markdown & CSV buttons matching reference */}
-      <div className="grid grid-cols-2 gap-2.5">
+      {/* 3 Export options: Markdown, Minutes, CSV */}
+      <div className="grid grid-cols-3 gap-2">
         <button
           onClick={handleDownloadMarkdown}
           type="button"
-          className="py-2 px-3 rounded-xl border border-border bg-card hover:bg-slate-50 text-foreground text-xs font-semibold flex items-center justify-center gap-2 shadow-2xs transition-colors cursor-pointer"
+          className="py-2 px-2.5 rounded-xl border border-border bg-card hover:bg-slate-50 text-foreground text-xs font-semibold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+          title="Download Action Plan as Markdown"
         >
           <FileText className="w-3.5 h-3.5 text-primary" />
-          <span>Markdown</span>
+          <span>Actions</span>
+        </button>
+
+        <button
+          onClick={handleDownloadMinutes}
+          type="button"
+          className="py-2 px-2.5 rounded-xl border border-border bg-card hover:bg-slate-50 text-foreground text-xs font-semibold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+          title="Download formatted Meeting Minutes (.md)"
+        >
+          <ScrollText className="w-3.5 h-3.5 text-primary" />
+          <span>Minutes</span>
         </button>
 
         <button
           onClick={handleDownloadCsv}
           type="button"
-          className="py-2 px-3 rounded-xl border border-border bg-card hover:bg-slate-50 text-foreground text-xs font-semibold flex items-center justify-center gap-2 shadow-2xs transition-colors cursor-pointer"
+          className="py-2 px-2.5 rounded-xl border border-border bg-card hover:bg-slate-50 text-foreground text-xs font-semibold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+          title="Download Action Items spreadsheet (.csv)"
         >
           <Table className="w-3.5 h-3.5 text-primary" />
           <span>CSV</span>

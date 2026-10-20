@@ -24,6 +24,8 @@ const contentOf = (item: ReviewItem) =>
     ...item,
     id: undefined,
     reviewStatus: undefined,
+    status: undefined,
+    answer: undefined,
     needsReview: undefined,
     isUserEdited: undefined,
     isManual: undefined,
@@ -76,6 +78,8 @@ export function reconcileMeeting(
       );
       if (!old) return item;
       consumed.add(old.id);
+      const oldStatus = "status" in old ? old.status : undefined;
+      const oldAnswer = "answer" in old ? old.answer : undefined;
       const kept = old.isUserEdited || old.isManual ? old : item;
       const evidence = reanchor(kept.evidence, fresh.rawTranscript);
       const needsNewReview =
@@ -88,6 +92,8 @@ export function reconcileMeeting(
         evidence,
         reviewStatus: needsNewReview ? ("pending" as const) : old.reviewStatus,
         needsReview: needsNewReview || kept.needsReview,
+        ...(oldStatus !== undefined ? { status: oldStatus } : {}),
+        ...(oldAnswer !== undefined ? { answer: oldAnswer } : {}),
       };
     });
     for (const old of oldItems) {
@@ -138,6 +144,68 @@ export function getReviewProgress(meeting: MeetingExtraction) {
     reviewed,
     percent: items.length ? Math.round((100 * reviewed) / items.length) : 0,
   };
+}
+
+export function getExecutionProgress(meeting: MeetingExtraction) {
+  const approvedTasks = meeting.actionItems.filter(
+    (t) => t.reviewStatus === "approved",
+  );
+  const completed = approvedTasks.filter(
+    (t) => t.status === "completed",
+  ).length;
+  const inProgress = approvedTasks.filter(
+    (t) => t.status === "in_progress",
+  ).length;
+  const blocked = approvedTasks.filter((t) => t.status === "blocked").length;
+  const todo = approvedTasks.filter(
+    (t) => !t.status || t.status === "todo",
+  ).length;
+
+  return {
+    total: approvedTasks.length,
+    totalApproved: approvedTasks.length,
+    completed,
+    inProgress,
+    in_progress: inProgress,
+    blocked,
+    todo,
+    percent: approvedTasks.length
+      ? Math.round((100 * completed) / approvedTasks.length)
+      : 0,
+  };
+}
+
+export function isTaskOverdue(
+  task: ActionItem,
+  referenceDate = new Date().toISOString().slice(0, 10),
+): boolean {
+  if (task.status === "completed" || !task.deadline.date) return false;
+  return task.deadline.date < referenceDate;
+}
+
+export function getClarificationReasons(task: ActionItem): string[] {
+  const reasons: string[] = [];
+  if (task.assignees.length === 0) {
+    reasons.push("Missing owner");
+  }
+  if (!task.deadline.date) {
+    reasons.push("Missing deadline");
+  } else if (task.deadline.isAmbiguous) {
+    reasons.push("Ambiguous deadline");
+  }
+  if (task.commitmentStatus === "proposed") {
+    reasons.push("Tentative proposal");
+  } else if (task.commitmentStatus === "unclear") {
+    reasons.push("Unclear commitment");
+  }
+  if (
+    task.evidence.some(
+      (ev) => !ev.isVerified || ev.provenance === "unverified",
+    )
+  ) {
+    reasons.push("Unverified citation");
+  }
+  return reasons;
 }
 
 // A failed write must not poison later saves; writes start in invocation order.

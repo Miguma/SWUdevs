@@ -61,6 +61,7 @@ export const INITIAL_SAMPLE_EXTRACTION: MeetingExtraction = {
       missingInformation: [],
       needsReview: false,
       reviewStatus: "approved",
+      status: "in_progress",
     },
     {
       id: "sample-act-2",
@@ -84,6 +85,7 @@ export const INITIAL_SAMPLE_EXTRACTION: MeetingExtraction = {
       missingInformation: [],
       needsReview: false,
       reviewStatus: "approved",
+      status: "todo",
     },
     {
       id: "sample-act-3",
@@ -110,6 +112,7 @@ export const INITIAL_SAMPLE_EXTRACTION: MeetingExtraction = {
       ],
       needsReview: true,
       reviewStatus: "pending",
+      status: "todo",
     },
     {
       id: "sample-act-4",
@@ -133,6 +136,7 @@ export const INITIAL_SAMPLE_EXTRACTION: MeetingExtraction = {
       missingInformation: ["Needs responsible person", "No deadline specified"],
       needsReview: true,
       reviewStatus: "pending",
+      status: "todo",
     },
     {
       id: "sample-act-5",
@@ -156,6 +160,7 @@ export const INITIAL_SAMPLE_EXTRACTION: MeetingExtraction = {
       missingInformation: [],
       needsReview: false,
       reviewStatus: "approved",
+      status: "todo",
     },
   ],
   decisions: [
@@ -180,6 +185,8 @@ export const INITIAL_SAMPLE_EXTRACTION: MeetingExtraction = {
       ).verifiedEvidence,
       needsReview: true,
       reviewStatus: "pending",
+      status: "open",
+      answer: null,
     },
   ],
   nextMeeting: null,
