@@ -15,7 +15,7 @@
 **Tambayayong** transforms unstructured English, Cebuano, and code-switched (Bislish) meeting notes, chat logs, and transcripts into structured, human-verified action plans.
 
 ### Core Architectural Principles
-1. **Explicit Open-Weight Inference:** The app uses the Apache-2.0 Qwen3-32B model through Hugging Face and the pinned DeepInfra provider. Notes are sent only after the user confirms the transfer. It never switches models or providers.
+1. **Explicit Open-Weight Inference:** The app uses the Apache-2.0 Qwen 3.8 27B model through Groq's free tier. Notes are sent only after the user confirms the transfer. It never switches models or providers.
 2. **Evidence-Grounded Extraction:** Every extracted action item, decision, and open question must cite a verbatim passage from the raw meeting notes. A deterministic verifier locates character offsets (`startOffset`, `endOffset`) and assigns provenance (`exact_match`, `normalized_match`, `unverified`, or `manual`).
 3. **Provenance vs. Semantics Separation:** Locating a quote in the transcript proves **textual provenance only**—it does not prove task ownership, commitment, or human approval. Unsupported assignees or deadlines not grounded in the item's cited quote are stripped or flagged for review.
 4. **Human-in-the-Loop Control:** AI outputs start in `pending` review status. Users can inspect source quotes, edit fields, approve (`approved`), or dismiss (`rejected`) items before exporting. Rejected items are never exported as commitments.
@@ -34,7 +34,7 @@
 | **Icons** | Lucide React | `^0.454.0` |
 | **Validation** | Zod | `^3.23.8` (request payloads & structured LLM JSON outputs) |
 | **Client Persistence** | IndexedDB (`idb`) | `^8.0.0` (`meetings` and `drafts` object stores) |
-| **AI Inference** | Hugging Face Inference Providers | Pinned `Qwen/Qwen3-32B:deepinfra` chat completion |
+| **AI Inference** | Groq free tier | Pinned `qwen/qwen3.8-27b` chat completion |
 | **Date Handling** | `date-fns` + deterministic resolver | `^3.6.0` + bilingual English/Cebuano relative deadline parser |
 | **Testing** | Vitest + `fake-indexeddb` | See `docs/validation.md` for the latest observed results |
 | **Containerization** | Docker + Docker Compose | Next.js and PostgreSQL services |
@@ -101,7 +101,7 @@ Tambayayong/
 │   │   ├── db/schema.ts               # Optional PostgreSQL schema reference
 │   │   └── services/
 │   │       ├── extraction-core.ts     # Shared prompt, schema, source checks, and extraction assembly
-│   │       ├── huggingface-client.ts  # Pinned cloud model, health check, and inference limits
+│   │       ├── groq-client.ts         # Pinned cloud model, health check, and inference limits
 │   │       ├── deadline-resolver.ts   # Bilingual EN/Cebuano relative deadline resolver
 │   │       ├── evidence-verifier.ts   # Verbatim & whitespace-normalized substring offset locator
 │   │       ├── transcript-preprocessor.ts # Normalizes .txt, .md, and .csv uploads
@@ -164,9 +164,9 @@ export interface ActionItem {
 
 ## 5. Backend Services & AI Pipeline (`src/server/services/`)
 
-### 5.1 Pinned Open-Weight Cloud Inference (`huggingface-client.ts`)
-- Requires `HF_TOKEN` on the server and checks the public router catalog for the exact `Qwen/Qwen3-32B:deepinfra` pairing with structured-output support. The token never appears in browser responses.
-- Sends notes to Hugging Face and DeepInfra only after the user confirms the transfer. A missing token, unavailable provider, timeout, malformed output, or model identity mismatch returns an error without trying another model.
+### 5.1 Pinned Open-Weight Cloud Inference (`groq-client.ts`)
+- Requires `GROQ_API_KEY` on the server and checks the authenticated Groq model catalog for the exact `qwen/qwen3.8-27b` model. The key never appears in browser responses. Catalog presence does not guarantee unused free-tier quota.
+- Sends notes to Groq only after the user confirms the transfer. A missing key, unavailable model, timeout, malformed output, or model identity mismatch returns an error without trying another model.
 - Caps input length at 24,000 characters, output at 4,096 tokens, and concurrent cloud requests at two. It rejects truncated or empty results.
 - Records the model and provider in the saved analysis. `extraction-core.ts` holds the bilingual prompt, JSON schema, and deterministic post-inference source checks.
 
@@ -219,7 +219,7 @@ The home page (`src/app/page.tsx`) keeps meeting notes beside the review plan on
 | Endpoint | Method | Purpose |
 | :--- | :--- | :--- |
 | `/api/health` | `GET` | Returns application liveness and timestamp. |
-| `/api/ai/health` | `GET` | Checks the configured Hugging Face cloud model/provider. |
+| `/api/ai/health` | `GET` | Checks the configured Groq cloud model. |
 | `/api/meetings/analyze` | `POST` | Validates intake payload (max 1 MB, sliding-window rate limit of 10 req/min/IP), requires transfer confirmation, invokes the pinned cloud model, resolves relative deadlines, verifies quote offsets, and returns `MeetingExtraction`. |
 | `/api/meetings/[id]/export` | `POST` | Generates downloadable `.md` or `.csv` file responses from a validated `MeetingExtraction` payload. |
 

@@ -1,5 +1,22 @@
 # Tambayayong — Codex validation and handoff
 
+## Groq free-tier switch — 20 October 2026
+
+The current app pins the Apache-2.0 `qwen/qwen3.8-27b` model on Groq's Free plan. Groq's published free-plan limits list this model, and its structured-output documentation lists strict JSON schema support. This is a service offering with rate limits, not a guarantee of unlimited free inference. The app sends notes only after explicit confirmation, uses `GROQ_API_KEY` server-side, never falls back to another model/provider, and preserves historical `ollama` and `huggingface` provider metadata in saved meetings. The old Hugging Face token was removed from ignored `.env.local`; no Groq key is present yet.
+
+| Check | Observed result |
+| :--- | :--- |
+| `npm ci` | Passed; 175 packages installed. npm reported 16 dependency audit findings (5 moderate, 8 high, 3 critical); no automatic dependency changes were made. |
+| `npm run eval:validate` | Passed: 20 dataset cases, 6 English, 7 Cebuano, 7 mixed; no model accuracy measured. |
+| `npm test` | Passed: 75 tests in 11 files, including exact Groq routing, consent, free-tier rate-limit error, no fallback, and evaluation isolation. |
+| `npm run typecheck` | Passed. |
+| `npm run build` | Passed with Next.js 14.2.35; six pages generated. |
+| `npm run eval:model` | Exited 1 and wrote `NOT_RUN` with zero evaluated samples and null metrics because `GROQ_API_KEY` is absent. No real-model extraction or accuracy is claimed. |
+| Production HTTP | `GET /` returned 200 with Groq UI and no DeepInfra UI; a JavaScript asset returned 200. `GET /api/ai/health` returned 503 with `provider=groq`, `configured=false`, and `modelAvailable=false`, as expected without a key. |
+| Docker | Engine unavailable at `dockerDesktopLinuxEngine`; no container check was run. |
+
+Next live check: after the user places a Groq Free-plan key in `.env.local` and restarts the server, verify the authenticated model catalog and one public-sample extraction. Do not infer semantic accuracy from the model listing or unit fixtures. Groq's current [free-plan limits](https://console.groq.com/docs/rate-limits) and [structured-output support](https://console.groq.com/docs/structured-outputs) are external service documentation, not observed account entitlements.
+
 ## Token configuration and live cloud check — 20 October 2026
 
 The user supplied a Hugging Face token, which was placed in ignored `.env.local` without adding it to Git. The development server was restarted. `GET /api/ai/health` returned 200 with the exact pinned model and provider listed as available. A token-only identity check returned HTTP 200, confirming that Hugging Face accepted the credential. One public-sample analysis request reached the inference router but returned HTTP 402 before producing an extraction. No task prediction, citation result, or model accuracy is claimed. Hugging Face's billing/credit state must be resolved in the user's account before a complete live extraction can be verified. The client now shows a specific credits/billing message for HTTP 402; a regression test covers this error and confirms no provider fallback.

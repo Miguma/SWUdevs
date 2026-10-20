@@ -77,7 +77,7 @@ export interface MeetingExtraction {
   timezone: string;
   rawTranscript: string;
   participants?: string;
-  analysis?: { provider?: "ollama" | "huggingface"; model: string; analyzedAt: string };
+  analysis?: { provider?: "ollama" | "huggingface" | "groq"; model: string; analyzedAt: string };
   summary: string;
   actionItems: ActionItem[];
   decisions: MeetingDecision[];
@@ -159,7 +159,7 @@ export const MeetingIntakeSchema = z.object({
     }, "Invalid timezone")
     .default("Asia/Manila"),
   model: z.string().max(200).optional(),
-  provider: z.literal("huggingface").default("huggingface"),
+  provider: z.literal("groq").default("groq"),
   cloudConsent: z.boolean().default(false),
   participants: z.string().optional().default(""),
   rawText: z

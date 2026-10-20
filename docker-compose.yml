@@ -9,7 +9,7 @@ services:
       - "${PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
-      - HF_TOKEN=${HF_TOKEN:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
       - DEFAULT_TIMEZONE=${DEFAULT_TIMEZONE:-Asia/Manila}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-tambayayong}:${POSTGRES_PASSWORD:-tambayayong_dev_secret}@postgres:5432/${POSTGRES_DB:-tambayayong_db}
     depends_on:

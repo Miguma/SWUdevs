@@ -2,7 +2,7 @@
 
 **From conversation to action. Walay mabilin!** Tambayayong turns English and Cebuano meeting notes into a reviewable action plan.
 
-The app uses the Apache-2.0 [Qwen3-32B](https://huggingface.co/Qwen/Qwen3-32B) open-weight model through Hugging Face Inference Providers, pinned to DeepInfra. There is no automatic model or provider fallback. Meeting notes are sent to Hugging Face and DeepInfra only after the person analyzing them confirms the transfer. Guest drafts and reviewed meetings remain in browser IndexedDB.
+The app uses the Apache-2.0 [Qwen 3.8 27B](https://huggingface.co/Qwen/Qwen3.8-27B) open-weight model through Groq's free API tier. There is no automatic model or provider fallback. Meeting notes are sent to Groq only after the person analyzing them confirms the transfer. Guest drafts and reviewed meetings remain in browser IndexedDB.
 
 ## What it does
 
@@ -20,25 +20,25 @@ Install Node.js 20 or newer, then:
 npm ci
 ```
 
-Create `.env.local` in the project root and add a Hugging Face user access token with **Inference Providers** permission:
+Create a free [Groq API key](https://console.groq.com/keys), then add it to `.env.local` in the project root:
 
 ```dotenv
-HF_TOKEN=your_token_here
+GROQ_API_KEY=your_key_here
 ```
 
-Use a dedicated fine-grained token. Keep the actual value only in `.env.local` or the server environment; never use a `NEXT_PUBLIC_` variable or commit it. Hugging Face explains token creation in its [access-token guide](https://huggingface.co/docs/hub/security-tokens). The app never shows the token to the browser.
+Keep the key only in `.env.local` or the server environment; never use a `NEXT_PUBLIC_` variable or commit it. The app never shows the key to the browser. Groq's free plan has [model-specific rate limits](https://console.groq.com/docs/rate-limits); requests stop when a limit is reached.
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The model status appears in the header and intake form. The exact destination is `Qwen/Qwen3-32B:deepinfra` via `https://router.huggingface.co/v1/chat/completions`. Refresh the status after changing the server token; restart the server to load a newly added `.env.local` value. Cloud inference can consume Hugging Face credits.
+Open [http://localhost:3000](http://localhost:3000). The model status appears in the header and intake form. The exact destination is `qwen/qwen3.8-27b` via `https://api.groq.com/openai/v1/chat/completions`. Refresh the status after changing the server key; restart the server to load a newly added `.env.local` value. Stay on Groq's Free plan to avoid paid usage.
 
 The public guest analysis endpoint uses the server's token. Until accounts and server-side access controls are added, run this preview on a trusted/private instance.
 
 ## Docker
 
-`docker-compose.yml` runs Next.js and PostgreSQL. Supply `HF_TOKEN` in the Compose environment before starting:
+`docker-compose.yml` runs Next.js and PostgreSQL. Supply `GROQ_API_KEY` in the Compose environment before starting:
 
 ```bash
 docker compose up -d
@@ -55,7 +55,7 @@ npm run typecheck
 npm run build
 ```
 
-`npm run eval:validate` checks the 20-case dataset structure, not model accuracy. `npm run eval:model` calls the pinned cloud model using source fields only and scores actual predictions after inference. It needs `HF_TOKEN` in the shell environment because the CLI does not load `.env.local` automatically. If the token or model is unavailable, it writes `NOT_RUN` with null metrics rather than inventing predictions. The evaluation sends benchmark notes to Hugging Face and DeepInfra and may use credits.
+`npm run eval:validate` checks the 20-case dataset structure, not model accuracy. `npm run eval:model` calls the pinned cloud model using source fields only and scores actual predictions after inference. It needs `GROQ_API_KEY` in the shell environment because the CLI does not load `.env.local` automatically. If the key or model is unavailable, it writes `NOT_RUN` with null metrics rather than inventing predictions. The evaluation sends benchmark notes to Groq and can consume free-tier request and token quota.
 
 See [observed validation results](docs/validation.md) and the [technical and product guide](docs/PROJECT_DOCUMENTATION.md). The design and acceptance specifications in [`specs/`](specs/) also document earlier local-inference plans; use the current app and validation report for observed behavior.
 

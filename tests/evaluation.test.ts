@@ -114,14 +114,14 @@ describe("Honest model scoring", () => {
         },
       },
     }));
-    vi.doMock("../src/server/services/huggingface-client", () => ({
-      checkHuggingFaceHealth: async () => ({
+    vi.doMock("../src/server/services/groq-client", () => ({
+      checkGroqHealth: async () => ({
         configured: true,
         modelAvailable: true,
-        model: "Qwen/Qwen3-32B",
-        provider: "deepinfra",
+        model: "qwen/qwen3.8-27b",
+        provider: "groq",
       }),
-      executeHuggingFaceExtraction: infer,
+      executeGroqExtraction: infer,
     }));
     try {
       await import("../eval/run-model-eval");
@@ -131,15 +131,15 @@ describe("Honest model scoring", () => {
         meetingDate: tc.meetingDate,
         timezone: tc.timezone,
         rawText: tc.notes,
-        model: "Qwen/Qwen3-32B",
+        model: "qwen/qwen3.8-27b",
       });
       const report = JSON.parse(Object.entries(writes).find(([key]) => key.endsWith(".json"))![1]);
-      expect(report).toMatchObject({ status: "COMPLETE", provider: "huggingface", model: "Qwen/Qwen3-32B" });
+      expect(report).toMatchObject({ status: "COMPLETE", provider: "groq", model: "qwen/qwen3.8-27b" });
       expect(report.metrics.tasks.recall).toBe(0);
       expect(report.predictions[0].prediction.actionItems).toEqual([]);
     } finally {
       vi.doUnmock("node:fs");
-      vi.doUnmock("../src/server/services/huggingface-client");
+      vi.doUnmock("../src/server/services/groq-client");
     }
   });
 });

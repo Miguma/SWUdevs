@@ -24,7 +24,7 @@ import {
 import { parseUploadedFileContent } from "@/server/services/transcript-preprocessor";
 import { reconcileMeeting } from "@/lib/meeting-workflow";
 import { saveDraftNotes, getDraftNotes } from "@/lib/storage/indexeddb";
-import type { HuggingFaceHealthStatus } from "@/server/services/huggingface-client";
+import type { GroqHealthStatus } from "@/server/services/groq-client";
 
 interface MeetingIntakeProps {
   onExtractionComplete: (extraction: MeetingExtraction) => void;
@@ -51,7 +51,7 @@ export function MeetingIntake({
   const [isAddingParticipant, setIsAddingParticipant] = useState(false);
   const [rawText, setRawText] = useState(initialMeeting?.rawTranscript || "");
   const [cloudConsent, setCloudConsent] = useState(false);
-  const [aiStatus, setAiStatus] = useState<HuggingFaceHealthStatus | null>(null);
+  const [aiStatus, setAiStatus] = useState<GroqHealthStatus | null>(null);
   const [checkingModels, setCheckingModels] = useState(true);
   const [draftHydrated, setDraftHydrated] = useState(false);
 
@@ -91,7 +91,7 @@ export function MeetingIntake({
     setCheckingModels(true);
     try {
       const response = await fetch("/api/ai/health", { cache: "no-store" });
-      const status: HuggingFaceHealthStatus = await response.json();
+      const status: GroqHealthStatus = await response.json();
       setAiStatus(status);
     } catch {
       setAiStatus(null);
@@ -269,7 +269,7 @@ export function MeetingIntake({
       return;
     }
     if (!cloudConsent) {
-      setErrorBanner("Confirm that these notes may be sent to Hugging Face and its inference provider.");
+      setErrorBanner("Confirm that these notes may be sent to Groq for analysis.");
       return;
     }
 
@@ -289,7 +289,7 @@ export function MeetingIntake({
           participants,
           rawText,
           model: selectedModel,
-          provider: "huggingface",
+          provider: "groq",
           cloudConsent,
         }),
       });
@@ -564,7 +564,7 @@ export function MeetingIntake({
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-foreground">Open-weight cloud AI</p>
-              <p className="text-xs text-muted-foreground">Qwen3-32B via Hugging Face and DeepInfra.</p>
+              <p className="text-xs text-muted-foreground">Qwen 3.8 27B via Groq's free tier.</p>
             </div>
             <button
               type="button"
@@ -577,17 +577,17 @@ export function MeetingIntake({
               Refresh status
             </button>
           </div>
-          <p className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-medium">{aiStatus?.model || "Qwen/Qwen3-32B"} · DeepInfra</p>
+          <p className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-medium">{aiStatus?.model || "qwen/qwen3.8-27b"} · Groq</p>
           <p className="text-xs leading-5 text-muted-foreground" role="status" aria-live="polite">
             {checkingModels
               ? "Checking the cloud model…"
               : aiStatus?.modelAvailable
-                ? "The pinned model is online. Account credits are checked when you analyze."
+                ? "The pinned model is available. Groq's free-tier limits apply when you analyze."
                 : aiStatus?.error || "Cloud AI is unavailable. Refresh its status."}
           </p>
           <label className="flex items-start gap-2 text-xs leading-5 text-foreground">
             <input type="checkbox" checked={cloudConsent} onChange={(event) => setCloudConsent(event.target.checked)} className="mt-1 accent-primary" />
-            <span>I understand these notes will be sent to Hugging Face and DeepInfra for analysis.</span>
+            <span>I understand these notes will be sent to Groq for analysis.</span>
           </label>
         </div>
         {/* Bottom Bar: Upload link + Analyze CTA */}
@@ -632,7 +632,7 @@ export function MeetingIntake({
           </div>
 
           <p className="text-[11px] text-muted-foreground sm:text-right">
-            Cloud analysis sends these notes to Hugging Face and DeepInfra.
+            Cloud analysis sends these notes to Groq. Free-tier rate limits apply.
           </p>
         </div>
       </form>

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { History, Plus } from "lucide-react";
-import type { HuggingFaceHealthStatus } from "@/server/services/huggingface-client";
+import type { GroqHealthStatus } from "@/server/services/groq-client";
 
 interface HeaderProps {
   onOpenHistory: () => void;
@@ -11,14 +11,14 @@ interface HeaderProps {
 }
 
 export function Header({ onOpenHistory, savedMeetingsCount, onResetHome }: HeaderProps) {
-  const [aiStatus, setAiStatus] = useState<HuggingFaceHealthStatus | null>(null);
+  const [aiStatus, setAiStatus] = useState<GroqHealthStatus | null>(null);
 
   useEffect(() => {
     let active = true;
     const refresh = async () => {
       try {
         const response = await fetch("/api/ai/health");
-        const status: HuggingFaceHealthStatus = await response.json();
+        const status: GroqHealthStatus = await response.json();
         if (active) setAiStatus(status);
       } catch {
         if (active) setAiStatus(null);

@@ -1,13 +1,13 @@
 {
-  "benchmarkDate": "2026-10-20T07:33:02.994Z",
+  "benchmarkDate": "2026-10-20T07:56:51.949Z",
   "mode": "LIVE_MODEL_INFERENCE",
-  "provider": "huggingface",
-  "model": "Qwen/Qwen3-32B",
+  "provider": "groq",
+  "model": "qwen/qwen3.8-27b",
   "datasetSha256": "40328656d6e2b04dc2e5a2a592302d1477ab9b0a7344ef0593ca0b76a0d20965",
   "totalTestCases": 20,
   "matcher": "Maximum one-to-one lexical token Dice >= 0.6; multilingual paraphrases require human audit.",
   "status": "NOT_RUN",
-  "reason": "Set HF_TOKEN on the server to enable cloud analysis.",
+  "reason": "Set GROQ_API_KEY in the server's .env.local file, then restart it to enable free-tier cloud analysis.",
   "evaluatedSampleCount": 0,
   "metrics": null
 }

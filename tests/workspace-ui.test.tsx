@@ -8,7 +8,7 @@ describe("Workspace first visit", () => {
     const html = renderToStaticMarkup(<HomePage />);
 
     expect(html).toContain("Nothing to review yet");
-    expect(html).toContain("Qwen/Qwen3-32B");
+    expect(html).toContain("qwen/qwen3.8-27b");
     expect(html).toContain("Refresh status");
     expect(html).toContain("Open-weight cloud AI");
     expect(html).not.toContain("My Ollama server");

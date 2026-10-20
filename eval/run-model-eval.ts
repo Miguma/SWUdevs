@@ -2,20 +2,20 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import {
-  checkHuggingFaceHealth,
-  executeHuggingFaceExtraction,
-} from "../src/server/services/huggingface-client";
+  checkGroqHealth,
+  executeGroqExtraction,
+} from "../src/server/services/groq-client";
 import { aggregateScores, scoreCase, type BenchmarkCase } from "./metrics";
 
 async function runModelEvaluation() {
   // CLI tools use shell variables, not Next's .env.local loader.
-  const provider = "huggingface";
+  const provider = "groq";
   const datasetBytes = fs.readFileSync(
     path.resolve(__dirname, "dataset.json"),
     "utf8",
   );
   const dataset: BenchmarkCase[] = JSON.parse(datasetBytes);
-  const inference = await checkHuggingFaceHealth().then((health) => ({
+  const inference = await checkGroqHealth().then((health) => ({
     model: health.model,
     available: health.configured && health.modelAvailable,
     unavailableReason: health.error || "Pinned cloud model unavailable",
@@ -68,7 +68,7 @@ async function runModelEvaluation() {
         rawText: tc.notes,
         model,
       };
-      const prediction = await executeHuggingFaceExtraction(input);
+      const prediction = await executeGroqExtraction(input);
       predictions.push({ id: tc.id, prediction });
       rows.push(scoreCase(prediction, tc));
       console.log(

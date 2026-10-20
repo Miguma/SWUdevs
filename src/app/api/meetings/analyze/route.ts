@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MeetingIntakeSchema } from "@/types/meeting";
 import { InferenceError } from "@/server/services/extraction-core";
-import { executeHuggingFaceExtraction } from "@/server/services/huggingface-client";
+import { executeGroqExtraction } from "@/server/services/groq-client";
 import { preprocessTranscriptText } from "@/server/services/transcript-preprocessor";
 
 export const dynamic = "force-dynamic";
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
       parseResult.data;
     if (!cloudConsent) {
       return NextResponse.json(
-        { error: "Cloud transfer confirmation is required before sending notes to Hugging Face and DeepInfra." },
+        { error: "Cloud transfer confirmation is required before sending notes to Groq." },
         { status: 400 },
       );
     }
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
       rawText,
       model,
     };
-    const extraction = await executeHuggingFaceExtraction(input);
+    const extraction = await executeGroqExtraction(input);
 
     return NextResponse.json(extraction, { status: 200 });
   } catch (err: any) {

@@ -8,17 +8,16 @@ import {
   type AnalyzeInput,
 } from "./extraction-core";
 
-// This Apache-2.0 model and provider are deliberately pinned. No automatic
-// provider or model routing is allowed for meeting notes.
-export const HUGGING_FACE_MODEL = "Qwen/Qwen3-32B";
-export const HUGGING_FACE_PROVIDER = "deepinfra";
-const ROUTER_URL = "https://router.huggingface.co/v1";
-const ROUTED_MODEL = `${HUGGING_FACE_MODEL}:${HUGGING_FACE_PROVIDER}`;
+// One open-weight model is pinned on Groq's free tier. Never route meeting
+// notes to another model or provider without a deliberate user choice.
+export const GROQ_MODEL = "qwen/qwen3.8-27b";
+export const GROQ_PROVIDER = "groq";
+const API_URL = "https://api.groq.com/openai/v1";
 const MAX_PROMPT_CHARS = 24000;
 const INFERENCE_TIMEOUT_MS = 120000;
 let activeCloudInferences = 0;
 
-export interface HuggingFaceHealthStatus {
+export interface GroqHealthStatus {
   configured: boolean;
   modelAvailable: boolean;
   model: string;
@@ -26,53 +25,51 @@ export interface HuggingFaceHealthStatus {
   error?: string;
 }
 
-export async function checkHuggingFaceHealth(): Promise<HuggingFaceHealthStatus> {
-  const status: HuggingFaceHealthStatus = {
-    configured: Boolean(process.env.HF_TOKEN?.trim()),
+export async function checkGroqHealth(): Promise<GroqHealthStatus> {
+  const token = process.env.GROQ_API_KEY?.trim();
+  const status: GroqHealthStatus = {
+    configured: Boolean(token),
     modelAvailable: false,
-    model: HUGGING_FACE_MODEL,
-    provider: HUGGING_FACE_PROVIDER,
+    model: GROQ_MODEL,
+    provider: GROQ_PROVIDER,
   };
   if (!status.configured) {
-    status.error = "Set HF_TOKEN on the server to enable cloud analysis.";
+    status.error = "Set GROQ_API_KEY in the server's .env.local file, then restart it to enable free-tier cloud analysis.";
     return status;
   }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 4000);
   try {
-    const response = await fetch(`${ROUTER_URL}/models`, {
+    const response = await fetch(`${API_URL}/models`, {
+      headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,
       cache: "no-store",
     });
+    if (response.status === 401 || response.status === 403) {
+      status.error = "Groq rejected the server API key. Check GROQ_API_KEY and your Groq account access.";
+      return status;
+    }
     if (!response.ok) throw new Error("Model catalog unavailable");
     const catalog = await response.json();
-    const model = Array.isArray(catalog.data)
-      ? catalog.data.find((entry: { id?: string }) => entry.id === HUGGING_FACE_MODEL)
-      : undefined;
-    status.modelAvailable = Boolean(
-      model?.providers?.some(
-        (entry: { provider?: string; status?: string; supports_structured_output?: boolean }) =>
-          entry.provider === HUGGING_FACE_PROVIDER &&
-          entry.status === "live" &&
-          entry.supports_structured_output === true,
-      ),
-    );
+    status.modelAvailable = Boolean(Array.isArray(catalog.data) &&
+      catalog.data.some((entry: { id?: string; active?: boolean }) =>
+        entry.id === GROQ_MODEL && entry.active !== false));
     if (!status.modelAvailable) {
-      status.error = "The pinned Qwen3-32B provider is not serving structured output right now.";
+      status.error = "The pinned Qwen model is not available to this Groq account right now.";
     }
   } catch {
-    status.error = "Could not verify the Hugging Face model catalog. Refresh and try again.";
+    status.error = "Could not verify the Groq model catalog. Refresh and try again.";
   } finally {
     clearTimeout(timeout);
   }
   return status;
 }
 
-export async function executeHuggingFaceExtraction(
+export async function executeGroqExtraction(
   input: AnalyzeInput,
 ): Promise<MeetingExtraction> {
-  if (input.model !== HUGGING_FACE_MODEL) {
+  if (input.model !== GROQ_MODEL) {
     throw new InferenceError("Choose the configured open-weight cloud model explicitly.", 422);
   }
   if (input.rawText.length > MAX_PROMPT_CHARS) {
@@ -81,9 +78,9 @@ export async function executeHuggingFaceExtraction(
       413,
     );
   }
-  const token = process.env.HF_TOKEN?.trim();
+  const token = process.env.GROQ_API_KEY?.trim();
   if (!token) {
-    throw new InferenceError("Cloud AI is not configured. Set HF_TOKEN on the server and restart it.", 503);
+    throw new InferenceError("Cloud AI is not configured. Set GROQ_API_KEY on the server and restart it.", 503);
   }
   if (activeCloudInferences >= 2) {
     throw new InferenceError("Cloud AI is busy. Please retry shortly.", 429);
@@ -91,7 +88,7 @@ export async function executeHuggingFaceExtraction(
 
   activeCloudInferences++;
   try {
-    const health = await checkHuggingFaceHealth();
+    const health = await checkGroqHealth();
     if (!health.modelAvailable) {
       throw new InferenceError(health.error || "The selected cloud model is unavailable.", 503);
     }
@@ -101,7 +98,7 @@ export async function executeHuggingFaceExtraction(
     let response: Response;
     let result: any;
     try {
-      response = await fetch(`${ROUTER_URL}/chat/completions`, {
+      response = await fetch(`${API_URL}/chat/completions`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -109,7 +106,7 @@ export async function executeHuggingFaceExtraction(
         },
         signal: controller.signal,
         body: JSON.stringify({
-          model: ROUTED_MODEL,
+          model: GROQ_MODEL,
           messages: [
             { role: "system", content: EXTRACTION_SYSTEM_PROMPT },
             { role: "user", content: buildExtractionPrompt(input) },
@@ -124,18 +121,16 @@ export async function executeHuggingFaceExtraction(
           },
           stream: false,
           temperature: 0,
+          reasoning_effort: "none",
           max_tokens: 4096,
         }),
       });
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          throw new InferenceError("Hugging Face rejected the server token. Check HF_TOKEN permissions.", 503);
-        }
-        if (response.status === 402) {
-          throw new InferenceError("Hugging Face requires available Inference Providers credits or billing for this account. Check your Hugging Face billing settings.", 402);
+          throw new InferenceError("Groq rejected the server API key or account access. Check GROQ_API_KEY.", 503);
         }
         if (response.status === 429) {
-          throw new InferenceError("The cloud provider is rate limited. Please retry later.", 429);
+          throw new InferenceError("Groq's free-tier limit was reached. Please retry after the limit resets.", 429);
         }
         throw new InferenceError(`The pinned cloud provider returned HTTP ${response.status}. No other model was tried.`, 502);
       }
@@ -150,7 +145,7 @@ export async function executeHuggingFaceExtraction(
       clearTimeout(timeout);
     }
 
-    if (result.model && result.model !== HUGGING_FACE_MODEL && result.model !== ROUTED_MODEL) {
+    if (result.model && result.model !== GROQ_MODEL) {
       throw new InferenceError("The cloud provider returned a different model identity. No result was saved.", 502);
     }
     if (result.choices?.[0]?.finish_reason === "length") {
@@ -168,8 +163,8 @@ export async function executeHuggingFaceExtraction(
     }
     const extraction = assembleMeetingExtraction(input, parsed);
     extraction.analysis = {
-      provider: "huggingface",
-      model: HUGGING_FACE_MODEL,
+      provider: "groq",
+      model: GROQ_MODEL,
       analyzedAt: new Date().toISOString(),
     };
     return extraction;
