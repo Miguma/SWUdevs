@@ -4,6 +4,7 @@
   "description": "From conversation to action. Walay mabilin! - Open-source bilingual meeting intelligence.",
   "private": true,
   "scripts": {
+    "predev": "node -e \"try { const fs = require('fs'); if (fs.existsSync('.next/BUILD_ID')) fs.rmSync('.next', { recursive: true, force: true }); } catch (e) {}\"",
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
