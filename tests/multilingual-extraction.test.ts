@@ -403,5 +403,123 @@ describe("Multilingual AI Intelligence & Intent Recognition", () => {
       expect(meeting.decisions[0].reviewStatus).toBe("pending");
       expect(meeting.openQuestions[0].reviewStatus).toBe("pending");
     });
+
+    it("resolves first-person Cebuano commitment to speaker Liza with deadline October 27", () => {
+      const notes = `Liza: "Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27."`;
+      const raw = RawExtractionResponseSchema.parse({
+        summary: "Poster preparation.",
+        actionItems: [
+          {
+            title: "Create poster",
+            sourceTitle: "Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27.",
+            description: "Create the event poster and submit by October 27",
+            assignees: ["Liza"],
+            originalDeadlineText: "sa Oktubre 27",
+            deadlineRelation: "by",
+            commitmentStatus: "confirmed",
+            priority: "high",
+            // Notice: evidence quote without speaker label tests speaker turn resolution
+            evidenceQuote: "Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27.",
+            missingInformation: [],
+          },
+        ],
+        decisions: [],
+        openQuestions: [],
+        nextMeetingText: null,
+      });
+
+      const meeting = assembleMeetingExtraction(
+        { title: "Poster Sync", rawText: notes, meetingDate: "2026-10-23" },
+        raw,
+      );
+
+      expect(meeting.actionItems).toHaveLength(1);
+      const task = meeting.actionItems[0];
+      expect(task.title).toBe("Create poster");
+      expect(task.assignees).toEqual(["Liza"]);
+      expect(task.deadline.date).toBe("2026-10-27");
+      expect(task.deadline.isAmbiguous).toBe(false);
+      expect(task.reviewStatus).toBe("pending");
+      expect(task.evidence[0].isVerified).toBe(true);
+      expect(meeting.warnings).toHaveLength(0);
+    });
+
+    it("distinguishes checking prices from purchasing and preserves unresolved budget question for Jun", () => {
+      const notes = `Jun: "Mangita ko og presyo sa gloves ug mga sako, pero wala pa ta kasabot sa pinal nga badyet."`;
+      const raw = RawExtractionResponseSchema.parse({
+        summary: "Inquiring about supply prices.",
+        actionItems: [
+          {
+            title: "Check prices of gloves and sacks",
+            sourceTitle: "Mangita ko og presyo sa gloves ug mga sako",
+            description: "Look for supply prices for gloves and sacks",
+            assignees: ["Jun"],
+            originalDeadlineText: null,
+            deadlineRelation: null,
+            commitmentStatus: "confirmed",
+            priority: null,
+            evidenceQuote: "Mangita ko og presyo sa gloves ug mga sako, pero wala pa ta kasabot sa pinal nga badyet.",
+            missingInformation: ["deadline"],
+          },
+        ],
+        decisions: [],
+        openQuestions: [
+          {
+            question: "What is the final budget for supplies?",
+            evidenceQuote: "wala pa ta kasabot sa pinal nga badyet.",
+          },
+        ],
+        nextMeetingText: null,
+      });
+
+      const meeting = assembleMeetingExtraction(
+        { title: "Supply Inquiries", rawText: notes, meetingDate: "2026-10-23" },
+        raw,
+      );
+
+      const task = meeting.actionItems[0];
+      expect(task.title).toBe("Check prices of gloves and sacks");
+      expect(task.assignees).toEqual(["Jun"]);
+      expect(task.deadline.date).toBeNull();
+      expect(task.reviewStatus).toBe("pending");
+      // Unresolved budget preserved as open question
+      expect(meeting.openQuestions).toHaveLength(1);
+      expect(meeting.openQuestions[0].question).toBe("What is the final budget for supplies?");
+      expect(meeting.openQuestions[0].evidence[0].isVerified).toBe(true);
+    });
+
+    it("blocks hallucinated owners when speaker turn does not match assignee", () => {
+      const notes = `Liza: "Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27."`;
+      const raw = RawExtractionResponseSchema.parse({
+        summary: "Poster preparation.",
+        actionItems: [
+          {
+            title: "Create poster",
+            sourceTitle: "maghimo sa poster",
+            description: null,
+            assignees: ["Carlos"], // Invented assignee not in turn
+            originalDeadlineText: "sa Oktubre 27",
+            deadlineRelation: "by",
+            commitmentStatus: "confirmed",
+            priority: null,
+            evidenceQuote: "Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27.",
+            missingInformation: [],
+          },
+        ],
+        decisions: [],
+        openQuestions: [],
+        nextMeetingText: null,
+      });
+
+      const meeting = assembleMeetingExtraction(
+        { title: "Poster Sync", rawText: notes, meetingDate: "2026-10-23" },
+        raw,
+      );
+
+      // Carlos was not in quote and not the speaker, so must be stripped
+      expect(meeting.actionItems[0].assignees).toEqual([]);
+      expect(meeting.actionItems[0].missingInformation).toContain("assignee");
+      expect(meeting.warnings.some((w) => w.includes("unsupported by the citation"))).toBe(true);
+    });
   });
 });

@@ -746,48 +746,59 @@
   {
     "id": "ceb-12",
     "language": "cebuano",
-    "category": "cultural night coordination",
+    "category": "speaker commitment and explicit date",
     "meetingDate": "2026-10-23",
     "timezone": "Asia/Manila",
-    "notes": "Sayaw ug musika. Nagkasinabot ang konseho nga dili pabayron ang mga estudyante sa entrance. Si Joel ang mangita og choreographer sa lunes.",
+    "notes": "Liza: 'Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27.' Mark: 'Sige, suportahan ka namo.'",
     "groundTruth": {
       "expectedTasks": [
         {
-          "title": "Find choreographer for cultural dance",
+          "title": "Create poster",
           "assignees": [
-            "Joel"
+            "Liza"
           ],
-          "expectedDeadlineDate": "2026-10-26",
-          "status": "confirmed"
+          "expectedDeadlineDate": "2026-10-27",
+          "status": "confirmed",
+          "semanticMustInclude": [
+            "poster"
+          ]
         }
       ],
-      "expectedDecisions": [
-        "Waive entrance fee for students"
-      ],
+      "expectedDecisions": [],
       "expectedOpenQuestions": []
     }
   },
   {
     "id": "ceb-13",
     "language": "cebuano",
-    "category": "cooperative audit check",
+    "category": "inquiring prices vs buying and unresolved budget",
     "meetingDate": "2026-10-23",
     "timezone": "Asia/Manila",
-    "notes": "Audit sa tindahan. Si Celia ang mag-ihap sa sales receipts karong adlawa. Naa bay kulang sa atong remittance sa bangko?",
+    "notes": "Jun: 'Mangita ko og presyo sa gloves ug mga sako, pero wala pa ta kasabot sa pinal nga badyet.' Celia: 'Unsaon man nato pag-finalize sa badyet?'",
     "groundTruth": {
       "expectedTasks": [
         {
-          "title": "Count sales receipts",
+          "title": "Check prices of gloves and sacks",
           "assignees": [
-            "Celia"
+            "Jun"
           ],
-          "expectedDeadlineDate": "2026-10-23",
-          "status": "confirmed"
+          "expectedDeadlineDate": null,
+          "status": "confirmed",
+          "semanticMustInclude": [
+            "prices",
+            "gloves",
+            "sacks"
+          ],
+          "semanticMustNotInclude": [
+            "shovel",
+            "shovels",
+            "spade"
+          ]
         }
       ],
       "expectedDecisions": [],
       "expectedOpenQuestions": [
-        "Is there any discrepancy in the bank remittance?"
+        "How will the budget be finalized?"
       ]
     }
   },

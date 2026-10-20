@@ -1,5 +1,58 @@
 # Tambayayong — Codex validation and handoff
 
+## Speaker-Aware Task Ownership & Deadline Extraction — 20 October 2026
+
+Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, dedicated feature branch `codex/speaker-aware-ownership` (based on `main` at `b9f5ede`).
+
+### Observed Problems Addressed
+1. **First-Person Pronouns Dropping Speaker Attribution:**
+   - **Transcript:** `Liza: "Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27."`
+   - **Prior Issue:** When the extraction model quoted `"Ako ang maghimo..."` without the speaker turn header `"Liza:"`, the server's provenance check stripped `"Liza"` because her name was not literally inside the quotation string.
+   - **Resolution:** Offset-aware speaker turn resolution in `findSpeakerTurnBeforeOffset` and `isAssigneeSupported` verifies candidate assignees against the active speaker turn preceding the quote in `rawText`, reliably attributing `"Liza"` while rejecting hallucinated names.
+2. **Action Distinction vs. Purchasing Supply Assumptions:**
+   - **Transcript:** `Jun: "Mangita ko og presyo sa gloves ug mga sako, pero wala pa ta kasabot sa pinal nga badyet."`
+   - **Prior Issue:** Risk of confusing inquiry ("checking prices") with purchasing/procurement, and losing unresolved budget dependencies.
+   - **Resolution:** Explicit prompt directives distinguish checking prices (`mangita og presyo`), preparing supplies (`mag-andam`), buying supplies (`mopalit`), and approving budgets (`pag-uyon sa badyet`). Unresolved budget statements are retained as pending open questions.
+
+### Implemented Capabilities & Fixes
+1. **Speaker Turn Attribution Engine (`src/server/services/extraction-core.ts`):**
+   - Implemented `findSpeakerTurnBeforeOffset(rawText, startOffset)` to scan backwards from evidence quotes and identify speaker turns formatted as `Speaker:`, `[Speaker]`, `(Speaker)`, or `Speaker -`.
+   - Updated `isAssigneeSupported(name)`: validates that candidate assignees appear in either the exact quote OR the matching speaker turn header. Completely prevents hallucinated assignees while allowing natural first-person commitments.
+2. **Prompt Instructions for Speaker Labels & First-Person Pronouns:**
+   - Section 3: "SPEAKER LABELS & FIRST-PERSON COMMITMENT RESOLUTION" instructs the model to resolve Cebuano (`ako`, `ko`, `nako`, `kami`), Tagalog (`ako`, `ko`, `akin`, `kami`), and English (`I`, `I'll`, `we`) pronouns to the active speaker turn.
+   - When ownership is genuinely ambiguous or unstated, keeps tasks unassigned (`assignees: []`) and flags `"assignee"` in `missingInformation`.
+3. **Action Distinction & Anti-Merging Directives:**
+   - Section 4: "DISTINGUISH ACTIONS & AVOID PREMATURE TASK MERGING" directs the model never to conflate checking prices with purchasing or supply preparation, and never to merge tasks with differing assignees or deadlines.
+   - Budget constraints and disagreements (`pero wala pa ta kasabot sa pinal nga badyet`) are extracted as open questions.
+4. **All Extracted Tasks Default to Pending Review:**
+   - Verified that `assembleMeetingExtraction` sets `reviewStatus: "pending"` on all newly extracted action items, decisions, and open questions. No automated approval is granted.
+5. **Evaluation Coverage & Unit Regression Tests:**
+   - Updated `eval/dataset.json` cases `ceb-12` (Liza poster task with Oct 27 deadline) and `ceb-13` (Jun price check vs budget constraint).
+   - Added unit tests in `tests/multilingual-extraction.test.ts` covering:
+     * Liza first-person commitment with date `Oktubre 27`.
+     * Jun price check distinguishing pricing inquiry from purchasing, and extracting the unresolved budget as an open question.
+     * Hallucinated speaker turn rejection (e.g. Carlos rejected when the turn is Jun).
+6. **Live Model Verification with Pinned `qwen/qwen3.8-27b` via Groq:**
+   - **Test 1 (Liza):**
+     * Input: `Liza: "Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27."`
+     * Output: Task `"Create and submit poster"`, Assignees: `["Liza"]`, Deadline: `2026-10-27`, Evidence: exact quote `0..60`, `reviewStatus: "pending"`.
+   - **Test 2 (Jun):**
+     * Input: `Jun: "Mangita ko og presyo sa gloves ug mga sako, pero wala pa ta kasabot sa pinal nga badyet."`
+     * Output: Task `"Check prices of gloves and sacks"`, Assignees: `["Jun"]`, Deadline: `null` (missingInformation: `["deadline"]`), Open Question: `"What is the final budget for the cleanup supplies?"` with exact evidence citation, `reviewStatus: "pending"`.
+
+| Check | Observed result |
+| :--- | :--- |
+| `npm ci` | Clean install; lockfile verified. |
+| `npm run eval:validate` | Passed: 70 dataset cases validated. |
+| `npm test` | Passed: 148 tests across 15 files (100% passing). |
+| `npm run typecheck` | Passed: 0 TypeScript errors (`tsc --noEmit -p tsconfig.check.json`). |
+| `npm run build` | Passed: Next.js 14.2.35 production build successful; all static routes generated. |
+| Live Groq Extraction | Verified with real `qwen/qwen3.8-27b` inference on both Liza and Jun cases. |
+| Model & Fallback Check | Pinned to `qwen/qwen3.8-27b` on Groq server-side. Zero proprietary fallback. |
+| Docker | Engine unavailable at `dockerDesktopLinuxEngine`; container execution skipped as documented. |
+
+---
+
 ## Cebuano Semantic Fidelity & Multilingual Vocabulary Upgrade — 20 October 2026
 
 Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, dedicated feature branch `codex/cebuano-semantic-fidelity` (based on `main` at `b9f5ede`).
