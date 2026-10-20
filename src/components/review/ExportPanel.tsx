@@ -19,22 +19,49 @@ interface ExportPanelProps {
   meeting: MeetingExtraction;
 }
 
+let pdfExportPromise: Promise<typeof import("@/lib/pdf-export")> | null = null;
+function loadPdfExport() {
+  if (!pdfExportPromise) {
+    pdfExportPromise = import("@/lib/pdf-export").catch((err) => {
+      // Reset so subsequent clicks can retry loading the chunk
+      pdfExportPromise = null;
+      throw err;
+    });
+  }
+  return pdfExportPromise;
+}
+
 export function ExportPanel({ meeting }: ExportPanelProps) {
   const [includePending, setIncludePending] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    // Idle-preload PDF chunk once the review panel mounts
+    const timer = setTimeout(() => {
+      loadPdfExport().catch(() => {
+        // Silently ignore background preload failures
+      });
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleDownloadPdf = async () => {
     try {
       setIsGeneratingPdf(true);
       setPdfError(null);
       // Lazy-load PDF generator code only when clicked to keep initial bundle light
-      const { exportMeetingToPdf } = await import("@/lib/pdf-export");
+      const { exportMeetingToPdf } = await loadPdfExport();
       await exportMeetingToPdf(meeting, { includePending });
     } catch (err: any) {
       console.error("PDF generation failed:", err);
-      setPdfError(err?.message || "Failed to generate PDF");
+      const msg = err?.message || "";
+      if (msg.includes("Loading chunk") || err?.name === "ChunkLoadError") {
+        setPdfError("Application was updated. Please refresh the page (Ctrl + F5) to load the latest PDF bundle.");
+      } else {
+        setPdfError(msg || "Failed to generate PDF");
+      }
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -175,9 +202,18 @@ export function ExportPanel({ meeting }: ExportPanelProps) {
       </div>
 
       {pdfError && (
-        <p className="text-[11px] text-danger" role="alert">
-          {pdfError}
-        </p>
+        <div className="flex items-center justify-between gap-2 text-[11px] text-danger" role="alert">
+          <span>{pdfError}</span>
+          {pdfError.includes("refresh") && (
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="underline font-semibold hover:text-danger/80 cursor-pointer flex-shrink-0"
+            >
+              Refresh now
+            </button>
+          )}
+        </div>
       )}
 
       <label className="text-[11px] text-muted-foreground flex items-center gap-2 cursor-pointer pt-0.5">
