@@ -9,6 +9,11 @@ import {
   HelpCircle,
   X,
   ExternalLink,
+  CalendarDays,
+  CheckCircle2,
+  ListChecks,
+  UserRoundX,
+  Users,
 } from "lucide-react";
 import {
   MeetingExtraction,
@@ -231,15 +236,15 @@ export function ReviewWorkspace({
   const quoteLineNumber = getQuoteLineNumber(selectedEvidence);
 
   return (
-    <div className="bg-card rounded-2xl border border-border shadow-xs p-5 sm:p-6 space-y-5">
+    <div className="workspace-panel bg-card rounded-2xl border border-border p-5 sm:p-6 space-y-5">
       {/* Step 2 Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-primary-light text-primary font-bold text-sm flex items-center justify-center flex-shrink-0">
+          <div className="workspace-step flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-light text-lg font-bold text-primary">
             2
           </div>
           <div>
-            <h2 className="text-base font-bold text-foreground leading-tight">
+            <h2 className="text-lg font-bold text-foreground leading-tight">
               Action items
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -253,7 +258,7 @@ export function ReviewWorkspace({
           <div className="text-xs font-bold text-foreground">
             {reviewProgress.reviewed} of {reviewProgress.total} reviewed
           </div>
-          <div className="w-full sm:w-44 h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div className="w-full sm:w-44 h-1.5 bg-slate-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-primary rounded-full transition-all duration-300"
               style={{ width: `${reviewProgress.percent}%` }}
@@ -262,10 +267,19 @@ export function ReviewWorkspace({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-x-5 gap-y-2 border-y border-border py-3 text-xs text-muted-foreground">
-        <span><strong className="text-foreground">{totalTasks}</strong> actions</span>
-        <span><strong className="text-warning">{needDatesCount}</strong> need a date</span>
-        <span><strong className="text-danger">{needOwnerCount}</strong> need an owner</span>
+      <div className="review-stats grid grid-cols-2 gap-2 border-t border-border pt-4 sm:grid-cols-5" aria-label="Action item summary">
+        {[
+          { label: "Action items", value: totalTasks, icon: ListChecks, tone: "blue" },
+          { label: "Reviewed", value: reviewProgress.reviewed, icon: CheckCircle2, tone: "green" },
+          { label: "With assignees", value: totalTasks - needOwnerCount, icon: Users, tone: "teal" },
+          { label: "Need dates", value: needDatesCount, icon: CalendarDays, tone: "amber" },
+          { label: "Need owner", value: needOwnerCount, icon: UserRoundX, tone: "red" },
+        ].map(({ label, value, icon: Icon, tone }) => (
+          <div key={label} className="review-stat">
+            <span className={`review-stat-icon tone-${tone}`}><Icon className="h-4 w-4" aria-hidden="true" /></span>
+            <span><strong>{value}</strong><small>{label}</small></span>
+          </div>
+        ))}
       </div>
 
       {/* Filter Pills + Add Manual Task */}

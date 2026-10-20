@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowDownRight, AlertCircle, FileText, ShieldCheck } from "lucide-react";
+import { AlertCircle, CalendarDays, CheckCircle2, FileText, ListChecks, ShieldCheck, Sun, UserRoundX, Users } from "lucide-react";
 import { Header } from "@/components/Header";
+import { WorkspaceSidebar } from "@/components/WorkspaceSidebar";
 import { MeetingIntake } from "@/components/MeetingIntake";
 import { ReviewWorkspace } from "@/components/ReviewWorkspace";
 import { MeetingHistoryModal } from "@/components/MeetingHistoryModal";
@@ -81,27 +82,34 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="workspace-app min-h-screen bg-background text-foreground lg:flex">
+      <WorkspaceSidebar
+        onOpenHistory={() => setHistoryOpen(true)}
+        onResetHome={startNewMeeting}
+        savedMeetingsCount={savedCount}
+      />
+      <div className="min-w-0 flex-1">
       <Header
         onOpenHistory={() => setHistoryOpen(true)}
         savedMeetingsCount={savedCount}
         onResetHome={startNewMeeting}
+        canExport={Boolean(currentMeeting)}
       />
 
-      <main id="main-content" className="mx-auto w-full max-w-[1320px] px-4 pb-16 pt-8 sm:px-8 sm:pt-10">
-        <div className="mb-8 grid gap-5 border-b border-border pb-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-          <div className="max-w-3xl">
-            <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-primary">Tambayayong / Meeting workspace</p>
-            <h1 className="text-[2.5rem] font-semibold leading-[1.08] tracking-[-0.055em] sm:text-5xl">
-              A clearer way to <span className="text-primary">move together.</span>
+      <main id="main-content" className="workspace-main w-full px-4 pb-16 pt-7 sm:px-7 xl:px-8">
+        <div id="overview" className="workspace-hero mb-6 flex scroll-mt-28 items-end justify-between gap-4">
+          <div>
+            <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.22em] text-primary">AI · Meeting-to-action tracker</p>
+            <h1 className="text-[2.25rem] font-semibold leading-[1.06] tracking-[-0.052em] sm:text-[2.65rem] xl:text-[2.9rem]">
+              From conversations to <span className="text-primary">community progress.</span>
             </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-              Bring English or Cebuano notes. Find the work, check the source, and decide what your team will do next.
+            <p className="mt-3 max-w-4xl text-sm leading-6 text-muted-foreground sm:text-[15px]">
+              Turn meeting notes into clear action items, decisions, and next steps — with open-weight cloud AI and your review.
             </p>
           </div>
-          <p className="flex items-center gap-2 text-sm font-medium text-primary lg:pb-1">
-            Walay mabilin. <ArrowDownRight className="h-4 w-4" aria-hidden="true" />
-          </p>
+          <div className="workspace-hero-note hidden shrink-0 items-center gap-4 2xl:flex" aria-hidden="true">
+            <span>Mas klaro.<br />Mas buhat.</span><Sun className="h-8 w-8 text-[#eabf55]" strokeWidth={1.2} />
+          </div>
         </div>
 
         {saveError && (
@@ -117,7 +125,7 @@ export default function HomePage() {
           </div>
         )}
 
-        <div id="meeting-workspace" className="grid scroll-mt-24 items-start gap-5 xl:grid-cols-[minmax(340px,0.9fr)_minmax(0,1.4fr)]">
+        <div id="meeting-workspace" className="workspace-columns grid scroll-mt-24 items-start gap-4">
           <MeetingIntake
             key={currentMeeting?.id ?? newDraftId}
             initialMeeting={currentMeeting}
@@ -138,21 +146,35 @@ export default function HomePage() {
                 }}
               />
             ) : (
-              <div className="flex min-h-[480px] flex-col rounded-2xl border border-border bg-card p-6 sm:p-8">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-light text-sm font-bold text-primary">2</span>
-                  <div>
-                    <h2 className="text-lg font-semibold">Review the plan</h2>
-                    <p className="text-xs text-muted-foreground">Your next step appears here.</p>
+              <div className="workspace-panel flex min-h-[580px] flex-col rounded-2xl border border-border bg-card p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="workspace-step flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold text-primary">2</span>
+                    <div>
+                      <h2 className="text-lg font-bold">Action items</h2>
+                      <p className="text-xs text-muted-foreground">Review, edit, and confirm the extracted items.</p>
+                    </div>
                   </div>
+                  <span className="text-xs font-semibold text-muted-foreground">0 of 0 reviewed</span>
+                </div>
+                <div className="review-stats mt-5 grid grid-cols-2 gap-2 border-t border-border pt-4 sm:grid-cols-5" aria-label="Action item summary">
+                  {[
+                    { label: "Action items", icon: ListChecks, tone: "blue" },
+                    { label: "Reviewed", icon: CheckCircle2, tone: "green" },
+                    { label: "With assignees", icon: Users, tone: "teal" },
+                    { label: "Need dates", icon: CalendarDays, tone: "amber" },
+                    { label: "Need owner", icon: UserRoundX, tone: "red" },
+                  ].map(({ label, icon: Icon, tone }) => (
+                    <div key={label} className="review-stat"><span className={`review-stat-icon tone-${tone}`}><Icon className="h-4 w-4" aria-hidden="true" /></span><span><strong>0</strong><small>{label}</small></span></div>
+                  ))}
                 </div>
                 <div className="m-auto max-w-sm py-12 text-center">
                   <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-primary/15 bg-primary-light/60 text-primary">
                     <ShieldCheck className="h-8 w-8" strokeWidth={1.5} aria-hidden="true" />
                   </div>
-                  <h3 className="text-xl font-semibold tracking-tight">Nothing to review yet</h3>
+                  <h3 className="text-xl font-semibold tracking-tight">Your action plan starts here</h3>
                   <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                    Add your notes and confirm cloud analysis. You’ll review every suggested action before it becomes your team’s plan.
+                    Add your notes or load the sample meeting. Suggested actions and source evidence will appear here for your review.
                   </p>
                   <div className="mt-7 flex items-center justify-center gap-3 text-xs font-medium text-primary">
                     <span>Notes</span><span aria-hidden="true">→</span><span>Source checked</span><span aria-hidden="true">→</span><span>Your call</span>
@@ -163,6 +185,7 @@ export default function HomePage() {
           </section>
         </div>
       </main>
+      </div>
 
       <MeetingHistoryModal
         isOpen={historyOpen}

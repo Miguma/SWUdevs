@@ -48,7 +48,7 @@ export function ExportPanel({ meeting }: ExportPanelProps) {
   };
 
   return (
-    <div className="bg-card rounded-xl border border-border p-4 space-y-3">
+    <div id="export-results" className="bg-card rounded-xl border border-border p-4 space-y-3 scroll-mt-28">
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-primary-light text-primary flex items-center justify-center flex-shrink-0">

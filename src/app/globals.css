@@ -81,6 +81,190 @@ select {
 main {
   overflow-wrap: anywhere;
 }
+
+.workspace-app {
+  background: radial-gradient(circle at 72% -8%, #f2f8f2 0, transparent 32%), #f8faf8;
+}
+.workspace-sidebar {
+  position: sticky;
+  top: 0;
+  width: 250px;
+  height: 100vh;
+  flex: 0 0 250px;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid #e3eae4;
+  background: linear-gradient(170deg, #f6faf6 0%, #f3f8f3 73%, #e9f4eb 100%);
+}
+.workspace-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 24px 0;
+  text-align: left;
+}
+.workspace-brand-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 13px;
+  background: linear-gradient(145deg, #299b69, #075d40);
+  color: white;
+  box-shadow: 0 5px 14px #145d3b24;
+}
+.workspace-brand strong {
+  display: block;
+  color: #09271d;
+  font-size: 18px;
+  line-height: 1.05;
+  letter-spacing: -0.055em;
+}
+.workspace-brand small {
+  display: block;
+  margin-top: 3px;
+  color: #718179;
+  font-size: 12px;
+}
+.workspace-nav-label {
+  margin-left: 28px;
+  color: #73857a;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.workspace-sidebar nav {
+  padding: 0 13px;
+}
+.workspace-nav-item {
+  display: flex;
+  min-height: 43px;
+  align-items: center;
+  gap: 14px;
+  padding: 0 17px;
+  border-radius: 9px;
+  color: #52685e;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background .15s, color .15s;
+}
+.workspace-nav-item:hover,
+.workspace-nav-item.is-active {
+  background: #dfeee3;
+  color: #106b47;
+}
+.workspace-sidebar-footer {
+  position: relative;
+  min-height: 175px;
+  overflow: hidden;
+  padding: 26px 29px;
+  color: #245d45;
+}
+.workspace-sidebar-footer p {
+  position: relative;
+  z-index: 1;
+  font-size: 15px;
+  line-height: 1.55;
+}
+.workspace-hill {
+  position: absolute;
+  width: 310px;
+  height: 150px;
+  left: -30px;
+  border-radius: 50% 50% 0 0;
+}
+.workspace-hill-back {
+  bottom: -93px;
+  transform: rotate(-12deg);
+  background: #c8e2d1;
+}
+.workspace-hill-front {
+  bottom: -121px;
+  left: 15px;
+  transform: rotate(10deg);
+  background: #9dcdb0;
+}
+.workspace-top-action {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 9px;
+  border-radius: 9px;
+  padding: 0 11px;
+  color: #285541;
+  font-size: 12px;
+  font-weight: 650;
+}
+.workspace-top-action:hover:not(:disabled) {
+  background: #e8f3eb;
+}
+.workspace-main {
+  max-width: 1700px;
+  margin: 0 auto;
+}
+.workspace-hero-note {
+  padding: 0 7px 7px 0;
+  color: #347351;
+  font-family: "Segoe Print", "Comic Sans MS", cursive;
+  font-size: 21px;
+  font-style: italic;
+  line-height: 1.2;
+  transform: rotate(-8deg);
+  white-space: nowrap;
+}
+.workspace-columns > * { min-width: 0; }
+@media (min-width: 1240px) {
+  .workspace-columns { grid-template-columns: minmax(420px, .9fr) minmax(0, 1.25fr); }
+}
+@media (min-width: 1240px) and (max-width: 1499px) {
+  .review-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.workspace-panel {
+  box-shadow: 0 12px 35px #173d2810, 0 2px 7px #173d2805;
+}
+.workspace-step {
+  background: linear-gradient(145deg, #e6f3e9, #d5eadc);
+}
+.review-stat {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px;
+  border: 1px solid #e8eeea;
+  border-radius: 9px;
+  background: #fafcfb;
+}
+.review-stat-icon {
+  display: grid;
+  height: 30px;
+  width: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  border-radius: 8px;
+}
+.review-stat-icon.tone-blue { background: #e9f4fb; color: #1674a5; }
+.review-stat-icon.tone-green { background: #e2f4e8; color: #17804d; }
+.review-stat-icon.tone-teal { background: #e7f5f2; color: #198078; }
+.review-stat-icon.tone-amber { background: #fff3dd; color: #b7770d; }
+.review-stat-icon.tone-red { background: #fff0eb; color: #cb5039; }
+.review-stat strong,
+.review-stat small { display: block; }
+.review-stat strong { font-size: 16px; line-height: 1; }
+.review-stat small {
+  margin-top: 4px;
+  color: #738078;
+  font-size: 10px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .review-stat { padding: 8px; }
+  .review-stat small { white-space: normal; }
+  .workspace-hero h1 { font-size: 2rem; }
+}
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

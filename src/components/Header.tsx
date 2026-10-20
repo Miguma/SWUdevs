@@ -1,16 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { History, Plus } from "lucide-react";
+import { Download, History, Plus, Sparkles } from "lucide-react";
 import type { GroqHealthStatus } from "@/server/services/groq-client";
 
 interface HeaderProps {
   onOpenHistory: () => void;
   savedMeetingsCount: number;
   onResetHome: () => void;
+  canExport: boolean;
 }
 
-export function Header({ onOpenHistory, savedMeetingsCount, onResetHome }: HeaderProps) {
+export function Header({ onOpenHistory, savedMeetingsCount, onResetHome, canExport }: HeaderProps) {
   const [aiStatus, setAiStatus] = useState<GroqHealthStatus | null>(null);
 
   useEffect(() => {
@@ -33,30 +34,35 @@ export function Header({ onOpenHistory, savedMeetingsCount, onResetHome }: Heade
   const aiLabel = !aiStatus
     ? "Checking cloud AI"
     : cloudReady
-      ? "Cloud model available"
+      ? "Cloud AI · Qwen 3.8 via Groq"
       : aiStatus.configured
         ? "Cloud AI unavailable"
         : "Cloud AI setup needed";
 
   return (
-    <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-md">
-      <div className="mx-auto flex h-[72px] max-w-[1320px] items-center justify-between gap-3 px-4 sm:px-8">
-        <button type="button" onClick={onResetHome} className="flex min-w-0 items-center gap-3 rounded-lg text-left" aria-label="Tambayayong, new meeting">
-          <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-xl font-bold text-white">T<span className="text-emerald-200">.</span></span>
-          <span className="truncate text-base font-bold tracking-tight sm:text-lg">Tambayayong<span className="text-primary">.</span></span>
+    <header className="workspace-topbar sticky top-0 z-20 border-b border-border/70 bg-background/95 backdrop-blur-md">
+      <div className="flex h-[70px] items-center justify-between gap-3 px-4 sm:px-7 xl:px-8">
+        <button type="button" onClick={onResetHome} className="flex min-w-0 items-center gap-2 rounded-lg text-left lg:hidden" aria-label="Tambayayong, new meeting">
+          <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white"><Sparkles className="h-5 w-5" strokeWidth={1.5} /></span>
+          <span className="truncate text-sm font-bold tracking-tight sm:text-base">tambayayong<span className="text-primary">.</span></span>
         </button>
 
-        <div className="flex items-center gap-2 sm:gap-4">
-          <span className="hidden items-center gap-2 rounded-full border border-border bg-white px-3 py-1.5 text-xs font-medium text-muted-foreground md:inline-flex" title={aiStatus?.error || aiLabel}>
-            <span className={`h-2 w-2 rounded-full ${cloudReady ? "bg-primary" : "bg-warning"}`} aria-hidden="true" />
-            {aiLabel}
-          </span>
-          <button type="button" onClick={onOpenHistory} className="inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:bg-primary-light hover:text-foreground sm:px-3">
-            <History className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Saved</span>
+        <span className="hidden items-center gap-2 rounded-full border border-border bg-[#f1f6f2] px-4 py-2 text-xs font-medium text-foreground lg:inline-flex" title={aiStatus?.error || aiLabel}>
+          <span className={`h-2 w-2 rounded-full ${cloudReady ? "bg-primary" : "bg-warning"}`} aria-hidden="true" />
+          {aiLabel}
+        </span>
+
+        <div className="flex items-center gap-1 sm:gap-2">
+          <button type="button" onClick={onOpenHistory} className="workspace-top-action">
+            <History className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">History</span>
             {savedMeetingsCount > 0 && <span className="rounded-full bg-primary-light px-1.5 text-xs text-primary">{savedMeetingsCount}</span>}
           </button>
-          <button type="button" onClick={onResetHome} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-white hover:bg-primary-hover sm:px-4">
-            <Plus className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">New meeting</span><span className="sr-only sm:hidden">New meeting</span>
+          <button type="button" disabled={!canExport} onClick={() => document.getElementById("export-results")?.scrollIntoView({ behavior: "smooth", block: "center" })} className="workspace-top-action" title={canExport ? "Jump to export results" : "Analyze or open a meeting to export"}>
+            <Download className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Export</span>
+          </button>
+          <span className="mx-1 hidden h-7 w-px bg-border sm:block" aria-hidden="true" />
+          <button type="button" onClick={onResetHome} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-primary-light px-3 text-xs font-semibold text-primary hover:bg-primary-light/70" title="New meeting">
+            <Plus className="h-4 w-4" aria-hidden="true" /><span className="hidden xl:inline">New meeting</span>
           </button>
         </div>
       </div>

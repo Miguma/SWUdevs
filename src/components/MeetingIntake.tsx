@@ -317,19 +317,19 @@ export function MeetingIntake({
   const charCount = rawText.length;
 
   return (
-    <div className="bg-card rounded-2xl border border-border shadow-xs p-5 sm:p-6 space-y-4">
+    <div className="workspace-panel bg-card rounded-2xl border border-border p-5 sm:p-6 space-y-4">
       {/* Step 1 Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-primary-light text-primary font-bold text-sm flex items-center justify-center flex-shrink-0">
+          <div className="workspace-step flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-light text-lg font-bold text-primary">
             1
           </div>
           <div>
-            <h2 className="text-base font-bold text-foreground leading-tight">
+            <h2 className="text-lg font-bold text-foreground leading-tight">
               Meeting notes
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Paste your notes, or explore the example.
+              Paste your notes, or load an example to try it out.
             </p>
           </div>
         </div>
@@ -340,7 +340,7 @@ export function MeetingIntake({
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-card hover:bg-slate-50 text-foreground border border-border transition-colors cursor-pointer shadow-2xs flex-shrink-0"
         >
           <FileText className="w-3.5 h-3.5 text-primary" />
-          <span>Explore example</span>
+          <span>Load sample meeting</span>
         </button>
       </div>
 
