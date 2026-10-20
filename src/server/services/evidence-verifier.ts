@@ -106,12 +106,24 @@ interface NormalizedMatch {
 }
 
 function findNormalizedMatch(source: string, target: string): NormalizedMatch | null {
-  const targetWords = target.split(/\s+/).filter(Boolean);
+  const cleanTarget = target.trim();
+  if (!cleanTarget) return null;
+
+  // Split into words, accommodating whitespace normalization
+  const targetWords = cleanTarget.split(/\s+/).filter(Boolean);
   if (targetWords.length === 0) return null;
 
-  const escapedWords = targetWords.map((w) =>
-    w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  );
+  // For each word, allow flexibility with surrounding quotation marks (straight or curly)
+  // so PDF text, smart quotes, and unquoted model extracts locate exact source text
+  const escapedWords = targetWords.map((w) => {
+    const core = w.replace(/^["'“”‘’«»]+|["'“”‘’«»]+$/gu, "");
+    const escapedCore = core.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (!escapedCore) {
+      return `["'“”‘’«»]*`;
+    }
+    return `["'“”‘’«»]*${escapedCore}["'“”‘’«»]*`;
+  });
+
   const pattern = new RegExp(escapedWords.join("\\s+"), "iu");
   const match = pattern.exec(source);
 

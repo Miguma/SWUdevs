@@ -58,4 +58,31 @@ describe("Evidence Verifier Service & Provenance", () => {
     expect(manualEv.startOffset).toBeNull();
     expect(manualEv.endOffset).toBeNull();
   });
+
+  it("matches smart/curly quotation marks against straight quotes", () => {
+    const transcript = `Liza: “Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27.”`;
+    const quote = `Liza: "Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27."`;
+    const result = verifyEvidenceQuote(transcript, quote);
+
+    expect(result.isVerified).toBe(true);
+    expect(result.provenance).toBe("normalized_match");
+    expect(result.verifiedEvidence[0].quote).toBe(
+      `Liza: “Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27.”`
+    );
+    expect(result.verifiedEvidence[0].startOffset).toBe(0);
+  });
+
+  it("matches quotes when outer quotation marks are omitted or added by the model", () => {
+    const transcriptWithQuotes = `Mark: "Sige, ako na ang moasikaso sa permiso."`;
+    const quoteWithout = `Mark: Sige, ako na ang moasikaso sa permiso.`;
+    const res1 = verifyEvidenceQuote(transcriptWithQuotes, quoteWithout);
+    expect(res1.isVerified).toBe(true);
+    expect(res1.verifiedEvidence[0].startOffset).toBe(0);
+
+    const transcriptWithoutQuotes = `Mark: Sige, ako na ang moasikaso sa permiso.`;
+    const quoteWith = `Mark: "Sige, ako na ang moasikaso sa permiso."`;
+    const res2 = verifyEvidenceQuote(transcriptWithoutQuotes, quoteWith);
+    expect(res2.isVerified).toBe(true);
+    expect(res2.verifiedEvidence[0].startOffset).toBe(0);
+  });
 });

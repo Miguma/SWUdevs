@@ -480,5 +480,46 @@ describe("Phase 3: Action Tracking & Execution Status", () => {
       };
       expect(isTaskNeedsInfo(rejectedTask)).toBe(false);
     });
+
+    it("preserves newly resolved assignees during re-analysis reconciliation without being overwritten by stale unassigned records", () => {
+      // Previous meeting had an unassigned task (e.g. before speaker awareness fix)
+      const staleMeeting: MeetingExtraction = {
+        ...baseMeeting,
+        actionItems: [
+          {
+            ...baseMeeting.actionItems[0],
+            id: "act-liza-1",
+            title: "Create and submit poster",
+            sourceTitle: "maghimo sa poster ug ipasa nako sa Oktubre 27",
+            assignees: [], // was unassigned in previous pass
+            reviewStatus: "pending",
+            isUserEdited: false,
+            isManual: false,
+          },
+        ],
+      };
+
+      // Fresh re-analysis now successfully extracts Liza
+      const freshMeeting: MeetingExtraction = {
+        ...baseMeeting,
+        actionItems: [
+          {
+            ...baseMeeting.actionItems[0],
+            id: "act-liza-fresh",
+            title: "Create and submit poster",
+            sourceTitle: "maghimo sa poster ug ipasa nako sa Oktubre 27",
+            assignees: ["Liza"], // newly resolved
+            reviewStatus: "pending",
+            isUserEdited: false,
+            isManual: false,
+          },
+        ],
+      };
+
+      const reconciled = reconcileMeeting(staleMeeting, freshMeeting);
+      expect(reconciled.actionItems).toHaveLength(1);
+      // Freshly resolved assignee Liza must be present, not overwritten with empty assignees
+      expect(reconciled.actionItems[0].assignees).toEqual(["Liza"]);
+    });
   });
 });

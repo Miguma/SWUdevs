@@ -521,5 +521,211 @@ describe("Multilingual AI Intelligence & Intent Recognition", () => {
       expect(meeting.actionItems[0].missingInformation).toContain("assignee");
       expect(meeting.warnings.some((w) => w.includes("unsupported by the citation"))).toBe(true);
     });
+
+    it("resolves Mark first-person permit commitment with confirmed status and pending review", () => {
+      const notes = `Mark: "Sige, ako na ang moasikaso sa permiso."`;
+      const raw = RawExtractionResponseSchema.parse({
+        summary: "Permit handling.",
+        actionItems: [
+          {
+            title: "Handle permit application",
+            sourceTitle: "ako na ang moasikaso sa permiso",
+            description: "Mark will process the permit",
+            assignees: ["Mark"],
+            originalDeadlineText: null,
+            deadlineRelation: null,
+            commitmentStatus: "confirmed",
+            priority: null,
+            evidenceQuote: "Sige, ako na ang moasikaso sa permiso.",
+            missingInformation: ["deadline"],
+          },
+        ],
+        decisions: [],
+        openQuestions: [],
+        nextMeetingText: null,
+      });
+
+      const meeting = assembleMeetingExtraction(
+        { title: "Permit Sync", rawText: notes, meetingDate: "2026-10-23" },
+        raw,
+      );
+
+      expect(meeting.actionItems).toHaveLength(1);
+      const task = meeting.actionItems[0];
+      expect(task.title).toBe("Handle permit application");
+      expect(task.assignees).toEqual(["Mark"]);
+      expect(task.reviewStatus).toBe("pending");
+      expect(task.evidence[0].isVerified).toBe(true);
+    });
+
+    it("accurately attributes Liza, Jun, and Mark in a multi-speaker conversation with bullet lists and wrapped text", () => {
+      const notes = `Tigom sa Barangay Kalimpyo
+Mga Mitambong: Liza, Jun, Mark
+
+- Liza: "Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27."
+- Jun: "Mangita ko og presyo sa gloves ug mga sako, pero wala pa ta kasabot sa pinal nga badyet."
+- Mark: "Sige, ako na ang moasikaso sa permiso."`;
+
+      const raw = RawExtractionResponseSchema.parse({
+        summary: "Community cleanup planning with Liza, Jun, and Mark.",
+        actionItems: [
+          {
+            title: "Create poster",
+            sourceTitle: "Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27.",
+            description: "Liza creates and submits poster by Oct 27",
+            assignees: ["Liza"],
+            originalDeadlineText: "sa Oktubre 27",
+            deadlineRelation: "by",
+            commitmentStatus: "confirmed",
+            priority: "high",
+            evidenceQuote: "Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27.",
+            missingInformation: [],
+          },
+          {
+            title: "Check prices of gloves and sacks",
+            sourceTitle: "Mangita ko og presyo sa gloves ug mga sako",
+            description: "Jun checks supply prices. Inquiry only, not purchase.",
+            assignees: ["Jun"],
+            originalDeadlineText: null,
+            deadlineRelation: null,
+            commitmentStatus: "confirmed",
+            priority: null,
+            evidenceQuote: "Mangita ko og presyo sa gloves ug mga sako, pero wala pa ta kasabot sa pinal nga badyet.",
+            missingInformation: ["deadline"],
+          },
+          {
+            title: "Handle permit application",
+            sourceTitle: "ako na ang moasikaso sa permiso",
+            description: "Mark secures the cleanup permit",
+            assignees: ["Mark"],
+            originalDeadlineText: null,
+            deadlineRelation: null,
+            commitmentStatus: "confirmed",
+            priority: null,
+            evidenceQuote: "Sige, ako na ang moasikaso sa permiso.",
+            missingInformation: ["deadline"],
+          },
+        ],
+        decisions: [],
+        openQuestions: [
+          {
+            question: "What is the final budget for supplies?",
+            evidenceQuote: "wala pa ta kasabot sa pinal nga badyet",
+          },
+        ],
+        nextMeetingText: null,
+      });
+
+      const meeting = assembleMeetingExtraction(
+        { title: "Barangay Cleanup", rawText: notes, meetingDate: "2026-10-20" },
+        raw,
+      );
+
+      expect(meeting.actionItems).toHaveLength(3);
+
+      const lizaTask = meeting.actionItems.find((t) => t.assignees.includes("Liza"));
+      expect(lizaTask).toBeDefined();
+      expect(lizaTask!.title).toBe("Create poster");
+      expect(lizaTask!.deadline.date).toBe("2026-10-27");
+      expect(lizaTask!.reviewStatus).toBe("pending");
+
+      const junTask = meeting.actionItems.find((t) => t.assignees.includes("Jun"));
+      expect(junTask).toBeDefined();
+      expect(junTask!.title).toBe("Check prices of gloves and sacks");
+      expect(junTask!.deadline.date).toBeNull();
+      expect(junTask!.reviewStatus).toBe("pending");
+
+      const markTask = meeting.actionItems.find((t) => t.assignees.includes("Mark"));
+      expect(markTask).toBeDefined();
+      expect(markTask!.title).toBe("Handle permit application");
+      expect(markTask!.reviewStatus).toBe("pending");
+
+      // Verify no warning for any valid assignee
+      expect(meeting.warnings).toHaveLength(0);
+    });
+
+    it("prevents attributing a task to a previous speaker when evidence crosses speaker boundaries", () => {
+      const notes = `Liza: "Ako ang maghimo sa poster." Jun: "Mangita ko og presyo sa gloves ug mga sako."`;
+      const raw = RawExtractionResponseSchema.parse({
+        summary: "Dialogue sync.",
+        actionItems: [
+          {
+            title: "Check supply prices",
+            sourceTitle: "Mangita ko og presyo sa gloves ug mga sako",
+            description: "Jun inquires about supply prices",
+            assignees: ["Jun"],
+            originalDeadlineText: null,
+            deadlineRelation: null,
+            commitmentStatus: "confirmed",
+            priority: null,
+            // Quote starts in Liza's turn but contains Jun's commitment
+            evidenceQuote: 'sa poster." Jun: "Mangita ko og presyo sa gloves ug mga sako.',
+            missingInformation: ["deadline"],
+          },
+        ],
+        decisions: [],
+        openQuestions: [],
+        nextMeetingText: null,
+      });
+
+      const meeting = assembleMeetingExtraction(
+        { title: "Dialogue Sync", rawText: notes, meetingDate: "2026-10-20" },
+        raw,
+      );
+
+      // Jun is correctly assigned to his portion, not overridden by Liza
+      expect(meeting.actionItems[0].assignees).toEqual(["Jun"]);
+      expect(meeting.warnings).toHaveLength(0);
+    });
+
+    it("does not assign a task to someone merely because they are mentioned nearby", () => {
+      const notes = `Celia: "Nakig-istorya ko ni Jun bahin sa supplies kagahapon pero si Liza na ang final sa venue."`;
+      const raw = RawExtractionResponseSchema.parse({
+        summary: "Venue coordination.",
+        actionItems: [
+          {
+            title: "Coordinate supplies",
+            sourceTitle: "Nakig-istorya ko ni Jun",
+            description: "Mention of Jun in conversation",
+            assignees: ["Jun"], // Jun was only mentioned ("ni Jun"), not assigned
+            originalDeadlineText: null,
+            deadlineRelation: null,
+            commitmentStatus: "confirmed",
+            priority: null,
+            evidenceQuote: "Nakig-istorya ko ni Jun bahin sa supplies",
+            missingInformation: [],
+          },
+          {
+            title: "Finalize venue",
+            sourceTitle: "si Liza na ang final sa venue",
+            description: "Liza assigned to venue",
+            assignees: ["Liza"], // Explicit third-person assignment ("si Liza na")
+            originalDeadlineText: null,
+            deadlineRelation: null,
+            commitmentStatus: "confirmed",
+            priority: null,
+            evidenceQuote: "si Liza na ang final sa venue",
+            missingInformation: [],
+          },
+        ],
+        decisions: [],
+        openQuestions: [],
+        nextMeetingText: null,
+      });
+
+      const meeting = assembleMeetingExtraction(
+        { title: "Venue Sync", rawText: notes, meetingDate: "2026-10-20" },
+        raw,
+      );
+
+      // Jun is stripped because he was merely mentioned nearby without task assignment
+      const suppliesTask = meeting.actionItems.find((t) => t.title === "Coordinate supplies");
+      expect(suppliesTask!.assignees).toEqual([]);
+      expect(suppliesTask!.missingInformation).toContain("assignee");
+
+      // Liza is retained because of explicit third-person assignment ("si Liza na")
+      const venueTask = meeting.actionItems.find((t) => t.title === "Finalize venue");
+      expect(venueTask!.assignees).toEqual(["Liza"]);
+    });
   });
 });

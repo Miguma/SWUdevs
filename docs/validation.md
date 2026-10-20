@@ -1,5 +1,33 @@
 # Tambayayong — Codex validation and handoff
 
+## Missing-Owner Pipeline & Boundary-Safe Attribution Fix — 20 October 2026
+
+Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, dedicated feature branch `codex/speaker-ownership-fix` (based on `codex/speaker-aware-ownership` at `892b14a`).
+
+### Observed Root Cause Addressed
+1. **Evidence Quote Normalization Mismatches Stripped Assignees:**
+   - **Root Cause:** In `verifyEvidenceQuote`, verbatim and normalized substring matching did not handle quotation mark variations (e.g. smart/curly quotes `“`, `”`, `‘`, `’` from PDF extracts or rich text editors vs straight quotes `"` / `'` emitted by Groq), or outer quotes added/omitted by the LLM. When verification failed (`ev.isVerified = false`), the server's provenance guardrail in `assembleMeetingExtraction` intentionally and silently stripped all assignees to `[]`, causing the UI to display `"Unassigned"` ("Needs owner").
+   - **Fix:** Enhanced `findNormalizedMatch` in `src/server/services/evidence-verifier.ts` to flexibly match surrounding quote characters while strictly anchoring the exact verbatim match, offsets, and whitespace in `rawTranscript`.
+2. **Speaker Detection Format Fragility:**
+   - **Root Cause:** `findSpeakerTurnBeforeOffset` previously required newline-preceded `[A-Z]...:`, failing on bulleted lists (`- Liza:`, `* Liza:`), numbered lists (`1. Liza:`), markdown bolding (`**Liza**:`, `**Jun**:`), continuous turns on the same line, or when non-speaker header keywords (`Meeting Agenda:`, `Date:`, `Participants:`) appeared before speech.
+   - **Fix:** Implemented `extractAllSpeakerTurns(rawText)` in `src/server/services/extraction-core.ts` with a comprehensive turn tokenizer and non-speaker header blacklist (`Meeting`, `Date`, `Agenda`, `Participants`, `Attendees`, etc.).
+3. **Boundary-Crossing Attribution & Mentioned-Nearby Protection:**
+   - **Root Cause:** When quotes crossed speaker boundaries or turns overlapped, prior offset matching risked attributing to the preceding speaker rather than the actual committed speaker. Furthermore, merely mentioning a person in conversation (e.g. `Celia: "Nakig-istorya ko ni Jun"`) risked false attribution.
+   - **Fix:** Implemented `validateAssignee` with speaker-segment isolation, boundary-crossing turn detection, first-person commitment validation (`ako`, `ko`, `nako`, etc.), and strict third-person assignment requirements (`si [Name] na/ang`).
+
+| Check | Observed result |
+| :--- | :--- |
+| `npm ci` | Clean package tree verified. |
+| `npm run eval:validate` | Passed: 70 dataset cases validated. |
+| `npm test` | Passed: 155 tests across 15 files (100% passing). |
+| `npm run typecheck` | Passed: 0 TypeScript errors (`tsc --noEmit -p tsconfig.check.json`). |
+| `npm run build` | Passed: Next.js 14.2.35 production build successful; all static routes generated. |
+| Live Groq Extraction | Verified with real `qwen/qwen3.8-27b` inference: Liza, Jun, and Mark all correctly assigned and pending review. |
+| Model & Fallback Check | Pinned to `qwen/qwen3.8-27b` on Groq server-side. Zero proprietary fallback. |
+| Docker | Engine unavailable at `dockerDesktopLinuxEngine`; container execution skipped as documented. |
+
+---
+
 ## Speaker-Aware Task Ownership & Deadline Extraction — 20 October 2026
 
 Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, dedicated feature branch `codex/speaker-aware-ownership` (based on `main` at `b9f5ede`).
