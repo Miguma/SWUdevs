@@ -244,10 +244,7 @@ export function ReviewWorkspace({
   ).length;
 
   const isTaskNeedsInfo = (t: ActionItem) =>
-    t.assignees.length === 0 ||
-    !t.deadline.date ||
-    t.deadline.isAmbiguous ||
-    t.needsReview;
+    t.reviewStatus !== "rejected" && getClarificationReasons(t).length > 0;
 
   const needsInfoCount = meeting.actionItems.filter(isTaskNeedsInfo).length;
   const reviewProgress = getReviewProgress(meeting);
@@ -255,7 +252,7 @@ export function ReviewWorkspace({
   // Phase 3: Execution progress metrics
   const execProgress = getExecutionProgress(meeting);
   const overdueApprovedCount = approvedTasks.filter((t) =>
-    isTaskOverdue(t)
+    isTaskOverdue(t, meeting.timezone)
   ).length;
 
   // Phase 3: Clarification tasks
@@ -647,6 +644,7 @@ export function ReviewWorkspace({
                     onDelete={handleDeleteTask}
                     onInspectEvidence={(ev) => setActiveEvidence(ev)}
                     showExecutionControls={viewMode === "board"}
+                    timezone={meeting.timezone}
                   />
                 );
               })}

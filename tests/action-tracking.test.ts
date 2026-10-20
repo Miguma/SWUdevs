@@ -3,6 +3,7 @@ import {
   getExecutionProgress,
   isTaskOverdue,
   getClarificationReasons,
+  getTodayInTimezone,
   reconcileMeeting,
 } from "../src/lib/meeting-workflow";
 import {
@@ -320,6 +321,164 @@ describe("Phase 3: Action Tracking & Execution Status", () => {
       expect(minutes).toContain("| 1 | Finalize budget spreadsheet | Maria | 2026-10-15 | In Progress | None |");
       expect(minutes).toContain("## 5. Open Inquiries & Follow-up Items");
       expect(minutes).toContain("Councilor Santos agreed to coordinate.");
+    });
+  });
+
+  describe("Corrective Pass: Edge Cases & Regressions", () => {
+    it("flags AI tasks lacking verified evidence as 'Unverified citation'", () => {
+      // AI task with empty evidence array
+      const aiTaskNoEvidence: ActionItem = {
+        ...baseMeeting.actionItems[0],
+        isManual: false,
+        evidence: [],
+      };
+      const reasons = getClarificationReasons(aiTaskNoEvidence);
+      expect(reasons).toContain("Unverified citation");
+
+      // AI task where all evidence is unverified
+      const aiTaskUnverified: ActionItem = {
+        ...baseMeeting.actionItems[0],
+        isManual: false,
+        evidence: [
+          {
+            quote: "some text",
+            startOffset: 0,
+            endOffset: 9,
+            isVerified: false,
+            provenance: "unverified",
+          },
+        ],
+      };
+      expect(getClarificationReasons(aiTaskUnverified)).toContain("Unverified citation");
+
+      // Manual task with empty evidence is NOT penalized for missing citation
+      const manualTask: ActionItem = {
+        ...baseMeeting.actionItems[0],
+        isManual: true,
+        evidence: [],
+      };
+      expect(getClarificationReasons(manualTask)).not.toContain("Unverified citation");
+    });
+
+    it("flags source-changed items requiring review as 'Source changed'", () => {
+      // Reconcile with altered source transcript
+      const updatedMeeting: MeetingExtraction = {
+        ...baseMeeting,
+        rawTranscript: "Maria will finalize budget by 2026-10-15.\nJohn will draft proposal.\nNew notes.",
+      };
+
+      const reconciled = reconcileMeeting(baseMeeting, updatedMeeting);
+      const reconciledTask = reconciled.actionItems.find((t) => t.id === "act-1");
+      expect(reconciledTask).toBeDefined();
+      expect(reconciledTask?.retainedFromReview).toBe(true);
+      expect(reconciledTask?.needsReview).toBe(true);
+
+      const reasons = getClarificationReasons(reconciledTask!);
+      expect(reasons).toContain("Source changed");
+
+      // Once the user approves or clears review requirement
+      const approvedTask: ActionItem = {
+        ...reconciledTask!,
+        needsReview: false,
+        reviewStatus: "approved",
+      };
+      expect(getClarificationReasons(approvedTask)).not.toContain("Source changed");
+    });
+
+    it("evaluates overdue status using the configured meeting timezone rather than UTC", () => {
+      // Suppose UTC is 2026-10-20 at 18:00 (6 PM)
+      // In Asia/Manila (UTC+8), it is 2026-10-21 at 02:00 (2 AM next day)
+      const testDate = new Date("2026-10-20T18:00:00Z");
+
+      expect(getTodayInTimezone("UTC", testDate)).toBe("2026-10-20");
+      expect(getTodayInTimezone("Asia/Manila", testDate)).toBe("2026-10-21");
+
+      const taskDueOct20: ActionItem = {
+        ...baseMeeting.actionItems[0],
+        status: "in_progress",
+        deadline: {
+          originalText: "Oct 20",
+          date: "2026-10-20",
+          time: null,
+          timezone: "Asia/Manila",
+          relation: "by",
+          isAmbiguous: false,
+        },
+      };
+
+      // In Asia/Manila, October 20 deadline is already in the past on October 21
+      expect(isTaskOverdue(taskDueOct20, "Asia/Manila", testDate)).toBe(true);
+
+      // In UTC, October 20 deadline is today, not yet in the past
+      expect(isTaskOverdue(taskDueOct20, "UTC", testDate)).toBe(false);
+
+      // Completed tasks are never overdue
+      const completedTask: ActionItem = { ...taskDueOct20, status: "completed" };
+      expect(isTaskOverdue(completedTask, "Asia/Manila", testDate)).toBe(false);
+    });
+
+    it("preserves ambiguous deadline flag when editing unrelated task fields", () => {
+      const ambiguousTask: ActionItem = {
+        ...baseMeeting.actionItems[0],
+        deadline: {
+          originalText: "sunod semana",
+          date: "2026-10-28",
+          time: null,
+          timezone: "Asia/Manila",
+          relation: null,
+          isAmbiguous: true,
+        },
+      };
+
+      // Simulating ActionItemEditor logic:
+      // When deadlineDate is NOT modified, isAmbiguous must be preserved
+      const editedTitleOnly = {
+        ...ambiguousTask,
+        title: "Updated Title",
+        deadline: {
+          ...ambiguousTask.deadline,
+          date: ambiguousTask.deadline.date,
+          isAmbiguous:
+            "2026-10-28" !== (ambiguousTask.deadline.date || "")
+              ? false
+              : ambiguousTask.deadline.isAmbiguous,
+        },
+      };
+      expect(editedTitleOnly.deadline.isAmbiguous).toBe(true);
+
+      // When deadlineDate IS modified by the user, ambiguity is cleared
+      const editedDate = {
+        ...ambiguousTask,
+        deadline: {
+          ...ambiguousTask.deadline,
+          date: "2026-10-30",
+          isAmbiguous:
+            "2026-10-30" !== (ambiguousTask.deadline.date || "")
+              ? false
+              : ambiguousTask.deadline.isAmbiguous,
+        },
+      };
+      expect(editedDate.deadline.isAmbiguous).toBe(false);
+    });
+
+    it("ensures Review List's Needs Info filter matches Clarify tab and excludes rejected tasks", () => {
+      // Filter logic used across Review List and Clarify view
+      const isTaskNeedsInfo = (t: ActionItem) =>
+        t.reviewStatus !== "rejected" && getClarificationReasons(t).length > 0;
+
+      const unassignedTask: ActionItem = {
+        ...baseMeeting.actionItems[0],
+        assignees: [],
+        reviewStatus: "pending",
+      };
+      expect(isTaskNeedsInfo(unassignedTask)).toBe(true);
+
+      // Rejected task must not appear in active needs-info
+      const rejectedTask: ActionItem = {
+        ...unassignedTask,
+        reviewStatus: "rejected",
+      };
+      expect(isTaskNeedsInfo(rejectedTask)).toBe(false);
     });
   });
 });

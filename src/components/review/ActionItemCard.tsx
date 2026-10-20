@@ -24,11 +24,13 @@ interface ActionItemCardProps {
   onDelete: (taskId: string) => void;
   onInspectEvidence: (evidence: Evidence) => void;
   showExecutionControls?: boolean;
+  timezone?: string;
 }
 
 export function ActionItemCard({
   task,
   isSelected = false,
+  timezone,
   onSelect,
   onSetStatus,
   onSetExecutionStatus,
@@ -43,7 +45,7 @@ export function ActionItemCard({
   const primaryEvidence = task.evidence && task.evidence[0];
   const isApproved = task.reviewStatus === "approved";
   const isRejected = task.reviewStatus === "rejected";
-  const overdue = isTaskOverdue(task);
+  const overdue = isTaskOverdue(task, timezone || task.deadline.timezone);
   const clarificationReasons = getClarificationReasons(task);
   const currentExecStatus = task.status || "todo";
 

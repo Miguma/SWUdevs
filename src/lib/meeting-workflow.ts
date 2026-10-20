@@ -92,6 +92,7 @@ export function reconcileMeeting(
         evidence,
         reviewStatus: needsNewReview ? ("pending" as const) : old.reviewStatus,
         needsReview: needsNewReview || kept.needsReview,
+        retainedFromReview: sourceChanged ? true : kept.retainedFromReview,
         ...(oldStatus !== undefined ? { status: oldStatus } : {}),
         ...(oldAnswer !== undefined ? { answer: oldAnswer } : {}),
       };
@@ -175,11 +176,41 @@ export function getExecutionProgress(meeting: MeetingExtraction) {
   };
 }
 
+export function getTodayInTimezone(
+  timezone = "Asia/Manila",
+  now: Date = new Date(),
+): string {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    return formatter.format(now);
+  } catch {
+    return now.toISOString().slice(0, 10);
+  }
+}
+
 export function isTaskOverdue(
   task: ActionItem,
-  referenceDate = new Date().toISOString().slice(0, 10),
+  referenceDateOrTimezone?: string,
+  now: Date = new Date(),
 ): boolean {
   if (task.status === "completed" || !task.deadline.date) return false;
+
+  let referenceDate: string;
+  if (
+    referenceDateOrTimezone &&
+    /^\d{4}-\d{2}-\d{2}$/.test(referenceDateOrTimezone)
+  ) {
+    referenceDate = referenceDateOrTimezone;
+  } else {
+    const tz = referenceDateOrTimezone || task.deadline.timezone || "Asia/Manila";
+    referenceDate = getTodayInTimezone(tz, now);
+  }
+
   return task.deadline.date < referenceDate;
 }
 
@@ -198,12 +229,22 @@ export function getClarificationReasons(task: ActionItem): string[] {
   } else if (task.commitmentStatus === "unclear") {
     reasons.push("Unclear commitment");
   }
-  if (
+  const hasVerifiedEvidence =
+    task.evidence.length > 0 &&
+    task.evidence.some(
+      (ev) => ev.isVerified && ev.provenance !== "unverified",
+    );
+  if (!task.isManual && !hasVerifiedEvidence) {
+    reasons.push("Unverified citation");
+  } else if (
     task.evidence.some(
       (ev) => !ev.isVerified || ev.provenance === "unverified",
     )
   ) {
     reasons.push("Unverified citation");
+  }
+  if (task.retainedFromReview && task.needsReview) {
+    reasons.push("Source changed");
   }
   return reasons;
 }

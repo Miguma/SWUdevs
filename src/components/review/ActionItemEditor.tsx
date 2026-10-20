@@ -36,6 +36,8 @@ export function ActionItemEditor({
       .map((a) => a.trim())
       .filter(Boolean);
 
+    const deadlineChanged = deadlineDate !== (task.deadline.date || "");
+
     const updated: ActionItem = {
       ...task,
       sourceTitle: task.sourceTitle || task.title,
@@ -47,7 +49,7 @@ export function ActionItemEditor({
       deadline: {
         ...task.deadline,
         date: deadlineDate || null,
-        isAmbiguous: false,
+        isAmbiguous: deadlineChanged ? false : task.deadline.isAmbiguous,
       },
       reviewStatus: task.reviewStatus,
       needsReview: task.reviewStatus === "approved" ? false : task.needsReview,
