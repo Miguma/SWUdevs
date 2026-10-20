@@ -2,7 +2,7 @@
 
 **From conversation to action. Walay mabilin!** Tambayayong turns English and Cebuano meeting notes into a reviewable action plan.
 
-The app uses the Apache-2.0 [Qwen 3.8 27B](https://huggingface.co/Qwen/Qwen3.8-27B) open-weight model through Groq's free API tier. There is no automatic model or provider fallback. Meeting notes are sent to Groq only after the person analyzing them confirms the transfer. Guest drafts and reviewed meetings remain in browser IndexedDB.
+The app uses the Apache-2.0 [Qwen 3.8 27B](https://huggingface.co/Qwen/Qwen3.8-27B) open-weight model through Groq's free API tier. There is no automatic model or provider fallback. Meeting notes are sent to Groq only after the person analyzing them confirms the transfer. Guest drafts and reviewed meetings remain in browser IndexedDB. Signed-in meeting records sync through Supabase with per-user row-level security.
 
 ## What it does
 
@@ -14,7 +14,7 @@ The app uses the Apache-2.0 [Qwen 3.8 27B](https://huggingface.co/Qwen/Qwen3.8-2
 
 ## Run locally
 
-Install Node.js 20 or newer, then:
+Install Node.js 22 or newer, then:
 
 ```bash
 npm ci
@@ -26,6 +26,15 @@ Create a free [Groq API key](https://console.groq.com/keys), then add it to `.en
 GROQ_API_KEY=your_key_here
 ```
 
+To enable accounts and signed-in meeting sync, apply the migration in `supabase/migrations`, add the app URL and `/auth/callback` redirect in Supabase Auth, then add the project's public values:
+
+```dotenv
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
+```
+
+Use a publishable key in the browser. Never put a Supabase secret or `service_role` key in a `NEXT_PUBLIC_` variable. Signing in does not upload existing guest meetings. Draft notes stay in the current browser.
+
 Keep the key only in `.env.local` or the server environment; never use a `NEXT_PUBLIC_` variable or commit it. The app never shows the key to the browser. Groq's free plan has [model-specific rate limits](https://console.groq.com/docs/rate-limits); requests stop when a limit is reached.
 
 ```bash
@@ -34,7 +43,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). The model status appears in the header and intake form. The exact destination is `qwen/qwen3.8-27b` via `https://api.groq.com/openai/v1/chat/completions`. Refresh the status after changing the server key; restart the server to load a newly added `.env.local` value. Stay on Groq's Free plan to avoid paid usage.
 
-The public guest analysis endpoint uses the server's token. Until accounts and server-side access controls are added, run this preview on a trusted/private instance.
+The public guest analysis endpoint uses the server's token. Account sessions protect synced meeting rows, but the analysis endpoint remains available to guests; run this preview on a trusted/private instance.
 
 ## Docker
 
@@ -61,6 +70,6 @@ See [observed validation results](docs/validation.md) and the [technical and pro
 
 ## Current limits
 
-Accounts screens are previews; sign-in and sign-up are not connected. Long transcript chunking is not implemented. People must review model suggestions and citations. The model response limit is 4,096 output tokens; oversized, truncated, empty, or malformed results fail explicitly. Model evaluation uses a reproducible lexical matcher that can miss multilingual paraphrases.
+Guest meeting history and signed-in meeting history remain separate by design; there is no automatic migration. Long transcript chunking is not implemented. People must review model suggestions and citations. The model response limit is 4,096 output tokens; oversized, truncated, empty, or malformed results fail explicitly. Model evaluation uses a reproducible lexical matcher that can miss multilingual paraphrases.
 
 Licensed under [Apache 2.0](LICENSE).

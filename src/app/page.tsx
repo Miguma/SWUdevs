@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, CalendarDays, CheckCircle2, FileText, ListChecks, ShieldCheck, Sun, UserRoundX, Users } from "lucide-react";
 import { Header } from "@/components/Header";
 import { WorkspaceSidebar } from "@/components/WorkspaceSidebar";
@@ -10,7 +10,10 @@ import { MeetingHistoryModal } from "@/components/MeetingHistoryModal";
 import { INITIAL_SAMPLE_EXTRACTION } from "@/components/SampleMeetingData";
 import { MeetingExtraction } from "@/types/meeting";
 import { getAllGuestMeetings, saveGuestMeeting } from "@/lib/storage/indexeddb";
+import { getAllCloudMeetings, saveCloudMeeting } from "@/lib/storage/supabase";
+import { didStorageOwnerChange } from "@/lib/storage/ownership";
 import { createSerialMeetingSaver } from "@/lib/meeting-workflow";
+import { useAuth } from "@/components/AuthProvider";
 
 const ACTIVE_DRAFT_KEY = "tambayayong_active_draft";
 
@@ -25,16 +28,20 @@ function getActiveDraftId() {
 }
 
 export default function HomePage() {
+  const { user, loading: authLoading } = useAuth();
   const [currentMeeting, setCurrentMeeting] = useState<MeetingExtraction | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [newDraftId, setNewDraftId] = useState(getActiveDraftId);
-  const serialSave = useMemo(() => createSerialMeetingSaver(saveGuestMeeting), []);
+  const previousStorageOwner = useRef<string | null | undefined>(undefined);
+  const guestSerialSave = useMemo(() => createSerialMeetingSaver(saveGuestMeeting), []);
+  const cloudSerialSave = useMemo(() => createSerialMeetingSaver(saveCloudMeeting), []);
 
   const refreshSavedCount = async () => {
     try {
-      setSavedCount((await getAllGuestMeetings()).length);
+      if (authLoading) return;
+      setSavedCount((await (user ? getAllCloudMeetings() : getAllGuestMeetings())).length);
     } catch {
       // The workspace still works if browser storage is unavailable.
     }
@@ -42,17 +49,31 @@ export default function HomePage() {
 
   useEffect(() => {
     refreshSavedCount();
-  }, []);
+  }, [authLoading, user?.id]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    const nextOwner = user?.id ?? null;
+    if (didStorageOwnerChange(previousStorageOwner.current, nextOwner)) {
+      // Never carry an open record across the guest/account boundary. That would
+      // silently copy it into the other persistence store on the next edit.
+      setCurrentMeeting(null);
+      setSaveError(null);
+    }
+    previousStorageOwner.current = nextOwner;
+  }, [authLoading, user?.id]);
 
   const persistMeeting = async (meeting: MeetingExtraction) => {
     // The hand-authored example is a temporary preview, never a saved AI result.
     if (meeting.id === INITIAL_SAMPLE_EXTRACTION.id) return;
     try {
       setSaveError(null);
-      await serialSave(meeting);
+      await (user ? cloudSerialSave(meeting) : guestSerialSave(meeting));
       await refreshSavedCount();
     } catch {
-      setSaveError("Could not save to this browser. Export your plan to keep a copy.");
+      setSaveError(user
+        ? "Could not sync this meeting to your account. Export your plan to keep a copy."
+        : "Could not save to this browser. Export your plan to keep a copy.");
     }
   };
 

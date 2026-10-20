@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { FormEvent, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -13,11 +14,59 @@ import {
   UserRound,
 } from "lucide-react";
 import { Brand } from "./Brand";
+import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/components/AuthProvider";
 
 export function AuthScreen({ mode }: { mode: "sign-in" | "sign-up" }) {
   const isSignUp = mode === "sign-up";
+  const router = useRouter();
+  const { configured } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setMessage("");
+    setError("");
+    const supabase = createClient();
+    if (!supabase) {
+      setError("Account access needs the Supabase project URL and publishable key.");
+      return;
+    }
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") ?? "").trim();
+    const password = String(form.get("password") ?? "");
+    setSubmitting(true);
+    try {
+      if (isSignUp) {
+        const fullName = String(form.get("fullName") ?? "").trim();
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: fullName },
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=/`,
+          },
+        });
+        if (signUpError) throw signUpError;
+        if (!data.session) {
+          setMessage("Check your email to confirm your account, then sign in.");
+          return;
+        }
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw signInError;
+      }
+      router.replace("/");
+      router.refresh();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Account access failed. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -40,8 +89,7 @@ export function AuthScreen({ mode }: { mode: "sign-in" | "sign-up" }) {
             className="px-6 py-9 sm:px-12 sm:py-12 lg:px-14"
           >
             <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary-light px-3 py-1 text-[11px] font-semibold text-primary">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Account
-              preview
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Secure account
             </div>
             <h1
               id="auth-title"
@@ -75,12 +123,7 @@ export function AuthScreen({ mode }: { mode: "sign-in" | "sign-up" }) {
             </div>
             <form
               className="mt-7 space-y-5"
-              onSubmit={(event) => {
-                event.preventDefault();
-                setMessage(
-                  "Account access is coming soon. You can continue as a guest and use the meeting workspace today.",
-                );
-              }}
+              onSubmit={handleSubmit}
             >
               {isSignUp && (
                 <div>
@@ -91,6 +134,7 @@ export function AuthScreen({ mode }: { mode: "sign-in" | "sign-up" }) {
                     <UserRound className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <input
                       id="full-name"
+                      name="fullName"
                       type="text"
                       autoComplete="name"
                       placeholder="Your name"
@@ -109,6 +153,7 @@ export function AuthScreen({ mode }: { mode: "sign-in" | "sign-up" }) {
                   <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <input
                     id="email"
+                    name="email"
                     type="email"
                     autoComplete="email"
                     placeholder="you@example.com"
@@ -124,23 +169,19 @@ export function AuthScreen({ mode }: { mode: "sign-in" | "sign-up" }) {
                     Password
                   </label>
                   {!isSignUp && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setMessage(
-                          "Password recovery will be available when accounts launch. You can use the workspace as a guest for now.",
-                        )
-                      }
+                    <Link
+                      href="/forgot-password"
                       className="text-xs font-semibold text-primary hover:underline"
                     >
                       Forgot password?
-                    </button>
+                    </Link>
                   )}
                 </div>
                 <div className="auth-input-wrap">
                   <LockKeyhole className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <input
                     id="password"
+                    name="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete={
                       isSignUp ? "new-password" : "current-password"
@@ -184,26 +225,27 @@ export function AuthScreen({ mode }: { mode: "sign-in" | "sign-up" }) {
                   role="status"
                   className="rounded-xl border border-primary/20 bg-primary-light p-3.5 text-sm leading-6 text-primary"
                 >
-                  {message}{" "}
-                  <Link
-                    href="/#meeting-workspace"
-                    className="font-semibold underline underline-offset-2"
-                  >
-                    Open workspace
-                  </Link>
+                  {message}
+                </p>
+              )}
+              {error && (
+                <p role="alert" className="rounded-xl border border-danger/20 bg-danger-light p-3.5 text-sm leading-6 text-danger">
+                  {error}
                 </p>
               )}
               <button
                 type="submit"
+                disabled={submitting || !configured}
                 className="ui-button-primary w-full justify-center"
               >
-                {isSignUp ? "Create account" : "Sign in"}
+                {submitting ? "Please wait…" : isSignUp ? "Create account" : "Sign in"}
                 <ArrowRight className="h-4 w-4" />
               </button>
             </form>
             <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">
-              Account access is coming soon. This preview does not send or save
-              your password.
+              {configured
+                ? "Your password is handled by Supabase Auth and is never stored in meeting records."
+                : "Connect the Tambayayong Supabase project to enable accounts."}
             </p>
             <div className="my-6 flex items-center gap-3 text-[11px] text-muted-foreground">
               <span className="h-px flex-1 bg-border" /> NO ACCOUNT NEEDED TO

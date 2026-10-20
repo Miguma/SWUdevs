@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import React, { useEffect, useState } from "react";
-import { Download, History, Plus, Sparkles } from "lucide-react";
+import { Download, History, LogIn, LogOut, Plus, Sparkles, UserRound } from "lucide-react";
 import type { GroqHealthStatus } from "@/server/services/groq-client";
+import { useAuth } from "@/components/AuthProvider";
 
 interface HeaderProps {
   onOpenHistory: () => void;
@@ -12,6 +14,7 @@ interface HeaderProps {
 }
 
 export function Header({ onOpenHistory, savedMeetingsCount, onResetHome, canExport }: HeaderProps) {
+  const { user, loading: authLoading, signOut } = useAuth();
   const [aiStatus, setAiStatus] = useState<GroqHealthStatus | null>(null);
 
   useEffect(() => {
@@ -68,6 +71,17 @@ export function Header({ onOpenHistory, savedMeetingsCount, onResetHome, canExpo
           <button type="button" onClick={onResetHome} className="inline-flex min-h-9 items-center gap-1.5 rounded-full bg-primary-light px-3 text-xs font-semibold text-primary hover:bg-primary-light/70" title="New meeting">
             <Plus className="h-4 w-4" aria-hidden="true" /><span className="hidden xl:inline">New meeting</span>
           </button>
+          {user ? (
+            <div className="ml-1 flex items-center gap-1 rounded-full border border-border bg-white pl-2.5 pr-1">
+              <UserRound className="h-4 w-4 text-primary" aria-hidden="true" />
+              <span className="hidden max-w-36 truncate text-xs font-semibold xl:inline">{user.user_metadata.full_name || user.email}</span>
+              <button type="button" onClick={() => void signOut()} className="rounded-full p-2 text-muted-foreground hover:bg-primary-light hover:text-primary" aria-label="Sign out" title="Sign out">
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+          ) : !authLoading ? (
+            <Link href="/sign-in" className="workspace-top-action"><LogIn className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Sign in</span></Link>
+          ) : null}
         </div>
       </div>
     </header>

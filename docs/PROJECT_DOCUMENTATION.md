@@ -19,7 +19,7 @@
 2. **Evidence-Grounded Extraction:** Every extracted action item, decision, and open question must cite a verbatim passage from the raw meeting notes. A deterministic verifier locates character offsets (`startOffset`, `endOffset`) and assigns provenance (`exact_match`, `normalized_match`, `unverified`, or `manual`).
 3. **Provenance vs. Semantics Separation:** Locating a quote in the transcript proves **textual provenance only**—it does not prove task ownership, commitment, or human approval. Unsupported assignees or deadlines not grounded in the item's cited quote are stripped or flagged for review.
 4. **Human-in-the-Loop Control:** AI outputs start in `pending` review status. Users can inspect source quotes, edit fields, approve (`approved`), or dismiss (`rejected`) items before exporting. Rejected items are never exported as commitments.
-5. **Local-First Guest Privacy & Single-Owner Persistence:** Guest meetings and drafts are stored in browser-local IndexedDB (`tambayayong_guest_db`). The root page owns meeting persistence via a serialized snapshot queue (`createSerialMeetingSaver`), preventing race conditions and preserving user edits across re-analysis passes (`reconcileMeeting`).
+5. **Local-First Guest Privacy & Single-Owner Persistence:** Guest meetings and drafts are stored in browser-local IndexedDB (`tambayayong_guest_db`). Signed-in meetings use a Supabase `user_meetings` table protected by per-user row-level security; drafts remain local and guest records are never uploaded automatically. The root page owns meeting persistence via serialized snapshot queues, preventing race conditions and preserving user edits across re-analysis passes (`reconcileMeeting`).
 
 ---
 
@@ -34,6 +34,7 @@
 | **Icons** | Lucide React | `^0.454.0` |
 | **Validation** | Zod | `^3.23.8` (request payloads & structured LLM JSON outputs) |
 | **Client Persistence** | IndexedDB (`idb`) | `^8.0.0` (`meetings` and `drafts` object stores) |
+| **Accounts & Cloud Persistence** | Supabase Auth + PostgreSQL RLS | `@supabase/ssr` `0.12.7`, `@supabase/supabase-js` `2.118.0` |
 | **AI Inference** | Groq free tier | Pinned `qwen/qwen3.8-27b` chat completion |
 | **Date Handling** | `date-fns` + deterministic resolver | `^3.6.0` + bilingual English/Cebuano relative deadline parser |
 | **Testing** | Vitest + `fake-indexeddb` | See `docs/validation.md` for the latest observed results |
@@ -66,8 +67,11 @@ Tambayayong/
 │   │   ├── globals.css                # Brand color tokens & base styles
 │   │   ├── layout.tsx                 # Root HTML layout & metadata
 │   │   ├── page.tsx                   # Main 2-column notes and review workspace
-│   │   ├── sign-in/page.tsx           # Preview Sign-In screen (explicitly labeled preview)
-│   │   ├── sign-up/page.tsx           # Preview Sign-Up screen (explicitly labeled preview)
+│   │   ├── sign-in/page.tsx           # Email/password sign-in
+│   │   ├── sign-up/page.tsx           # Email/password account creation
+│   │   ├── forgot-password/page.tsx   # Password recovery request
+│   │   ├── reset-password/page.tsx    # Password update after recovery
+│   │   ├── auth/callback/route.ts      # Email confirmation and recovery callback
 │   │   └── api/
 │   │       ├── health/route.ts        # App health endpoint (GET /api/health)
 │   │       ├── ai/health/route.ts     # Cloud model availability (GET /api/ai/health)
@@ -78,10 +82,11 @@ Tambayayong/
 │   │   ├── Header.tsx                 # Top bar: Cloud AI status, Saved and New meeting controls
 │   │   ├── MeetingIntake.tsx          # Step 1 card: metadata, participant pills, transcript editor, file upload
 │   │   ├── ReviewWorkspace.tsx        # Step 2 card: progress, task stream, evidence and export
-│   │   ├── MeetingHistoryModal.tsx    # Modal for reopening, duplicating, or deleting IndexedDB meetings
+│   │   ├── MeetingHistoryModal.tsx    # Guest or signed-in meeting history plus local drafts
 │   │   ├── SampleMeetingData.ts       # Bilingual example and hand-authored review preview
 │   │   ├── Brand.tsx                  # Shared brand mark component
-│   │   ├── AuthScreen.tsx             # Preview authentication UI component
+│   │   ├── AuthScreen.tsx             # Supabase authentication UI
+│   │   ├── AuthProvider.tsx           # Browser session state and sign-out
 │   │   └── review/
 │   │       ├── ActionItemCard.tsx     # Selectable task card with checkbox, status badge, metadata, source link
 │   │       ├── ActionItemEditor.tsx   # Inline editor (returns edited tasks to pending review)
@@ -95,8 +100,10 @@ Tambayayong/
 │   │   ├── meeting-workflow.ts        # reconcileMeeting, getReviewProgress, createSerialMeetingSaver
 │   │   ├── use-dialog-focus.ts        # Accessible modal focus trap & Escape handler
 │   │   ├── utils.ts                   # Date formatting & class utilities
+│   │   ├── supabase/                   # Typed browser/server clients and session middleware
 │   │   └── storage/
-│   │       └── indexeddb.ts           # Browser IndexedDB CRUD for guest meetings & scoped drafts
+│   │       ├── indexeddb.ts           # Browser IndexedDB CRUD for guest meetings & scoped drafts
+│   │       └── supabase.ts             # Signed-in meeting CRUD
 │   ├── server/
 │   │   ├── db/schema.ts               # Optional PostgreSQL schema reference
 │   │   └── services/

@@ -18,6 +18,8 @@ import {
   type GuestDraft,
 } from "@/lib/storage/indexeddb";
 import { formatDateDisplay } from "@/lib/utils";
+import { useAuth } from "@/components/AuthProvider";
+import { deleteCloudMeeting, duplicateCloudMeeting, getAllCloudMeetings } from "@/lib/storage/supabase";
 
 interface MeetingHistoryModalProps {
   isOpen: boolean;
@@ -34,6 +36,7 @@ export function MeetingHistoryModal({
   onSelectDraft,
   onMeetingsChange,
 }: MeetingHistoryModalProps) {
+  const { user, loading: authLoading } = useAuth();
   const [meetings, setMeetings] = useState<MeetingExtraction[]>([]);
   const [drafts, setDrafts] = useState<GuestDraft[]>([]);
   const [loading, setLoading] = useState(false);
@@ -41,8 +44,9 @@ export function MeetingHistoryModal({
   const loadMeetings = async () => {
     try {
       setLoading(true);
+      if (authLoading) return;
       const [all, savedDrafts] = await Promise.all([
-        getAllGuestMeetings(),
+        user ? getAllCloudMeetings() : getAllGuestMeetings(),
         getAllNewMeetingDrafts(),
       ]);
       setMeetings(all);
@@ -57,18 +61,18 @@ export function MeetingHistoryModal({
     if (isOpen) {
       loadMeetings();
     }
-  }, [isOpen]);
+  }, [isOpen, authLoading, user?.id]);
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!window.confirm("Delete this saved meeting?")) return;
-    await deleteGuestMeeting(id);
+    await (user ? deleteCloudMeeting(id) : deleteGuestMeeting(id));
     await loadMeetings();
   };
 
   const handleDuplicate = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    await duplicateGuestMeeting(id);
+    await (user ? duplicateCloudMeeting(id) : duplicateGuestMeeting(id));
     await loadMeetings();
   };
 
@@ -88,7 +92,7 @@ export function MeetingHistoryModal({
                 Saved work
               </h3>
               <p className="text-xs text-muted-foreground">
-                Stored locally in your browser
+                {user ? "Meetings sync to your account · drafts stay here" : "Stored locally in your browser"}
               </p>
             </div>
           </div>

@@ -1,5 +1,33 @@
 # Tambayayong — Codex validation and handoff
 
+## Supabase accounts and per-user meeting sync — 21 October 2026
+
+Branch: `codex/owner-pipeline-regression`. This pass replaces the account preview
+with email/password sign-up, sign-in, confirmation callback, password recovery,
+session refresh, and sign-out. Signed-in meeting documents use a new
+`public.user_meetings` migration with per-user RLS policies. Guest IndexedDB
+stores, keys, meetings, and drafts are unchanged; signing in does not upload
+guest data, and drafts stay browser-local.
+
+The connected Supabase account currently exposes three projects — CircuitCart,
+Miguma's Project, and Activitytest — with no Tambayayong project. No migration or
+environment key was applied because selecting an unrelated project would risk
+altering its database. Live account and RLS verification therefore remains
+blocked on choosing the target project.
+
+| Check | Observed result |
+|---|---|
+| `npm ci --cache .npm-cache --no-audit --no-fund` | Passed, 210 packages installed. The first attempt hit a locked Next SWC binary; it passed after stopping only the active Tambayayong dev server. |
+| `npm run eval:validate` | Passed, 70 annotated cases; syntax only, not model accuracy. |
+| `npm test` | Passed, 189 tests in 17 files, including four new cloud storage, storage-boundary, and RLS migration regressions. |
+| `npm run typecheck` | Passed with no TypeScript errors. |
+| `npm run build` | Passed with Next.js 14.2.35. Routes include sign-in, sign-up, confirmation callback, password request, and password update. Existing `unpdf` `import.meta` warning remains. The sandbox ACL blocked generated `.next` directories, so the successful retry ran outside the sandbox after removing only `.next`. |
+| Local route smoke | Passed: `/`, `/sign-in`, `/sign-up`, `/forgot-password`, and `/reset-password` each returned HTTP 200 from the restarted development server. |
+| `git diff --check` | Passed. |
+| Supabase live migration/auth | Not run: the connected account has no project named Tambayayong and the target project has not been selected. |
+| Docker | Engine unavailable: `dockerDesktopLinuxEngine` named pipe missing. |
+| Real-model check | Not run because this change does not alter extraction, and the current instructions require self-hosted Ollama while this checkout still contains the earlier Groq integration. |
+
 ## Persistent missing-owner pipeline regression — 21 October 2026
 
 Branch: `codex/owner-pipeline-regression`, based on `1d97081` to preserve earlier
