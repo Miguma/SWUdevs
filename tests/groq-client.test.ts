@@ -108,4 +108,16 @@ describe("Pinned open-weight cloud inference", () => {
     await expect(executeGroqExtraction(input)).rejects.toMatchObject({ status: 503 });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it("surfaces sanitized schema rejection details on HTTP 400 without exposing keys or notes", async () => {
+    vi.stubEnv("GROQ_API_KEY", "test-only-token");
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(catalog())
+      .mockResolvedValueOnce(json({ error: { message: "Failed to validate schema: missing required property 'sourceTitle'" } }, 400));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(executeGroqExtraction(input)).rejects.toMatchObject({
+      status: 502,
+      message: expect.stringContaining("missing required property 'sourceTitle'"),
+    });
+  });
 });

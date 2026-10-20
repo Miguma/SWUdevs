@@ -200,4 +200,121 @@ describe("Multilingual AI Intelligence & Intent Recognition", () => {
     expect(result.decisions[0].decision).toContain("not to order shirts");
     expect(result.decisions[0].evidence[0].isVerified).toBe(true);
   });
+
+  describe("Multilingual verification across English, Cebuano, and Tagalog", () => {
+    it("processes English meeting notes accurately", () => {
+      const notes = "Sprint kickoff: Alice will finalize the API contract by tomorrow. Bob will set up the test runner.";
+      const raw = RawExtractionResponseSchema.parse({
+        summary: "Sprint kickoff for API development.",
+        actionItems: [
+          {
+            title: "Finalize API contract",
+            sourceTitle: "finalize the API contract",
+            description: null,
+            assignees: ["Alice"],
+            originalDeadlineText: "tomorrow",
+            deadlineRelation: "by",
+            commitmentStatus: "confirmed",
+            priority: "high",
+            evidenceQuote: "Alice will finalize the API contract by tomorrow.",
+            missingInformation: [],
+          },
+        ],
+        decisions: [],
+        openQuestions: [],
+        nextMeetingText: null,
+      });
+      const meeting = assembleMeetingExtraction(
+        { title: "English Sync", rawText: notes, meetingDate: "2026-10-23" },
+        raw,
+      );
+      expect(meeting.actionItems[0].title).toBe("Finalize API contract");
+      expect(meeting.actionItems[0].sourceTitle).toBe("finalize the API contract");
+      expect(meeting.actionItems[0].deadline.date).toBe("2026-10-24");
+      expect(meeting.actionItems[0].evidence[0].isVerified).toBe(true);
+    });
+
+    it("processes Cebuano meeting notes accurately with English-first titles", () => {
+      const notes = "Panagtagbo: Si Nonoy ang mopalit og mga materyales ugma. Nagkasabot nga magtigom sa barangay hall.";
+      const raw = RawExtractionResponseSchema.parse({
+        summary: "Meeting regarding materials purchase and venue agreement.",
+        actionItems: [
+          {
+            title: "Purchase required materials",
+            sourceTitle: "mopalit og mga materyales",
+            description: null,
+            assignees: ["Nonoy"],
+            originalDeadlineText: "ugma",
+            deadlineRelation: "by",
+            commitmentStatus: "confirmed",
+            priority: null,
+            evidenceQuote: "Si Nonoy ang mopalit og mga materyales ugma.",
+            missingInformation: [],
+          },
+        ],
+        decisions: [
+          {
+            decision: "Meet at the barangay hall",
+            evidenceQuote: "Nagkasabot nga magtigom sa barangay hall.",
+          },
+        ],
+        openQuestions: [],
+        nextMeetingText: null,
+      });
+      const meeting = assembleMeetingExtraction(
+        { title: "Cebuano Sync", rawText: notes, meetingDate: "2026-10-23" },
+        raw,
+      );
+      expect(meeting.actionItems[0].title).toBe("Purchase required materials");
+      expect(meeting.actionItems[0].sourceTitle).toBe("mopalit og mga materyales");
+      expect(meeting.actionItems[0].assignees).toEqual(["Nonoy"]);
+      expect(meeting.actionItems[0].deadline.date).toBe("2026-10-24");
+      expect(meeting.decisions[0].decision).toBe("Meet at the barangay hall");
+    });
+
+    it("processes Tagalog meeting notes accurately with English-first titles", () => {
+      const notes = "Pagpupulong: Si Kuya Ben ang magluluto ng pagkain sa Lunes. Baka pwede si Lisa sa pamamalengke.";
+      const raw = RawExtractionResponseSchema.parse({
+        summary: "Event food preparation coordination.",
+        actionItems: [
+          {
+            title: "Cook food for the event",
+            sourceTitle: "magluluto ng pagkain",
+            description: null,
+            assignees: ["Kuya Ben"],
+            originalDeadlineText: "sa Lunes",
+            deadlineRelation: "on",
+            commitmentStatus: "confirmed",
+            priority: null,
+            evidenceQuote: "Si Kuya Ben ang magluluto ng pagkain sa Lunes.",
+            missingInformation: [],
+          },
+          {
+            title: "Shop for ingredients",
+            sourceTitle: "pamamalengke",
+            description: null,
+            assignees: ["Lisa"],
+            originalDeadlineText: null,
+            deadlineRelation: null,
+            commitmentStatus: "proposed",
+            priority: null,
+            evidenceQuote: "Baka pwede si Lisa sa pamamalengke.",
+            missingInformation: [],
+          },
+        ],
+        decisions: [],
+        openQuestions: [],
+        nextMeetingText: null,
+      });
+      const meeting = assembleMeetingExtraction(
+        { title: "Tagalog Sync", rawText: notes, meetingDate: "2026-10-23" },
+        raw,
+      );
+      expect(meeting.actionItems[0].title).toBe("Cook food for the event");
+      expect(meeting.actionItems[0].sourceTitle).toBe("magluluto ng pagkain");
+      expect(meeting.actionItems[0].deadline.date).toBe("2026-10-26");
+      expect(meeting.actionItems[1].commitmentStatus).toBe("proposed");
+      expect(meeting.actionItems[1].assignees).toEqual(["Lisa"]);
+    });
+  });
 });

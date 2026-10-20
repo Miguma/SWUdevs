@@ -123,6 +123,7 @@ export const EXTRACTION_JSON_SCHEMA = {
         },
         required: [
           "title",
+          "sourceTitle",
           "description",
           "assignees",
           "originalDeadlineText",

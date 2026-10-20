@@ -1,11 +1,39 @@
 import { describe, expect, it } from "vitest";
-import { assembleMeetingExtraction } from "../src/server/services/extraction-core";
+import {
+  assembleMeetingExtraction,
+  EXTRACTION_JSON_SCHEMA,
+} from "../src/server/services/extraction-core";
 import { RawExtractionResponseSchema } from "../src/types/meeting";
 
 const source = "[10:00] Maria: I will draft the poster tomorrow.\r\nNo shirts will be ordered.";
 const input = { title: "Sync", rawText: source, meetingDate: "2026-10-23" };
 const empty = { summary: "No actions", actionItems: [], decisions: [], openQuestions: [] };
 describe("Field-level source support", () => {
+  it("enforces strict JSON schema integrity with all properties listed in required arrays", () => {
+    function verifyStrictSchema(schema: any, path = "root") {
+      if (schema && typeof schema === "object") {
+        if (schema.type === "object" && schema.properties) {
+          const propKeys = Object.keys(schema.properties);
+          const required = schema.required || [];
+          for (const key of propKeys) {
+            expect(
+              required,
+              `Schema at ${path} is missing required property: ${key}`,
+            ).toContain(key);
+          }
+        }
+        if (schema.properties) {
+          for (const [k, v] of Object.entries(schema.properties)) {
+            verifyStrictSchema(v, `${path}.${k}`);
+          }
+        }
+        if (schema.items) {
+          verifyStrictSchema(schema.items, `${path}.items`);
+        }
+      }
+    }
+    verifyStrictSchema(EXTRACTION_JSON_SCHEMA);
+  });
   it("removes invented owners and deadlines even when the quote itself is real", () => {
     const raw = RawExtractionResponseSchema.parse({
       ...empty,

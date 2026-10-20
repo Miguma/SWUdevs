@@ -126,13 +126,38 @@ export async function executeGroqExtraction(
         }),
       });
       if (!response.ok) {
+        let errorDetail = "";
+        try {
+          const errorJson = await response.json();
+          if (errorJson?.error?.message) {
+            errorDetail = String(errorJson.error.message).trim();
+          }
+        } catch {
+          // ignore non-json error body
+        }
+
+        if (errorDetail) {
+          console.error(`[Groq Error ${response.status}]: ${errorDetail}`);
+        }
+
         if (response.status === 401 || response.status === 403) {
           throw new InferenceError("Groq rejected the server API key or account access. Check GROQ_API_KEY.", 503);
         }
         if (response.status === 429) {
           throw new InferenceError("Groq's free-tier limit was reached. Please retry after the limit resets.", 429);
         }
-        throw new InferenceError(`The pinned cloud provider returned HTTP ${response.status}. No other model was tried.`, 502);
+        if (response.status === 400) {
+          const detailSuffix = errorDetail ? `: ${errorDetail}` : "";
+          throw new InferenceError(
+            `The pinned cloud provider returned HTTP 400 (Bad Request)${detailSuffix}. No other model was tried.`,
+            502,
+          );
+        }
+        const detailSuffix = errorDetail ? `: ${errorDetail}` : "";
+        throw new InferenceError(
+          `The pinned cloud provider returned HTTP ${response.status}${detailSuffix}. No other model was tried.`,
+          502,
+        );
       }
       result = await response.json();
     } catch (error) {

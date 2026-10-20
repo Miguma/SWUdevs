@@ -23,17 +23,22 @@ Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, feature branch `codex/m
      * 15 Code-switched / Mixed cases (`mix-01` to `mix-15`)
      * 10 Edge cases (`edge-01` to `edge-10`: cancellations, corrections, secondhand `daw`/`kuno`, proposed ideas)
    - Updated `eval/validate-dataset.ts`, `eval/metrics.ts`, and `eval/run-model-eval.ts` with per-language breakdown reporting.
-5. **Regression Coverage:**
-   - Added unit test suites in `tests/deadline-resolver.test.ts` (9 new tests, 25 total) and `tests/multilingual-extraction.test.ts` (6 tests).
+5. **Regression Coverage & Schema Integrity:**
+   - Added unit test suites in `tests/deadline-resolver.test.ts` (9 new tests, 25 total), `tests/multilingual-extraction.test.ts` (9 tests), and `tests/extraction-core.test.ts` (strict schema completeness check).
+   - Fixed strict schema incompatibility by including `sourceTitle` in the `actionItems` `required` array.
+   - Enhanced `groq-client.ts` error handling to extract sanitized rejection reasons on non-200 responses without exposing sensitive notes or keys.
+6. **Live Multilingual Model Verification:**
+   - Verified live extraction with pinned `qwen/qwen3.8-27b` model on Groq across English, Cebuano, and Tagalog notes: all returned HTTP 200 with accurate English titles, dates, assignees, and original `sourceTitle` wording.
 
 | Check | Observed result |
 | :--- | :--- |
 | `npm ci` | Passed; 175 packages installed from lockfile. |
 | `npm run eval:validate` | Passed: 70 dataset cases (15 english, 15 cebuano, 15 tagalog, 15 mixed, 10 edge_cases). Schema and source annotation validation only. |
-| `npm test` | Passed: 112 tests in 14 files (100% passing). |
+| `npm test` | Passed: 117 tests in 14 files (100% passing). |
 | `npm run typecheck` | Passed: 0 TypeScript errors (`tsc --noEmit -p tsconfig.check.json`). |
 | `npm run build` | Passed: Next.js 14.2.35 production build compiled successfully; all 6 static routes generated. |
 | Production HTTP | `GET /` returned HTTP 200 with responsive server on port 3000. |
+| Live Groq Extraction | Verified live on English, Cebuano, and Tagalog sample notes with HTTP 200. |
 | Model & Fallback Check | Pinned to `qwen/qwen3.8-27b` on Groq server-side. Zero proprietary fallback. |
 | Docker | Engine unavailable at `dockerDesktopLinuxEngine`; container execution skipped as documented. |
 
