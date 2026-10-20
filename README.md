@@ -98,7 +98,7 @@ npm ci
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser. Choose an installed model in **Local AI model** and refresh after pulling models. No automatic fallback occurs. The review screen records the model used.
+Open [http://localhost:3000](http://localhost:3000) in your browser. Choose an installed model in **Local AI model**; use **Refresh models** after starting Ollama or pulling a model. The selected tag is never replaced automatically. The review screen records the model used.
 
 ---
 
@@ -219,4 +219,4 @@ The UI includes `/sign-in` and `/sign-up`, with password visibility controls and
 
 ## Current workspace
 
-The home page opens with an empty review area and keeps meeting notes beside the plan. **Explore example** loads a hand-authored review preview, clearly labeled as illustrative and never saved as an AI result. The intake form shows installed local Ollama models; analysis requires selecting an exact installed tag. Source quotes are presented for human verification, not as proof that a task, owner, commitment, or date is correct.
+The home page opens with an empty review area and keeps meeting notes beside the plan. **Explore example** loads a hand-authored review preview, clearly labeled as illustrative and never saved as an AI result. The intake form shows installed local Ollama models; analysis requires selecting an exact installed tag. **New meeting** starts a separate draft, and **Saved** can reopen new-meeting drafts and analyzed meetings. Source quotes are presented for human verification, not as proof that a task, owner, commitment, or date is correct.

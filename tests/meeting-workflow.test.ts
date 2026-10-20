@@ -193,4 +193,24 @@ describe("Single-owner persistence", () => {
       "Revised existing notes",
     );
   });
+  it("starts a separate new-meeting draft without replacing the legacy draft", async () => {
+    vi.stubGlobal("window", globalThis);
+    const draft = {
+      title: "First notes",
+      organization: "",
+      meetingDate: "",
+      dateUnknown: true,
+      timezone: "Asia/Manila",
+      participants: "",
+      rawText: "Keep this first draft intact.",
+    };
+    await saveDraftNotes(draft);
+    await saveDraftNotes({ ...draft, title: "Second notes" }, undefined, "draft:second");
+    expect((await getDraftNotes())?.title).toBe("First notes");
+    expect((await getDraftNotes(undefined, "draft:second"))?.title).toBe("Second notes");
+    const { getAllNewMeetingDrafts } = await import("../src/lib/storage/indexeddb");
+    expect((await getAllNewMeetingDrafts()).map((item) => item.id)).toEqual(
+      expect.arrayContaining(["current_draft", "draft:second"]),
+    );
+  });
 });

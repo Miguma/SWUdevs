@@ -29,7 +29,15 @@ export function Header({ onOpenHistory, savedMeetingsCount, onResetHome }: Heade
     return () => { active = false; clearInterval(timer); };
   }, []);
 
-  const ready = Boolean(aiStatus?.ollamaConnected && aiStatus.modelAvailable);
+  const connected = Boolean(aiStatus?.ollamaConnected);
+  const localModelCount = aiStatus?.availableModels.length || 0;
+  const aiLabel = !aiStatus
+    ? "Checking local AI"
+    : !connected
+      ? "Local AI offline"
+      : localModelCount === 0
+        ? "No local models"
+        : `${localModelCount} local model${localModelCount === 1 ? "" : "s"} ready`;
 
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-md">
@@ -40,9 +48,9 @@ export function Header({ onOpenHistory, savedMeetingsCount, onResetHome }: Heade
         </button>
 
         <div className="flex items-center gap-2 sm:gap-4">
-          <span className="hidden items-center gap-2 rounded-full border border-border bg-white px-3 py-1.5 text-xs font-medium text-muted-foreground md:inline-flex" title={aiStatus?.error || aiStatus?.configuredModel || "Checking local AI"}>
-            <span className={`h-2 w-2 rounded-full ${ready ? "bg-primary" : "bg-warning"}`} aria-hidden="true" />
-            {ready ? `Local AI ready · ${aiStatus?.configuredModel}` : "Local AI offline"}
+          <span className="hidden items-center gap-2 rounded-full border border-border bg-white px-3 py-1.5 text-xs font-medium text-muted-foreground md:inline-flex" title={aiStatus?.error || aiLabel}>
+            <span className={`h-2 w-2 rounded-full ${connected && localModelCount ? "bg-primary" : "bg-warning"}`} aria-hidden="true" />
+            {aiLabel}
           </span>
           <button type="button" onClick={onOpenHistory} className="inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:bg-primary-light hover:text-foreground sm:px-3">
             <History className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Saved</span>

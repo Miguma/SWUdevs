@@ -114,7 +114,7 @@ export async function POST(req: NextRequest) {
         {
           error: "Local AI inference service is currently offline or unreachable.",
           message:
-            "Please ensure Ollama is running (`ollama serve`) and the configured model is installed (`ollama pull qwen3:4b-instruct`).",
+            "Start Ollama with `ollama serve`, then refresh the installed model list and retry.",
         },
         { status: 503 }
       );

@@ -26,6 +26,18 @@ interface TambayayongDB extends DBSchema {
 const DB_NAME = "tambayayong_guest_db";
 const DB_VERSION = 1;
 
+export interface GuestDraft {
+  id: string;
+  title: string;
+  organization: string;
+  meetingDate: string;
+  dateUnknown: boolean;
+  timezone: string;
+  participants: string;
+  rawText: string;
+  savedAt: string;
+}
+
 let dbPromise: Promise<IDBPDatabase<TambayayongDB>> | null = null;
 
 function getDB(): Promise<IDBPDatabase<TambayayongDB>> {
@@ -103,16 +115,16 @@ export async function saveDraftNotes(draft: {
   timezone: string;
   participants: string;
   rawText: string;
-}, meetingId?: string): Promise<void> {
+}, meetingId?: string, newDraftId = "current_draft"): Promise<void> {
   const db = await getDB();
   await db.put("drafts", {
     ...draft,
-    id: meetingId ? `meeting:${meetingId}` : "current_draft",
+    id: meetingId ? `meeting:${meetingId}` : newDraftId,
     savedAt: new Date().toISOString(),
   });
 }
 
-export async function getDraftNotes(meetingId?: string): Promise<
+export async function getDraftNotes(meetingId?: string, newDraftId = "current_draft"): Promise<
   | {
       title: string;
       organization: string;
@@ -126,5 +138,14 @@ export async function getDraftNotes(meetingId?: string): Promise<
   | undefined
 > {
   const db = await getDB();
-  return db.get("drafts", meetingId ? `meeting:${meetingId}` : "current_draft");
+  return db.get("drafts", meetingId ? `meeting:${meetingId}` : newDraftId);
+}
+
+export async function getAllNewMeetingDrafts(): Promise<GuestDraft[]> {
+  const db = await getDB();
+  const drafts = await db.getAll("drafts");
+  return drafts
+    .filter((draft) => draft.id === "current_draft" || draft.id.startsWith("draft:"))
+    .filter((draft) => Boolean(draft.title.trim() || draft.rawText.trim()))
+    .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
 }

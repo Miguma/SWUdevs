@@ -11,12 +11,24 @@ import { MeetingExtraction } from "@/types/meeting";
 import { getAllGuestMeetings, saveGuestMeeting } from "@/lib/storage/indexeddb";
 import { createSerialMeetingSaver } from "@/lib/meeting-workflow";
 
+const ACTIVE_DRAFT_KEY = "tambayayong_active_draft";
+
+function getActiveDraftId() {
+  if (typeof window === "undefined") return "current_draft";
+  try {
+    const saved = window.localStorage.getItem(ACTIVE_DRAFT_KEY);
+    return saved?.startsWith("draft:") ? saved : "current_draft";
+  } catch {
+    return "current_draft";
+  }
+}
+
 export default function HomePage() {
   const [currentMeeting, setCurrentMeeting] = useState<MeetingExtraction | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [newMeetingKey, setNewMeetingKey] = useState(0);
+  const [newDraftId, setNewDraftId] = useState(getActiveDraftId);
   const serialSave = useMemo(() => createSerialMeetingSaver(saveGuestMeeting), []);
 
   const refreshSavedCount = async () => {
@@ -44,8 +56,26 @@ export default function HomePage() {
   };
 
   const startNewMeeting = () => {
+    const nextDraftId = `draft:${crypto.randomUUID()}`;
+    try {
+      window.localStorage.setItem(ACTIVE_DRAFT_KEY, nextDraftId);
+    } catch {
+      // An in-memory draft still works when browser storage is unavailable.
+    }
+    setNewDraftId(nextDraftId);
     setCurrentMeeting(null);
-    setNewMeetingKey((key) => key + 1);
+    setSaveError(null);
+    document.getElementById("meeting-workspace")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const openDraft = (draftId: string) => {
+    try {
+      window.localStorage.setItem(ACTIVE_DRAFT_KEY, draftId);
+    } catch {
+      // The selected draft remains available in this tab.
+    }
+    setNewDraftId(draftId);
+    setCurrentMeeting(null);
     setSaveError(null);
     document.getElementById("meeting-workspace")?.scrollIntoView({ behavior: "smooth" });
   };
@@ -58,14 +88,14 @@ export default function HomePage() {
         onResetHome={startNewMeeting}
       />
 
-      <main id="main-content" className="mx-auto w-full max-w-[1320px] px-4 pb-16 pt-9 sm:px-8 sm:pt-14">
-        <div className="mb-10 grid gap-6 border-b border-border pb-9 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+      <main id="main-content" className="mx-auto w-full max-w-[1320px] px-4 pb-16 pt-8 sm:px-8 sm:pt-10">
+        <div className="mb-8 grid gap-5 border-b border-border pb-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <div className="max-w-3xl">
-            <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-primary">Tambayayong / Meeting workspace</p>
-            <h1 className="text-[2.5rem] font-semibold leading-[1.08] tracking-[-0.055em] sm:text-6xl">
+            <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-primary">Tambayayong / Meeting workspace</p>
+            <h1 className="text-[2.5rem] font-semibold leading-[1.08] tracking-[-0.055em] sm:text-5xl">
               A clearer way to <span className="text-primary">move together.</span>
             </h1>
-            <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
               Bring English or Cebuano notes. Find the work, check the source, and decide what your team will do next.
             </p>
           </div>
@@ -89,8 +119,9 @@ export default function HomePage() {
 
         <div id="meeting-workspace" className="grid scroll-mt-24 items-start gap-5 xl:grid-cols-[minmax(340px,0.9fr)_minmax(0,1.4fr)]">
           <MeetingIntake
-            key={currentMeeting?.id ?? `new-${newMeetingKey}`}
+            key={currentMeeting?.id ?? newDraftId}
             initialMeeting={currentMeeting}
+            newDraftId={newDraftId}
             onLoadSampleMeeting={setCurrentMeeting}
             onExtractionComplete={async (extraction) => {
               setCurrentMeeting(extraction);
@@ -137,6 +168,7 @@ export default function HomePage() {
         isOpen={historyOpen}
         onClose={() => setHistoryOpen(false)}
         onSelectMeeting={setCurrentMeeting}
+        onSelectDraft={openDraft}
         onMeetingsChange={refreshSavedCount}
       />
     </div>

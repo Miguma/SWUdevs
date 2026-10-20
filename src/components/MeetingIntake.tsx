@@ -14,6 +14,7 @@ import {
   X,
   Plus,
   FileText,
+  RefreshCw,
 } from "lucide-react";
 import { MeetingExtraction } from "@/types/meeting";
 import {
@@ -29,12 +30,14 @@ interface MeetingIntakeProps {
   onExtractionComplete: (extraction: MeetingExtraction) => void;
   onLoadSampleMeeting?: (sampleExtraction: MeetingExtraction) => void;
   initialMeeting?: MeetingExtraction | null;
+  newDraftId?: string;
 }
 
 export function MeetingIntake({
   onExtractionComplete,
   onLoadSampleMeeting,
   initialMeeting,
+  newDraftId = "current_draft",
 }: MeetingIntakeProps) {
   const [title, setTitle] = useState(initialMeeting?.title || "");
   const [organization, setOrganization] = useState(initialMeeting?.organization || "");
@@ -49,6 +52,8 @@ export function MeetingIntake({
   const [rawText, setRawText] = useState(initialMeeting?.rawTranscript || "");
   const [model, setModel] = useState("");
   const [aiStatus, setAiStatus] = useState<OllamaHealthStatus | null>(null);
+  const [checkingModels, setCheckingModels] = useState(true);
+  const [draftHydrated, setDraftHydrated] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
@@ -56,24 +61,62 @@ export function MeetingIntake({
   const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const latestDraft = useRef({
+    title, organization, meetingDate, dateUnknown, timezone, participants, rawText,
+    meetingId: initialMeeting?.id,
+    newDraftId,
+    hydrated: draftHydrated,
+  });
+  latestDraft.current = {
+    title, organization, meetingDate, dateUnknown, timezone, participants, rawText,
+    meetingId: initialMeeting?.id,
+    newDraftId,
+    hydrated: draftHydrated,
+  };
+
+  useEffect(() => () => {
+    const draft = latestDraft.current;
+    if (!draft.hydrated || draft.meetingId === INITIAL_SAMPLE_EXTRACTION.id || (!draft.title && !draft.rawText)) return;
+    void saveDraftNotes({
+      title: draft.title,
+      organization: draft.organization,
+      meetingDate: draft.meetingDate,
+      dateUnknown: draft.dateUnknown,
+      timezone: draft.timezone,
+      participants: draft.participants,
+      rawText: draft.rawText,
+    }, draft.meetingId, draft.newDraftId).catch(() => undefined);
+  }, []);
+
+  const refreshModels = async () => {
+    setCheckingModels(true);
+    try {
+      // A disconnected Ollama service returns 503 with useful status details.
+      const response = await fetch("/api/ai/health", { cache: "no-store" });
+      const status: OllamaHealthStatus = await response.json();
+      setAiStatus(status);
+    } catch {
+      setAiStatus(null);
+    } finally {
+      setCheckingModels(false);
+    }
+  };
 
   useEffect(() => {
-    fetch("/api/ai/health")
-      .then((res) => res.json())
-      .then((data: OllamaHealthStatus) => {
-        setAiStatus(data);
-        if (data?.configuredModel) {
-          setModel(data.configuredModel);
-        }
-      })
-      .catch(() => undefined);
+    void refreshModels();
   }, []);
 
   useEffect(() => {
     const meetingId = initialMeeting?.id;
-    getDraftNotes(meetingId)
+    if (meetingId === INITIAL_SAMPLE_EXTRACTION.id) {
+      setDraftHydrated(true);
+      return;
+    }
+    let active = true;
+    getDraftNotes(meetingId, newDraftId)
       .then((draft) => {
-        if (draft && draft.rawText) {
+        if (!active) return;
+        if (draft && (draft.rawText || draft.title)) {
           setTitle(draft.title || "");
           setOrganization(draft.organization || "");
           setMeetingDate(
@@ -97,11 +140,13 @@ export function MeetingIntake({
           setRawText(initialMeeting.rawTranscript || "");
         }
       })
-      .catch(() => undefined);
-  }, [initialMeeting]);
+      .catch(() => undefined)
+      .finally(() => { if (active) setDraftHydrated(true); });
+    return () => { active = false; };
+  }, [initialMeeting, newDraftId]);
 
   useEffect(() => {
-    if (!rawText && !title) return;
+    if (!draftHydrated || initialMeeting?.id === INITIAL_SAMPLE_EXTRACTION.id || (!rawText && !title)) return;
     const timer = setTimeout(() => {
       saveDraftNotes(
         {
@@ -113,7 +158,8 @@ export function MeetingIntake({
           participants,
           rawText,
         },
-        initialMeeting?.id
+        initialMeeting?.id,
+        newDraftId
       ).catch(() => undefined);
     }, 1200);
     return () => clearTimeout(timer);
@@ -126,6 +172,8 @@ export function MeetingIntake({
     participants,
     rawText,
     initialMeeting?.id,
+    newDraftId,
+    draftHydrated,
   ]);
 
   const participantList = participants
@@ -151,6 +199,10 @@ export function MeetingIntake({
   };
 
   const loadSample = () => {
+    if (onLoadSampleMeeting) {
+      onLoadSampleMeeting(INITIAL_SAMPLE_EXTRACTION);
+      return;
+    }
     setTitle(SAMPLE_CEBUANO_ENGLISH_MEETING.title);
     setOrganization(SAMPLE_CEBUANO_ENGLISH_MEETING.organization);
     setMeetingDate(SAMPLE_CEBUANO_ENGLISH_MEETING.meetingDate);
@@ -159,9 +211,6 @@ export function MeetingIntake({
     setParticipants(SAMPLE_CEBUANO_ENGLISH_MEETING.participants);
     setRawText(SAMPLE_CEBUANO_ENGLISH_MEETING.rawText);
     setErrorBanner(null);
-    if (onLoadSampleMeeting) {
-      onLoadSampleMeeting(INITIAL_SAMPLE_EXTRACTION);
-    }
   };
 
   const processFile = (file: File) => {
@@ -517,9 +566,21 @@ export function MeetingIntake({
         </div>
 
         <div className="rounded-xl border border-border bg-background/70 p-3.5">
-          <label htmlFor="local-model" className="mb-1 block text-xs font-semibold text-foreground">
-            Local AI model
-          </label>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <label htmlFor="local-model" className="block text-sm font-semibold text-foreground">
+              Local AI model
+            </label>
+            <button
+              type="button"
+              onClick={() => void refreshModels()}
+              disabled={checkingModels}
+              aria-busy={checkingModels}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-primary hover:bg-primary-light"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${checkingModels ? "animate-spin" : ""}`} aria-hidden="true" />
+              Refresh models
+            </button>
+          </div>
           <select
             id="local-model"
             value={model}
@@ -527,7 +588,7 @@ export function MeetingIntake({
             disabled={!aiStatus?.availableModels.length}
             className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
           >
-            {!model && <option value="">Select a local model</option>}
+            <option value="">Select an installed model</option>
             {model && !aiStatus?.availableModels.includes(model) && (
               <option value={model}>{model} · not installed</option>
             )}
@@ -535,10 +596,16 @@ export function MeetingIntake({
               <option key={name} value={name}>{name}</option>
             ))}
           </select>
-          <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
-            {aiStatus?.availableModels.length
-              ? "Choose the exact installed model. Your notes go only to the configured Ollama server."
-              : "No local model is available. Start Ollama and install a model such as qwen3:4b, then refresh."}
+          <p className="mt-2 text-xs leading-5 text-muted-foreground" role="status" aria-live="polite">
+            {checkingModels
+              ? "Checking the local Ollama server…"
+              : !aiStatus?.ollamaConnected
+                ? "Ollama is offline. Start ollama serve, then refresh models. Your notes are kept."
+                : !aiStatus.availableModels.length
+                  ? "No local models installed. Run ollama pull qwen3:4b, then refresh models."
+                  : model && !aiStatus.availableModels.includes(model)
+                    ? `The selected model ${model} is no longer installed. Choose another installed model explicitly.`
+                    : `${aiStatus.availableModels.length} local model${aiStatus.availableModels.length === 1 ? "" : "s"} available. Choose one before analysis; notes go only to your Ollama server.`}
           </p>
         </div>
 

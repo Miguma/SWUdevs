@@ -1,5 +1,24 @@
 # Tambayayong — Codex validation and handoff
 
+## Website and local AI readiness — 20 October 2026
+
+Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, feature branch `codex/ai-ready-polish` from the current `main` (`41b1d8d`). The workspace now exposes a **Refresh models** control and requires the user to select an exact installed local Ollama tag. It distinguishes a disconnected server from a connected server with no local models. New meetings use separate draft keys; **Saved work** lists those drafts alongside analyzed meetings. The legacy `current_draft` and `meeting:<id>` records remain readable. The hand-authored example no longer replaces an open draft when loaded. The home introduction uses less vertical space while keeping the existing green/white design.
+
+| Check | Observed result |
+|---|---|
+| `npm ci --cache .npm-cache --no-audit --no-fund` | Passed after stopping the verified local Next.js server: 175 packages installed from the lockfile. |
+| `npm run eval:validate` | Passed: 20 cases (6 English, 7 Cebuano, 7 mixed). Dataset structure only. |
+| `npm test` | Passed: 72 tests in 10 files. Added new-draft isolation coverage; the evaluation fixture reported zero predicted tasks where zero were returned. |
+| `npm run typecheck` | Passed with zero errors. |
+| `npm run build` | Passed on Next.js 14.2.35; `/` is 21.9 kB with 109 kB first-load JS. The first final rerun hit Windows `EPERM` creating `.next/static/chunks`; a permitted rerun passed. |
+| `git diff --check` | Passed. |
+| `docker compose config --quiet` | Passed. |
+| Docker runtime | Not run: `docker info` could not find the Docker Desktop Linux engine pipe. |
+| Local Ollama / real-model evaluation | `ollama list` completed after the installed Ollama 0.32.5 started. It showed only `gemini-3-flash-preview:cloud`, `minimax-m2.5:cloud`, and `deepseek-v4-pro:cloud`. No local model was available, so no real-model inference or accuracy result is claimed; no cloud model was called. |
+| Browser | On the local development server, the normal `localhost:3000` origin restored an existing 471-character guest draft and displayed “No local models.” On isolated `127.0.0.1:3000`, a new meeting opened empty, the earlier 48-character test draft appeared in Saved work, reopening restored it, and loading the labeled illustrative example left that draft intact. |
+
+The production build passed, but a standalone `next start`/`server.js` smoke check timed out on local HTTP despite reporting ready. The permitted development server returned HTTP 200 and supported the browser checks above. A full production HTTP workflow and real-model extraction remain unverified in this environment. Hugging Face has not been integrated; the configured inference path remains self-hosted Ollama with exact model selection.
+
 ## Minimal workspace review — 19 October 2026
 
 Current checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, branch `codex/minimal-workspace` based on `main` at `56d0e9a`. The branch retains the pre-existing uncommitted consolidation and adds a focused home workspace. A fresh browser starts with empty notes/review; an existing draft still restores from IndexedDB. The intake shows an exact local-model selector and one notes-to-review path. **Explore example** opens a clearly labeled hand-authored fixture; changes to that fixture are not written as an AI-analyzed guest meeting. Review counters are compact, and the source panel explicitly asks a person to verify the task semantics. The existing IndexedDB stores and keys were not changed.
