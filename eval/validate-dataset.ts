@@ -6,7 +6,7 @@ import { MeetingIntakeSchema } from "../src/types/meeting";
 const date = MeetingIntakeSchema.shape.meetingDate;
 const CaseSchema = z.object({
   id: z.string().min(1),
-  language: z.enum(["english", "cebuano", "mixed"]),
+  language: z.enum(["english", "cebuano", "tagalog", "mixed", "edge_cases"]),
   category: z.string().min(1),
   meetingDate: date.nullable(),
   timezone: MeetingIntakeSchema.shape.timezone,
@@ -43,8 +43,9 @@ for (const tc of dataset) {
         throw new Error(`${tc.id}: owner ${owner} is not in source`);
   }
 }
+const languages = ["english", "cebuano", "tagalog", "mixed", "edge_cases"];
 console.log(
-  `Validated ${dataset.length} dataset cases: ${["english", "cebuano", "mixed"].map((language) => `${dataset.filter((tc) => tc.language === language).length} ${language}`).join(", ")}.`,
+  `Validated ${dataset.length} dataset cases: ${languages.map((language) => `${dataset.filter((tc) => tc.language === language).length} ${language}`).join(", ")}.`,
 );
 console.log(
   "This checks annotation syntax and source names only. It does not measure model accuracy or prove semantic label correctness. Run npm test for deterministic rules and npm run eval:model for actual inference.",

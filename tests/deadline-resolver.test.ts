@@ -150,4 +150,61 @@ describe("Deadline Resolver (Bilingual English & Cebuano)", () => {
     expect(res.date).toBeNull();
     expect(res.originalText).toBeNull();
   });
+
+  describe("Multilingual (Tagalog, Cebuano, Bislish, Taglish) Expressions", () => {
+    it("resolves Tagalog 'bukas' as next day", () => {
+      const res = resolveDeadline({ phrase: "bukas", meetingDate });
+      expect(res.date).toBe("2026-10-24");
+      expect(res.isAmbiguous).toBe(false);
+    });
+
+    it("resolves Tagalog 'sa makalawa' as day after tomorrow (+2 days)", () => {
+      const res = resolveDeadline({ phrase: "sa makalawa", meetingDate });
+      expect(res.date).toBe("2026-10-25");
+      expect(res.isAmbiguous).toBe(false);
+    });
+
+    it("resolves Tagalog/Bisaya 'ngayon' / 'karon' / 'mamaya' / 'unya' as meeting date", () => {
+      expect(resolveDeadline({ phrase: "ngayon", meetingDate }).date).toBe("2026-10-23");
+      expect(resolveDeadline({ phrase: "karon", meetingDate }).date).toBe("2026-10-23");
+      expect(resolveDeadline({ phrase: "mamaya", meetingDate }).date).toBe("2026-10-23");
+      expect(resolveDeadline({ phrase: "unya", meetingDate }).date).toBe("2026-10-23");
+    });
+
+    it("resolves Tagalog/Bisaya 'kahapon' / 'gahapon' as previous day", () => {
+      expect(resolveDeadline({ phrase: "kahapon", meetingDate }).date).toBe("2026-10-22");
+      expect(resolveDeadline({ phrase: "gahapon", meetingDate }).date).toBe("2026-10-22");
+    });
+
+    it("marks Tagalog 'susunod na linggo' as ambiguous without inventing precise date", () => {
+      const res = resolveDeadline({ phrase: "susunod na linggo", meetingDate });
+      expect(res.date).toBeNull();
+      expect(res.isAmbiguous).toBe(true);
+      expect(res.relation).toBe("by");
+    });
+
+    it("resolves Tagalog 'ngayong biyernes' to today (Oct 23)", () => {
+      const res = resolveDeadline({ phrase: "ngayong biyernes", meetingDate });
+      expect(res.date).toBe("2026-10-23");
+    });
+
+    it("resolves 'next Friday' / 'susunod na biyernes' to next week Friday (Oct 30)", () => {
+      expect(resolveDeadline({ phrase: "next Friday", meetingDate }).date).toBe("2026-10-30");
+      expect(resolveDeadline({ phrase: "susunod na biyernes", meetingDate }).date).toBe("2026-10-30");
+    });
+
+    it("resolves 'sa Lunes' / 'sa lunes' (upcoming Monday) from Friday", () => {
+      expect(resolveDeadline({ phrase: "sa Lunes", meetingDate }).date).toBe("2026-10-26");
+    });
+
+    it("recognizes Tagalog preposition relations like 'bago mag' and 'hanggang'", () => {
+      const resBefore = resolveDeadline({ phrase: "bago mag 5:00 pm", meetingDate });
+      expect(resBefore.relation).toBe("before");
+      expect(resBefore.time).toBe("17:00");
+
+      const resBy = resolveDeadline({ phrase: "hanggang bukas", meetingDate });
+      expect(resBy.relation).toBe("by");
+      expect(resBy.date).toBe("2026-10-24");
+    });
+  });
 });

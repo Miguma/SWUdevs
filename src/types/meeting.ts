@@ -99,6 +99,7 @@ export const RawExtractionResponseSchema = z.object({
   actionItems: z.array(
     z.object({
       title: z.string(),
+      sourceTitle: z.string().nullable().optional(),
       description: z.string().nullable().default(null),
       assignees: z.array(z.string()).default([]),
       originalDeadlineText: z.string().nullable().default(null),

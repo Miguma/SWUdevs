@@ -7,9 +7,10 @@ interface ResolveDeadlineInput {
   explicitRelation?: DeadlineRelation;
 }
 
-const CEBUANO_DAY_MAP: Record<string, number> = {
+const MULTILINGUAL_DAY_MAP: Record<string, number> = {
   dominggo: 0,
   sunday: 0,
+  linggo: 0,
   lunes: 1,
   monday: 1,
   martes: 2,
@@ -20,6 +21,7 @@ const CEBUANO_DAY_MAP: Record<string, number> = {
   huwebes: 4,
   thursday: 4,
   biyernes: 5,
+  byernes: 5,
   friday: 5,
   sabado: 6,
   saturday: 6,
@@ -49,19 +51,27 @@ export function resolveDeadline(input: ResolveDeadlineInput): Deadline {
     if (
       clean.startsWith("before ") ||
       clean.startsWith("sa dili pa ") ||
-      clean.startsWith("prior to ")
+      clean.startsWith("prior to ") ||
+      clean.startsWith("bago mag ") ||
+      clean.startsWith("bago ang ")
     ) {
       detectedRelation = "before";
     } else if (
       clean.startsWith("by ") ||
       clean.startsWith("kutob ") ||
       clean.startsWith("dili molapas sa ") ||
-      clean.startsWith("until ")
+      clean.startsWith("until ") ||
+      clean.startsWith("hanggang sa ") ||
+      clean.startsWith("hanggang ")
     ) {
       detectedRelation = "by";
     } else if (clean.startsWith("on ") || clean.startsWith("sa ")) {
       detectedRelation = "on";
-    } else if (clean.startsWith("after ") || clean.startsWith("human sa ")) {
+    } else if (
+      clean.startsWith("after ") ||
+      clean.startsWith("human sa ") ||
+      clean.startsWith("pagkatapos ng ")
+    ) {
       detectedRelation = "after";
     }
   }
@@ -140,8 +150,22 @@ export function resolveDeadline(input: ResolveDeadlineInput): Deadline {
     };
   }
 
-  // 2. Relative: Today / Karong adlawa
-  if (clean.includes("today") || clean.includes("karong adlawa") || clean === "karong hapon" || clean === "karong buntag" || clean === "karong gabii") {
+  // 2. Relative: Today / Karong adlawa / Ngayong araw / Karon / Ngayon / Mamaya / Unya
+  if (
+    clean.includes("today") ||
+    clean.includes("karong adlawa") ||
+    clean.includes("ngayong araw") ||
+    clean === "karon" ||
+    clean === "ngayon" ||
+    clean === "mamaya" ||
+    clean === "unya" ||
+    clean.includes("karong hapon") ||
+    clean.includes("ngayong hapon") ||
+    clean.includes("karong buntag") ||
+    clean.includes("ngayong umaga") ||
+    clean.includes("karong gabii") ||
+    clean.includes("ngayong gabi")
+  ) {
     return {
       originalText: phrase,
       date: formatDateIso(anchor),
@@ -152,14 +176,32 @@ export function resolveDeadline(input: ResolveDeadlineInput): Deadline {
     };
   }
 
-  // Check the longer English phrase before "tomorrow"; Cebuano "sunod adlaw" is next day.
-  if (clean.includes("day after tomorrow")) {
+  // 3. Relative: Day after tomorrow / Sa makalawa / Human sa ugma
+  if (
+    clean.includes("day after tomorrow") ||
+    clean.includes("sa makalawa") ||
+    clean.includes("samakalawa") ||
+    clean.includes("adlaw human ugma") ||
+    clean.includes("human sa ugma") ||
+    clean.includes("adlaw human sa ugma")
+  ) {
     const date = new Date(anchor.getTime());
     date.setUTCDate(date.getUTCDate() + 2);
-    return { ...defaultResult, date: formatDateIso(date), time: detectedTime, relation: detectedRelation || "by" };
+    return {
+      ...defaultResult,
+      date: formatDateIso(date),
+      time: detectedTime,
+      relation: detectedRelation || "by",
+    };
   }
-  // 3. Relative: Tomorrow / Ugma / Sa sunod adlaw
-  if (clean.includes("ugma") || clean.includes("tomorrow") || clean.includes("sa sunod adlaw")) {
+
+  // 4. Relative: Tomorrow / Ugma / Bukas / Sa sunod adlaw
+  if (
+    clean.includes("ugma") ||
+    clean.includes("bukas") ||
+    clean.includes("tomorrow") ||
+    clean.includes("sa sunod adlaw")
+  ) {
     const nextDay = new Date(anchor.getTime());
     nextDay.setUTCDate(anchor.getUTCDate() + 1);
     return {
@@ -172,19 +214,60 @@ export function resolveDeadline(input: ResolveDeadlineInput): Deadline {
     };
   }
 
-  // 5. Relative day of week (e.g. "karong biyernes", "this Friday", "next Monday", "sa lunes")
-  for (const [dayName, targetDayIndex] of Object.entries(CEBUANO_DAY_MAP)) {
+  // 5. Relative: Yesterday / Gahapon / Kahapon
+  if (
+    clean.includes("gahapon") ||
+    clean.includes("kahapon") ||
+    clean.includes("yesterday")
+  ) {
+    const prevDay = new Date(anchor.getTime());
+    prevDay.setUTCDate(anchor.getUTCDate() - 1);
+    return {
+      originalText: phrase,
+      date: formatDateIso(prevDay),
+      time: detectedTime,
+      timezone,
+      relation: detectedRelation || "on",
+      isAmbiguous: false,
+    };
+  }
+
+  // 6. Generic "next week" / "sunod semana" / "susunod na linggo" WITHOUT a specific day:
+  // Rule: Do NOT invent an exact date for "next week"! Keep date = null, isAmbiguous = true.
+  if (
+    clean.includes("sunod semana") ||
+    clean.includes("next week") ||
+    clean.includes("susunod na linggo") ||
+    clean.includes("susunod linggo")
+  ) {
+    return {
+      originalText: phrase,
+      date: null,
+      time: detectedTime,
+      timezone,
+      relation: detectedRelation || "by",
+      isAmbiguous: true, // Specific day of next week was not stated
+    };
+  }
+
+  // 7. Relative day of week (e.g. "karong biyernes", "ngayong biyernes", "this Friday", "next Monday", "sa lunes", "susunod na biyernes", "next Friday")
+  for (const [dayName, targetDayIndex] of Object.entries(MULTILINGUAL_DAY_MAP)) {
     if (clean.includes(dayName)) {
       const currentDayIndex = anchor.getUTCDay();
       let diff = 0;
-      const isNext = clean.includes("next") || clean.includes("sunod");
+      const isNext =
+        clean.includes("next") ||
+        clean.includes("sunod") ||
+        clean.includes("susunod");
 
       if (targetDayIndex === currentDayIndex) {
-        diff = isNext ? 7 : 0; // "karong biyernes" on a Friday means today; "sunod biyernes" means next week
+        diff = isNext ? 7 : 0; // "karong biyernes" / "ngayong biyernes" on a Friday means today; "sunod biyernes" / "next Friday" means next week
       } else if (targetDayIndex > currentDayIndex) {
-        diff = isNext ? (targetDayIndex - currentDayIndex) + 7 : targetDayIndex - currentDayIndex;
+        diff = isNext
+          ? targetDayIndex - currentDayIndex + 7
+          : targetDayIndex - currentDayIndex;
       } else {
-        diff = (targetDayIndex - currentDayIndex) + 7;
+        diff = targetDayIndex - currentDayIndex + 7;
       }
 
       const targetDate = new Date(anchor.getTime());
@@ -201,20 +284,7 @@ export function resolveDeadline(input: ResolveDeadlineInput): Deadline {
     }
   }
 
-  // 6. Generic "next week" / "sunod semana" WITHOUT a specific day:
-  // Rule: Do NOT invent an exact date for "next week"! Keep date = null, isAmbiguous = true.
-  if (clean.includes("sunod semana") || clean.includes("next week")) {
-    return {
-      originalText: phrase,
-      date: null,
-      time: detectedTime,
-      timezone,
-      relation: detectedRelation || "by",
-      isAmbiguous: true, // Specific day of next week was not stated
-    };
-  }
-
-  // 7. Fallback for unparsed phrases
+  // 8. Fallback for unparsed phrases
   return {
     originalText: phrase,
     date: null,

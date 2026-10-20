@@ -3,7 +3,7 @@ import { verifyEvidenceQuote } from "../src/server/services/evidence-verifier";
 
 export interface BenchmarkCase {
   id: string;
-  language: "english" | "cebuano" | "mixed";
+  language: "english" | "cebuano" | "tagalog" | "mixed" | "edge_cases";
   category: string;
   meetingDate: string | null;
   timezone: string;
@@ -32,13 +32,24 @@ const stopWords = new Set([
   "to",
   "and",
   "for",
+  "of",
+  "in",
+  "on",
   "sa",
   "ang",
   "ug",
+  "og",
   "mga",
   "para",
   "nga",
   "ni",
+  "si",
+  "ng",
+  "nang",
+  "kay",
+  "na",
+  "at",
+  "ay",
 ]);
 export function titleSimilarity(a: string, b: string): number {
   a = normalize(a);

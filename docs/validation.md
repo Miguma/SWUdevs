@@ -1,5 +1,44 @@
 # Tambayayong — Codex validation and handoff
 
+## Multilingual AI Intelligence Upgrade — 20 October 2026
+
+Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, feature branch `codex/multilingual-ai-upgrade` (based on `main` at `fb3ff2f`).
+
+### Implemented Multilingual Capabilities
+1. **Multilingual Understanding Prompt:**
+   - Updated `EXTRACTION_SYSTEM_PROMPT` in `src/server/services/extraction-core.ts` to support Cebuano (Bisaya), Tagalog (Filipino), English, Bislish, Taglish, and natural multi-speaker code-switching.
+   - Enforces intent distinction: confirmed commitments, proposed ideas, uncertain / secondhand statements (particles `daw`, `raw`, `kuno`), cancellations / negations (recorded as decisions, not active tasks), and late corrections / reassignments.
+2. **English-First Extraction with Verbatim Citation Preservation:**
+   - Action titles, descriptions, summaries, decisions, and open questions generated in clear, natural English.
+   - Preserves original names, nicknames, and verbatim source quotations in their original source language with exact offsets.
+   - Captures original wording in `sourceTitle` and displays it in `ActionItemCard` when distinct from the English title.
+3. **Multilingual Date & Deadline Interpretation:**
+   - Extended `src/server/services/deadline-resolver.ts` with `MULTILINGUAL_DAY_MAP` and Tagalog / Cebuano relative date expressions (`ugma`, `bukas`, `karon`, `ngayon`, `mamaya`, `unya`, `gahapon`, `kahapon`, `sa makalawa`, `sunod semana`, `susunod na linggo`, `ngayong biyernes`, `next Friday`, `sa Lunes`, `bago mag`, `hanggang`).
+   - Ambiguous phrases like `sunod semana`, `susunod na linggo`, and `next week` without a specific day remain strictly flagged with `date: null` and `isAmbiguous: true`.
+4. **70-Case Multilingual Benchmark Dataset:**
+   - Expanded `eval/dataset.json` to 70 benchmark cases:
+     * 15 Cebuano cases (`ceb-01` to `ceb-15`)
+     * 15 Tagalog cases (`tgl-01` to `tgl-15`)
+     * 15 English cases (`eng-01` to `eng-15`)
+     * 15 Code-switched / Mixed cases (`mix-01` to `mix-15`)
+     * 10 Edge cases (`edge-01` to `edge-10`: cancellations, corrections, secondhand `daw`/`kuno`, proposed ideas)
+   - Updated `eval/validate-dataset.ts`, `eval/metrics.ts`, and `eval/run-model-eval.ts` with per-language breakdown reporting.
+5. **Regression Coverage:**
+   - Added unit test suites in `tests/deadline-resolver.test.ts` (9 new tests, 25 total) and `tests/multilingual-extraction.test.ts` (6 tests).
+
+| Check | Observed result |
+| :--- | :--- |
+| `npm ci` | Passed; 175 packages installed from lockfile. |
+| `npm run eval:validate` | Passed: 70 dataset cases (15 english, 15 cebuano, 15 tagalog, 15 mixed, 10 edge_cases). Schema and source annotation validation only. |
+| `npm test` | Passed: 112 tests in 14 files (100% passing). |
+| `npm run typecheck` | Passed: 0 TypeScript errors (`tsc --noEmit -p tsconfig.check.json`). |
+| `npm run build` | Passed: Next.js 14.2.35 production build compiled successfully; all 6 static routes generated. |
+| Production HTTP | `GET /` returned HTTP 200 with responsive server on port 3000. |
+| Model & Fallback Check | Pinned to `qwen/qwen3.8-27b` on Groq server-side. Zero proprietary fallback. |
+| Docker | Engine unavailable at `dockerDesktopLinuxEngine`; container execution skipped as documented. |
+
+---
+
 ## Phase 3: Corrective Pass & Action Tracking Acceptance — 20 October 2026
 
 Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, feature branch `codex/phase3-action-tracking` (based on `main` at `d4c5375`).

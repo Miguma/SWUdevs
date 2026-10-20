@@ -88,7 +88,7 @@ async function runModelEvaluation() {
     failedSampleCount: errors.length,
     metrics: aggregateScores(rows),
     languageBreakdown: Object.fromEntries(
-      ["english", "cebuano", "mixed"].map((language) => [
+      ["english", "cebuano", "tagalog", "mixed", "edge_cases"].map((language) => [
         language,
         {
           evaluatedSampleCount: rows.filter((row) => row.language === language)

@@ -124,6 +124,17 @@ export function ActionItemCard({
                 {task.title}
               </h4>
 
+              {task.sourceTitle &&
+                task.sourceTitle.toLowerCase().trim() !==
+                  task.title.toLowerCase().trim() && (
+                  <span
+                    className="text-[11px] text-muted-foreground font-normal italic"
+                    title="Original wording from notes"
+                  >
+                    ({task.sourceTitle})
+                  </span>
+                )}
+
               <span
                 className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${statusBadge.className}`}
               >
