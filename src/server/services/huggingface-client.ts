@@ -131,6 +131,9 @@ export async function executeHuggingFaceExtraction(
         if (response.status === 401 || response.status === 403) {
           throw new InferenceError("Hugging Face rejected the server token. Check HF_TOKEN permissions.", 503);
         }
+        if (response.status === 402) {
+          throw new InferenceError("Hugging Face requires available Inference Providers credits or billing for this account. Check your Hugging Face billing settings.", 402);
+        }
         if (response.status === 429) {
           throw new InferenceError("The cloud provider is rate limited. Please retry later.", 429);
         }

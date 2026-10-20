@@ -81,6 +81,19 @@ describe("Pinned open-weight cloud inference", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("reports a credit or billing requirement without trying another provider", async () => {
+    vi.stubEnv("HF_TOKEN", "test-only-token");
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(catalog())
+      .mockResolvedValueOnce(json({ error: "Payment required" }, 402));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(executeHuggingFaceExtraction(input)).rejects.toMatchObject({
+      status: 402,
+      message: expect.stringContaining("credits or billing"),
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("rejects a different model and an empty response", async () => {
     vi.stubEnv("HF_TOKEN", "test-only-token");
     await expect(executeHuggingFaceExtraction({ ...input, model: "other/model" })).rejects.toMatchObject({ status: 422 });

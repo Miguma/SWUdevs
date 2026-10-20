@@ -33,7 +33,7 @@ export function Header({ onOpenHistory, savedMeetingsCount, onResetHome }: Heade
   const aiLabel = !aiStatus
     ? "Checking cloud AI"
     : cloudReady
-      ? "Cloud AI ready"
+      ? "Cloud model available"
       : aiStatus.configured
         ? "Cloud AI unavailable"
         : "Cloud AI setup needed";

@@ -1,5 +1,13 @@
 # Tambayayong — Codex validation and handoff
 
+## Token configuration and live cloud check — 20 October 2026
+
+The user supplied a Hugging Face token, which was placed in ignored `.env.local` without adding it to Git. The development server was restarted. `GET /api/ai/health` returned 200 with the exact pinned model and provider listed as available. A token-only identity check returned HTTP 200, confirming that Hugging Face accepted the credential. One public-sample analysis request reached the inference router but returned HTTP 402 before producing an extraction. No task prediction, citation result, or model accuracy is claimed. Hugging Face's billing/credit state must be resolved in the user's account before a complete live extraction can be verified. The client now shows a specific credits/billing message for HTTP 402; a regression test covers this error and confirms no provider fallback.
+
+Because the token value was pasted into chat, rotate it in Hugging Face and replace the value in `.env.local` after resolving billing. Do not place the replacement in chat or Git.
+
+Validation after the HTTP 402 handling change: `npm test` passed 73/73 tests in 11 files, `npm run typecheck` passed, and `npm run build` passed on Next.js 14.2.35. The preceding cloud-only pass also completed `npm ci` and `npm run eval:validate`. A full live-model extraction remains unverified because the provider returned HTTP 402. Docker checks remain blocked by the unavailable Docker engine.
+
 ## Cloud-only inference — 20 October 2026
 
 Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, branch `codex/ai-ready-polish`. The app now shows only the pinned `Qwen/Qwen3-32B:deepinfra` cloud path. The Ollama route, health checks, service module, and Compose service were removed; historical `analysis.provider` values remain readable in existing saved meetings. The browser still requires a fresh transfer confirmation for analysis. The ignored `.env.local` kept its unrelated entries; only obsolete Ollama keys were removed.

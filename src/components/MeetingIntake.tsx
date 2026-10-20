@@ -582,7 +582,7 @@ export function MeetingIntake({
             {checkingModels
               ? "Checking the cloud model…"
               : aiStatus?.modelAvailable
-                ? "The pinned open-weight model is available."
+                ? "The pinned model is online. Account credits are checked when you analyze."
                 : aiStatus?.error || "Cloud AI is unavailable. Refresh its status."}
           </p>
           <label className="flex items-start gap-2 text-xs leading-5 text-foreground">

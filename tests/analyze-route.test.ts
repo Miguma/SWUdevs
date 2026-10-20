@@ -59,7 +59,7 @@ describe("Analyze API contract", () => {
       expect((await POST(request(JSON.stringify({ ...payload, ...changes })))).status).toBe(400);
     expect(executeHuggingFaceExtraction).not.toHaveBeenCalled();
   });
-  it.each([413, 422, 429, 502, 503, 504])(
+  it.each([402, 413, 422, 429, 502, 503, 504])(
     "returns actionable cloud inference failure status %s",
     async (status) => {
       vi.mocked(executeHuggingFaceExtraction).mockRejectedValue(
