@@ -20,9 +20,9 @@ It transforms unstructured multilingual meeting notes, chat logs, and transcript
    - Intelligent relative deadline resolution (*"ugma sa hapon"*, *"karong biyernes"*, *"sa sunod adlaw"*, *"kutob Oct 26"*, *"next week"* anchored to the meeting date and `Asia/Manila` timezone).
    - Prompts the model to respect negations (*"dili na ta mag-order ug physical hoodies"*) and mid-meeting corrections (*"si Ana sa poster... ay si Mark na lang diay"*).
 2. **100% Local & Private Open-Source AI:**
-   - Powered by **Qwen3-4B** (or **Qwen 2.5**) running locally through **Ollama**.
-   - Zero proprietary AI APIs (No OpenAI, Claude, or external cloud LLM dependencies).
-   - Transcripts are sent to your app server and its configured Ollama host. Self-host both on trusted infrastructure; guest history stays in the browser.
+   - Choose local **Ollama** or the Apache-2.0 **Qwen3-32B** model through Hugging Face Inference Providers.
+   - Cloud mode pins DeepInfra. It never switches to another model or provider automatically.
+   - Local notes go to your configured Ollama host. Cloud notes go to Hugging Face and DeepInfra only after you choose cloud mode and confirm the transfer. Guest history stays in the browser.
 3. **Verbatim Source Evidence Grounding & Provenance:**
    - Citations are checked against the exact source text. Unsupported names/deadline phrases are removed or flagged; a matching quote is not proof of semantic correctness.
    - Provenance tracking distinguishes exact verbatim matches, normalized matches, user manual entries, and unverified citations.
@@ -47,7 +47,7 @@ It transforms unstructured multilingual meeting notes, chat logs, and transcript
 - **Frontend:** Next.js 14 (App Router, standalone output), TypeScript (Strict Mode), Tailwind CSS, Lucide Icons, React Hook Form, Zod.
 - **Backend:** Next.js Route Handlers with a modular Service Layer (`ollama-client`, `deadline-resolver`, `evidence-verifier`, `transcript-preprocessor`, `export-service`).
 - **Database:** PostgreSQL with Drizzle ORM (Server) + IndexedDB (Guest Mode via `idb`).
-- **AI Inference:** Ollama native chat API with schema-constrained JSON structured outputs.
+- **AI Inference:** Ollama native chat API or Hugging Face's chat router with a pinned open-weight model, both using schema-constrained outputs.
 - **Testing & Benchmarking:** Vitest unit and integration tests + tsx Evaluation Runner.
 
 ---
@@ -60,6 +60,7 @@ Copy `.env.example` to `.env.local` to configure:
 |---|---|---|
 | `OLLAMA_HOST` | URL of the local Ollama daemon | `http://localhost:11434` |
 | `OLLAMA_MODEL` | Open-source extraction model identifier | `qwen3:4b` |
+| `HF_TOKEN` | Optional server-side Hugging Face token with Inference Providers permission | Unset; cloud mode unavailable |
 | `DEFAULT_TIMEZONE` | Fallback IANA timezone for relative dates | `Asia/Manila` |
 | `DATABASE_URL` | Optional PostgreSQL connection string | `postgresql://tambayayong:...@localhost:5432/tambayayong_db` |
 | `INFERENCE_TIMEOUT_MS` | Max timeout for model inference | `90000` (90 seconds) |
@@ -100,6 +101,10 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser. Choose an installed model in **Local AI model**; use **Refresh models** after starting Ollama or pulling a model. The selected tag is never replaced automatically. The review screen records the model used.
 
+For cloud analysis, set `HF_TOKEN` in the server environment or `.env.local`, restart the app, choose **Open-weight cloud AI**, and confirm that your meeting notes may be sent to Hugging Face and DeepInfra. The cloud path is pinned to `Qwen/Qwen3-32B:deepinfra`; it requires an available structured-output provider and does not fall back. Cloud inference may use Hugging Face credits. Never put `HF_TOKEN` in a `NEXT_PUBLIC_` variable or commit it to Git.
+
+Guest cloud analysis uses the server's token. Until accounts and server-side access controls are added, deploy this option only on a trusted/private instance; a public guest endpoint could spend your Hugging Face credits.
+
 ---
 
 ## 🐳 Docker Deployment
@@ -127,13 +132,13 @@ npm run eval:validate
 ```
 
 ### 2. Live Model Inference Evaluation
-Connects to the active Ollama daemon, submits each benchmark case, and strictly evaluates actual model predictions against the gold-standard ground truth.
+Connects to the explicitly selected provider, submits each benchmark case, and strictly evaluates actual model predictions against the gold-standard ground truth. Ollama is the default. Set `EVAL_PROVIDER=huggingface` in the shell to evaluate the pinned cloud model when `HF_TOKEN` is configured.
 *Ground truth answers are **never** substituted for missing predictions.*
 ```bash
 npm run eval:model
 ```
 Outputs: `eval/model-eval-report.json` and `eval/model-eval-report.md`.
-If Ollama is offline, the runner reports `NOT RUN` rather than generating artificial scores.
+If the selected provider is unavailable, the runner reports `NOT_RUN` rather than generating artificial scores. Cloud evaluation sends the benchmark notes to Hugging Face and DeepInfra and may use credits.
 
 ---
 
@@ -197,7 +202,7 @@ All architectural decisions and specifications are maintained in `/specs`:
 
 ## 🔒 Security & Privacy
 
-- **No Remote AI APIs:** All processing occurs via local Ollama inference.
+- **Explicit AI destination:** Local Ollama remains available. The separate cloud choice sends notes to Hugging Face and DeepInfra after user confirmation.
 - **Formula Injection Defense:** Spreadsheets generated from meeting notes have formula characters (`=`, `+`, `-`, `@`, tab, CR) sanitized with leading apostrophes to protect users opening exports in Excel.
 - **Guest Data Privacy:** Notes entered in guest mode are never persisted to the server database.
 
@@ -206,12 +211,12 @@ All architectural decisions and specifications are maintained in `/specs`:
 ## 📄 License
 
 This project is licensed under the **Apache License 2.0**. See [LICENSE](LICENSE) for details.
-Open-source model: **Qwen3-4B** (Apache 2.0 license).
+Open-weight models: **Qwen3-4B** locally and **Qwen3-32B** in cloud mode (both Apache 2.0).
 ## Codex handoff and operational limits
 
 See [AGENTS.md](AGENTS.md) for the development workflow and [validation report](docs/validation.md) for the CI blocker and checks. Re-analysis retains the meeting ID and human work, replaces the AI pass, and requests renewed review when source or extracted content changes. A conservative lexical matcher handles obvious duplicates; semantic paraphrases may still need human reconciliation.
 
-The inference context is 16,384 tokens with a 4,096-token output budget. Oversized or apparently truncated responses fail explicitly. Long transcript chunking is not implemented. Guest mode is browser-local; the PostgreSQL schema is not a cloud sync feature. CLI evaluation uses shell environment variables, so set `OLLAMA_MODEL`/`OLLAMA_HOST` in the shell if they differ from the defaults. Model reports include the dataset hash, actual predictions, exact-set owner accuracy, commitment accuracy, errors, and coverage. Lexical title matching is a reproducible approximation; review multilingual paraphrases manually.
+The local inference context is 16,384 tokens with a 4,096-token output budget; cloud analysis also requests at most 4,096 output tokens. Oversized or truncated responses fail explicitly. Long transcript chunking is not implemented. Guest mode is browser-local; the PostgreSQL schema is not a cloud sync feature. CLI evaluation uses shell environment variables, so set `OLLAMA_MODEL`/`OLLAMA_HOST` or `EVAL_PROVIDER`/`HF_TOKEN` as needed. Model reports include the dataset hash, actual predictions, exact-set owner accuracy, commitment accuracy, errors, and coverage. Lexical title matching is a reproducible approximation; review multilingual paraphrases manually.
 
 ## Account screen preview
 
@@ -219,4 +224,4 @@ The UI includes `/sign-in` and `/sign-up`, with password visibility controls and
 
 ## Current workspace
 
-The home page opens with an empty review area and keeps meeting notes beside the plan. **Explore example** loads a hand-authored review preview, clearly labeled as illustrative and never saved as an AI result. The intake form shows installed local Ollama models; analysis requires selecting an exact installed tag. **New meeting** starts a separate draft, and **Saved** can reopen new-meeting drafts and analyzed meetings. Source quotes are presented for human verification, not as proof that a task, owner, commitment, or date is correct.
+The home page opens with an empty review area and keeps meeting notes beside the plan. **Explore example** loads a hand-authored review preview, clearly labeled as illustrative and never saved as an AI result. The intake form offers installed local Ollama models or the pinned Qwen3-32B cloud model, with an explicit destination choice and cloud transfer confirmation. **New meeting** starts a separate draft, and **Saved** can reopen new-meeting drafts and analyzed meetings. Source quotes are presented for human verification, not as proof that a task, owner, commitment, or date is correct.

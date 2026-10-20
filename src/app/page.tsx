@@ -152,7 +152,7 @@ export default function HomePage() {
                   </div>
                   <h3 className="text-xl font-semibold tracking-tight">Nothing to review yet</h3>
                   <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                    Add your notes and choose a local model. You’ll review every suggested action before it becomes your team’s plan.
+                    Add your notes and choose an AI model. You’ll review every suggested action before it becomes your team’s plan.
                   </p>
                   <div className="mt-7 flex items-center justify-center gap-3 text-xs font-medium text-primary">
                     <span>Notes</span><span aria-hidden="true">→</span><span>Source checked</span><span aria-hidden="true">→</span><span>Your call</span>

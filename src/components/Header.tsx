@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { History, Plus } from "lucide-react";
-import type { OllamaHealthStatus } from "@/server/services/ollama-client";
+import type { AiHealthStatus } from "@/server/services/ai-health";
 
 interface HeaderProps {
   onOpenHistory: () => void;
@@ -11,14 +11,14 @@ interface HeaderProps {
 }
 
 export function Header({ onOpenHistory, savedMeetingsCount, onResetHome }: HeaderProps) {
-  const [aiStatus, setAiStatus] = useState<OllamaHealthStatus | null>(null);
+  const [aiStatus, setAiStatus] = useState<AiHealthStatus | null>(null);
 
   useEffect(() => {
     let active = true;
     const refresh = async () => {
       try {
         const response = await fetch("/api/ai/health");
-        const status: OllamaHealthStatus = await response.json();
+        const status: AiHealthStatus = await response.json();
         if (active) setAiStatus(status);
       } catch {
         if (active) setAiStatus(null);
@@ -31,9 +31,14 @@ export function Header({ onOpenHistory, savedMeetingsCount, onResetHome }: Heade
 
   const connected = Boolean(aiStatus?.ollamaConnected);
   const localModelCount = aiStatus?.availableModels.length || 0;
+  const cloudReady = Boolean(aiStatus?.cloud.modelAvailable);
   const aiLabel = !aiStatus
     ? "Checking local AI"
-    : !connected
+    : cloudReady && localModelCount
+      ? "Local + cloud AI ready"
+      : cloudReady
+        ? "Cloud AI ready"
+        : !connected
       ? "Local AI offline"
       : localModelCount === 0
         ? "No local models"
@@ -49,7 +54,7 @@ export function Header({ onOpenHistory, savedMeetingsCount, onResetHome }: Heade
 
         <div className="flex items-center gap-2 sm:gap-4">
           <span className="hidden items-center gap-2 rounded-full border border-border bg-white px-3 py-1.5 text-xs font-medium text-muted-foreground md:inline-flex" title={aiStatus?.error || aiLabel}>
-            <span className={`h-2 w-2 rounded-full ${connected && localModelCount ? "bg-primary" : "bg-warning"}`} aria-hidden="true" />
+            <span className={`h-2 w-2 rounded-full ${(connected && localModelCount) || cloudReady ? "bg-primary" : "bg-warning"}`} aria-hidden="true" />
             {aiLabel}
           </span>
           <button type="button" onClick={onOpenHistory} className="inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:bg-primary-light hover:text-foreground sm:px-3">

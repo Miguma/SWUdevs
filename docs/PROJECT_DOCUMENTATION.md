@@ -15,7 +15,7 @@
 **Tambayayong** transforms unstructured English, Cebuano, and code-switched (Bislish) meeting notes, chat logs, and transcripts into structured, human-verified action plans.
 
 ### Core Architectural Principles
-1. **100% Self-Hosted Open-Source AI Only:** Uses local Ollama inference (`qwen3:4b` default) over HTTP. Zero proprietary or cloud AI APIs are used. Model selection is explicit; the system never silently falls back to an unrequested or cloud-backed model tag.
+1. **Explicit Open-Weight Inference:** Users choose local Ollama (`qwen3:4b` default) or the Apache-2.0 Qwen3-32B model through Hugging Face and the pinned DeepInfra provider. The cloud choice sends notes to those services only after the user confirms the transfer. Neither path silently switches models or providers.
 2. **Evidence-Grounded Extraction:** Every extracted action item, decision, and open question must cite a verbatim passage from the raw meeting notes. A deterministic verifier locates character offsets (`startOffset`, `endOffset`) and assigns provenance (`exact_match`, `normalized_match`, `unverified`, or `manual`).
 3. **Provenance vs. Semantics Separation:** Locating a quote in the transcript proves **textual provenance only**—it does not prove task ownership, commitment, or human approval. Unsupported assignees or deadlines not grounded in the item's cited quote are stripped or flagged for review.
 4. **Human-in-the-Loop Control:** AI outputs start in `pending` review status. Users can inspect source quotes, edit fields, approve (`approved`), or dismiss (`rejected`) items before exporting. Rejected items are never exported as commitments.
@@ -34,9 +34,9 @@
 | **Icons** | Lucide React | `^0.454.0` |
 | **Validation** | Zod | `^3.23.8` (request payloads & structured LLM JSON outputs) |
 | **Client Persistence** | IndexedDB (`idb`) | `^8.0.0` (`meetings` and `drafts` object stores) |
-| **AI Inference** | Self-hosted Ollama | HTTP API (`/api/tags`, `/api/chat` with a JSON schema), default tag `qwen3:4b` |
+| **AI Inference** | Ollama or Hugging Face Inference Providers | Local `/api/tags` and `/api/chat`, or pinned `Qwen/Qwen3-32B:deepinfra` chat completion |
 | **Date Handling** | `date-fns` + deterministic resolver | `^3.6.0` + bilingual English/Cebuano relative deadline parser |
-| **Testing** | Vitest + `fake-indexeddb` | 71 tests across 10 test files in the latest validated run |
+| **Testing** | Vitest + `fake-indexeddb` | See `docs/validation.md` for the latest observed results |
 | **Containerization** | Docker + Docker Compose | Next.js, Ollama, and PostgreSQL services |
 
 ---
@@ -59,7 +59,7 @@ Tambayayong/
 │   ├── dataset.json                   # 20 human-annotated benchmark cases (6 EN, 7 CEB, 7 Mixed)
 │   ├── metrics.ts                     # One-to-one lexical matching & precision/recall/F1 scorer
 │   ├── validate-dataset.ts            # Deterministic dataset & schema validator (npm run eval:validate)
-│   ├── run-model-eval.ts              # Live Ollama benchmark runner (npm run eval:model)
+│   ├── run-model-eval.ts              # Live selected-provider benchmark runner (npm run eval:model)
 │   └── run-eval.ts                    # Delegates to live runner (no synthetic fallback)
 ├── src/
 │   ├── app/
@@ -70,7 +70,7 @@ Tambayayong/
 │   │   ├── sign-up/page.tsx           # Preview Sign-Up screen (explicitly labeled preview)
 │   │   └── api/
 │   │       ├── health/route.ts        # App health endpoint (GET /api/health)
-│   │       ├── ai/health/route.ts     # Ollama connectivity & model availability (GET /api/ai/health)
+│   │       ├── ai/health/route.ts     # Local and cloud model availability (GET /api/ai/health)
 │   │       └── meetings/
 │   │           ├── analyze/route.ts   # Rate-limited AI extraction endpoint (POST /api/meetings/analyze)
 │   │           └── [id]/export/route.ts # Server-side Markdown/CSV export (POST /api/meetings/[id]/export)
@@ -170,6 +170,11 @@ export interface ActionItem {
 - **Bilingual Prompting & Grounding Checks:** Instructs the model to handle English, Cebuano, and code-switched transcripts—specifically accounting for Cebuano negation (*"dili"*, *"ayaw"*, *"wala"*), conversational reassignment (*"si X na lang diay"*), and tentative proposals (*"basin"*, *"maybe"*, *"dili pa sure"*).
 - **Post-Inference Grounding Filter:** `assembleMeetingExtraction` verifies every extracted assignee name and deadline phrase against the item's cited quote (or speaker turn). Any assignee or deadline not supported by the citation is stripped and recorded in `missingInformation` with `needsReview: true`.
 
+### 5.1a Pinned Open-Weight Cloud Inference (`huggingface-client.ts`)
+- Requires `HF_TOKEN` only on the server and checks the public router catalog for the exact `Qwen/Qwen3-32B:deepinfra` pairing with structured-output support. No token is sent to the browser.
+- Sends notes to Hugging Face and DeepInfra only after the user selects the cloud path and confirms that transfer. A missing token, unavailable provider, timeout, malformed output, or model identity mismatch returns an error without trying another model.
+- Shares the extraction prompt, JSON schema, deterministic quote verification, deadline handling, and human review flow with Ollama. The saved analysis records its provider and model.
+
 ### 5.2 Bilingual Relative Deadline Resolver (`deadline-resolver.ts`)
 - Resolves English and Cebuano relative expressions against the meeting's reference date (`meetingDate`):
   - `"today"` / `"karong adlawa"` / `"karong gabii"` -> `+0 days`
@@ -204,8 +209,8 @@ export interface ActionItem {
 
 The home page (`src/app/page.tsx`) keeps meeting notes beside the review plan on wide screens and stacks them on narrower screens:
 
-1. **Top header:** Brand, local AI status, saved meetings, and new meeting controls. The status polls `/api/ai/health` every 30 seconds.
-2. **Meeting notes:** A fresh browser starts empty; an existing draft restores from IndexedDB. The form contains meeting metadata, participants, text/file intake, and an explicit selector for an installed local Ollama model. Draft keys remain `current_draft` for a new meeting and `meeting:<id>` for an existing one.
+1. **Top header:** Brand, available AI status, saved work, and new meeting controls. The status polls `/api/ai/health` every 30 seconds.
+2. **Meeting notes:** A fresh browser starts empty; an existing draft restores from IndexedDB. The form contains meeting metadata, participants, text/file intake, and a choice between an explicit installed Ollama tag and the pinned open-weight cloud model. New-meeting drafts use `current_draft` or a `draft:<uuid>` key; edited meeting drafts use `meeting:<id>`. Saved work can reopen new-meeting drafts.
 3. **Example preview:** **Explore example** loads hand-authored example items and displays an illustrative-preview notice. The preview is not saved as an AI result. Real analysis replaces it with model output.
 4. **Action review:** Progress covers actions, decisions, and questions. Compact counts call out missing owners and dates. Filters, manual additions, editing, approval, dismissal, source inspection, and Markdown/CSV export remain available. A located quote establishes text provenance; the reviewer checks whether it supports the task details.
 
@@ -216,8 +221,8 @@ The home page (`src/app/page.tsx`) keeps meeting notes beside the review plan on
 | Endpoint | Method | Purpose |
 | :--- | :--- | :--- |
 | `/api/health` | `GET` | Returns application liveness and timestamp. |
-| `/api/ai/health` | `GET` | Checks local Ollama connectivity, configured model availability, and installed local model tags. |
-| `/api/meetings/analyze` | `POST` | Validates intake payload (max 1 MB, sliding-window rate limit of 10 req/min/IP), runs transcript preprocessing, invokes Ollama extraction, resolves relative deadlines, verifies quote offsets, and returns `MeetingExtraction`. |
+| `/api/ai/health` | `GET` | Checks local Ollama tags and the configured Hugging Face cloud model/provider. |
+| `/api/meetings/analyze` | `POST` | Validates intake payload (max 1 MB, sliding-window rate limit of 10 req/min/IP), invokes only the selected inference path, resolves relative deadlines, verifies quote offsets, and returns `MeetingExtraction`. |
 | `/api/meetings/[id]/export` | `POST` | Generates downloadable `.md` or `.csv` file responses from a validated `MeetingExtraction` payload. |
 
 ---
@@ -226,7 +231,7 @@ The home page (`src/app/page.tsx`) keeps meeting notes beside the review plan on
 
 ### 8.1 Two Independent Evaluation Commands
 - **`npm run eval:validate` (`eval/validate-dataset.ts`):** Validates the 20 human-labeled benchmark cases (`6` English, `7` Cebuano, `7` mixed) in `eval/dataset.json` for schema integrity, verbatim quote existence, and assignee grounding. Does not claim model accuracy.
-- **`npm run eval:model` (`eval/run-model-eval.ts`):** Invokes the live local Ollama model on each benchmark case using only source fields (`title`, `meetingDate`, `timezone`, `rawText`). Never substitutes ground-truth labels for empty or failed predictions. If Ollama is offline, exits `1` and writes `status: "NOT_RUN"` with `null` metrics.
+- **`npm run eval:model` (`eval/run-model-eval.ts`):** Invokes the live Ollama model by default, or the pinned cloud model when `EVAL_PROVIDER=huggingface`, on each benchmark case using only source fields (`title`, `meetingDate`, `timezone`, `rawText`). Never substitutes ground-truth labels for empty or failed predictions. If the selected provider is unavailable, exits `1` and writes `status: "NOT_RUN"` with `null` metrics.
 
 ### 8.2 Observed Validation Results
 | Check | Command | Observed Result |
@@ -236,6 +241,6 @@ The home page (`src/app/page.tsx`) keeps meeting notes beside the review plan on
 | **Dataset Validation** | `npm run eval:validate` | **Passed** (`20` cases validated: `6` English, `7` Cebuano, `7` mixed) |
 | **Production Build** | `npm run build` | **Passed** (Next.js `14.2.35`; `/` static route at 21 kB / 108 kB first-load JS) |
 | **Live Dev Server** | `npm run dev` | **Verified** on `http://localhost:3000`; `/api/health` returned HTTP 200 |
-| **Live Model Evaluation** | `npm run eval:model` | Not run in the latest validation: local Ollama was unavailable. No model accuracy is claimed. |
+| **Live Model Evaluation** | `npm run eval:model` | See `docs/validation.md` for the latest observed result. The runner reports `NOT_RUN` when the selected provider is unavailable. |
 
 For the full command history, browser observations, sandbox limits, and Docker blocker, see [validation.md](validation.md). The `/sign-in` and `/sign-up` routes are account-screen previews; they do not create accounts or sessions.

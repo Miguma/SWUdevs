@@ -5,21 +5,43 @@ import {
   checkOllamaHealth,
   executeOllamaExtraction,
 } from "../src/server/services/ollama-client";
+import {
+  checkHuggingFaceHealth,
+  executeHuggingFaceExtraction,
+} from "../src/server/services/huggingface-client";
 import { aggregateScores, scoreCase, type BenchmarkCase } from "./metrics";
 
 async function runModelEvaluation() {
   // CLI tools use shell variables, not Next's .env.local loader.
+  const provider = process.env.EVAL_PROVIDER || "ollama";
+  if (provider !== "ollama" && provider !== "huggingface") {
+    throw new Error("EVAL_PROVIDER must be ollama or huggingface; no provider fallback is used.");
+  }
   const datasetBytes = fs.readFileSync(
     path.resolve(__dirname, "dataset.json"),
     "utf8",
   );
   const dataset: BenchmarkCase[] = JSON.parse(datasetBytes);
-  const health = await checkOllamaHealth();
+  const inference = provider === "huggingface"
+    ? await checkHuggingFaceHealth().then((health) => ({
+        model: health.model,
+        available: health.configured && health.modelAvailable,
+        unavailableReason: health.error || "Pinned cloud model unavailable",
+      }))
+    : await checkOllamaHealth().then((health) => ({
+        model: health.configuredModel,
+        available: health.ollamaConnected && health.modelAvailable,
+        unavailableReason: health.ollamaConnected
+          ? "Selected model not installed locally"
+          : "Ollama unreachable",
+      }));
+  const model = inference.model;
   const reportPath = path.resolve(__dirname, "model-eval-report");
   const base = {
     benchmarkDate: new Date().toISOString(),
     mode: "LIVE_MODEL_INFERENCE",
-    model: health.configuredModel,
+    provider,
+    model,
     datasetSha256: createHash("sha256").update(datasetBytes).digest("hex"),
     totalTestCases: dataset.length,
     matcher:
@@ -35,10 +57,8 @@ async function runModelEvaluation() {
       `# Tambayayong live model evaluation\n\nGround truth is used only for scoring. Empty predictions remain empty; failed inference never becomes a prediction.\n\nMetrics cover successful inference only; inspect errors and coverage before quoting scores. Null means no denominator. Lexical matching is an approximation.\n\n\`\`\`json\n${JSON.stringify(report, null, 2)}\n\`\`\`\n`,
     );
   }
-  if (!health.ollamaConnected || !health.modelAvailable) {
-    const reason = !health.ollamaConnected
-      ? "Ollama unreachable"
-      : "Selected model not installed locally";
+  if (!inference.available) {
+    const reason = inference.unavailableReason;
     writeReport({
       ...base,
       status: "NOT_RUN",
@@ -46,9 +66,7 @@ async function runModelEvaluation() {
       evaluatedSampleCount: 0,
       metrics: null,
     });
-    console.error(
-      `${reason}. Start Ollama, pull ${health.configuredModel}, and rerun. No accuracy scores generated.`,
-    );
+    console.error(`${reason.replace(/[.!?]$/, "")}. No accuracy scores generated.`);
     process.exitCode = 1;
     return;
   }
@@ -58,13 +76,16 @@ async function runModelEvaluation() {
   for (const tc of dataset) {
     try {
       // Only source fields cross the inference boundary, never groundTruth.
-      const prediction = await executeOllamaExtraction({
+      const input = {
         title: `Eval ${tc.id}`,
         meetingDate: tc.meetingDate || undefined,
         timezone: tc.timezone,
         rawText: tc.notes,
-        model: health.configuredModel,
-      });
+        model,
+      };
+      const prediction = provider === "huggingface"
+        ? await executeHuggingFaceExtraction(input)
+        : await executeOllamaExtraction(input);
       predictions.push({ id: tc.id, prediction });
       rows.push(scoreCase(prediction, tc));
       console.log(

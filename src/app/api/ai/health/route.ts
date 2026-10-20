@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { checkOllamaHealth } from "@/server/services/ollama-client";
+import { checkAiHealth } from "@/server/services/ai-health";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const status = await checkOllamaHealth();
-  if (!status.ollamaConnected || !status.modelAvailable) {
+  const status = await checkAiHealth();
+  if ((!status.ollamaConnected || !status.availableModels.length) && !status.cloud.modelAvailable) {
     return NextResponse.json(status, { status: 503 });
   }
   return NextResponse.json(status, { status: 200 });

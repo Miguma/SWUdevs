@@ -11,6 +11,7 @@ services:
       - NODE_ENV=production
       - OLLAMA_HOST=http://ollama:11434
       - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3:4b}
+      - HF_TOKEN=${HF_TOKEN:-}
       - DEFAULT_TIMEZONE=${DEFAULT_TIMEZONE:-Asia/Manila}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-tambayayong}:${POSTGRES_PASSWORD:-tambayayong_dev_secret}@postgres:5432/${POSTGRES_DB:-tambayayong_db}
     depends_on:

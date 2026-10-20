@@ -5,9 +5,14 @@ import {
   InferenceError,
 } from "../src/server/services/ollama-client";
 import { POST } from "../src/app/api/meetings/analyze/route";
+import { executeHuggingFaceExtraction } from "../src/server/services/huggingface-client";
 vi.mock("../src/server/services/ollama-client", async (original) => ({
   ...(await original<typeof import("../src/server/services/ollama-client")>()),
   executeOllamaExtraction: vi.fn(),
+}));
+vi.mock("../src/server/services/huggingface-client", async (original) => ({
+  ...(await original<typeof import("../src/server/services/huggingface-client")>()),
+  executeHuggingFaceExtraction: vi.fn(),
 }));
 afterEach(() => vi.clearAllMocks());
 const request = (body: string) =>
@@ -41,12 +46,27 @@ describe("Analyze API contract", () => {
       }),
     );
   });
+  it("routes an explicitly selected cloud model without calling Ollama", async () => {
+    vi.mocked(executeHuggingFaceExtraction).mockResolvedValue({ id: "cloud-result" } as never);
+    const cloudInput = { ...payload, provider: "huggingface", model: "Qwen/Qwen3-32B", cloudConsent: true };
+    expect((await POST(request(JSON.stringify(cloudInput)))).status).toBe(200);
+    expect(executeHuggingFaceExtraction).toHaveBeenCalledWith(
+      expect.objectContaining({ rawText: payload.rawText, model: "Qwen/Qwen3-32B" }),
+    );
+    expect(executeOllamaExtraction).not.toHaveBeenCalled();
+  });
+  it("requires confirmation before routing cloud notes", async () => {
+    const cloudInput = { ...payload, provider: "huggingface", model: "Qwen/Qwen3-32B" };
+    expect((await POST(request(JSON.stringify(cloudInput)))).status).toBe(400);
+    expect(executeHuggingFaceExtraction).not.toHaveBeenCalled();
+  });
   it("rejects malformed JSON and invalid calendar dates and timezones before inference", async () => {
     expect((await POST(request("{"))).status).toBe(400);
     for (const changes of [
       { meetingDate: "2026-02-31" },
       { timezone: "not/a-zone" },
       { title: "   " },
+      { provider: "other" },
     ])
       expect(
         (await POST(request(JSON.stringify({ ...payload, ...changes }))))

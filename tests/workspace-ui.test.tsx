@@ -10,6 +10,7 @@ describe("Workspace first visit", () => {
     expect(html).toContain("Nothing to review yet");
     expect(html).toContain('id="local-model"');
     expect(html).toContain("Refresh models");
+    expect(html).toContain("Open-weight cloud AI");
     expect(html).toContain("Select an installed model");
     expect(html).toContain("Explore example");
     expect(html).not.toContain("Finish event poster");

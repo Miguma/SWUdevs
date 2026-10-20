@@ -1,5 +1,25 @@
 # Tambayayong — Codex validation and handoff
 
+## Open-weight cloud AI — 20 October 2026
+
+Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, feature branch `codex/ai-ready-polish` (based on `main` at `41b1d8d`). The intake now offers a separate Qwen3-32B cloud choice through Hugging Face Inference Providers and the pinned DeepInfra provider. The server requires an explicit cloud transfer confirmation and keeps `HF_TOKEN` server-side. It uses the existing extraction, provenance, review, and meeting persistence path. The Ollama choice still requires an explicit installed local model. Guest accounts remain deferred.
+
+| Check | Observed result |
+|---|---|
+| `npm ci --cache .npm-cache --no-audit --no-fund` | Passed: 175 packages installed from the lockfile after stopping the verified local Next.js development processes that held SWC open. The first attempt failed with Windows `EPERM` on that binary. |
+| `npm run eval:validate` | Passed: 20 cases (6 English, 7 Cebuano, 7 mixed). Checks dataset annotations, not model accuracy. |
+| `npm test` | Passed: 79 tests in 11 files. New tests cover pinned cloud routing, structured output, unavailable provider, malformed output, consent at the API boundary, and cloud evaluation using only source fields and actual predictions. |
+| `npm run typecheck` | Passed with zero errors. |
+| `npm run build` | Passed on Next.js 14.2.35; `/` is 22.6 kB with 110 kB first-load JS. The sandboxed attempt failed with Windows `EPERM` creating `.next/static/chunks`; the permitted rerun compiled and generated all 6 static pages. |
+| `git diff --check` | Passed before final documentation update. |
+| `docker compose config --quiet` | Passed. |
+| Docker runtime | Not run: `docker info` could not find the Docker Desktop Linux engine pipe. |
+| Local Ollama | `ollama list` showed only `gemini-3-flash-preview:cloud`, `minimax-m2.5:cloud`, and `deepseek-v4-pro:cloud`; no installed local model was eligible for extraction. |
+| Cloud evaluation | `EVAL_PROVIDER=huggingface npm run eval:model` exited 1 and wrote `NOT_RUN`, evaluated sample count 0, metrics null. `HF_TOKEN` was absent from `.env.local`, so no cloud inference or model accuracy is claimed. |
+| Production HTTP and browser smoke | `GET /` returned 200 and contained the cloud choice. The isolated `127.0.0.1:3000` browser showed the selected cloud model, transfer checkbox, and missing-token message while preserving its existing test draft. `GET /api/ai/health` returned 503 with `cloudConfigured=false`, `modelAvailable=false`, and the pinned model/provider. A sample cloud POST without confirmation returned 400; with confirmation and no token it returned 503. No sample notes were sent to an external service. |
+
+The public Hugging Face router catalog showed `Qwen/Qwen3-32B` live on DeepInfra with structured-output support during implementation, but the production request remains unverified until a server token with Inference Providers permission is configured. Cloud mode on an unauthenticated public deployment could spend the server token's credits; the README limits this preview to a trusted/private instance until accounts and server-side access controls are added.
+
 ## Website and local AI readiness — 20 October 2026
 
 Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, feature branch `codex/ai-ready-polish` from the current `main` (`41b1d8d`). The workspace now exposes a **Refresh models** control and requires the user to select an exact installed local Ollama tag. It distinguishes a disconnected server from a connected server with no local models. New meetings use separate draft keys; **Saved work** lists those drafts alongside analyzed meetings. The legacy `current_draft` and `meeting:<id>` records remain readable. The hand-authored example no longer replaces an open draft when loaded. The home introduction uses less vertical space while keeping the existing green/white design.

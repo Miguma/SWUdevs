@@ -140,4 +140,47 @@ describe("Honest model scoring", () => {
     vi.doUnmock("node:fs");
     vi.doUnmock("../src/server/services/ollama-client");
   });
+  it("cloud runner uses the pinned model and scores only its actual prediction", async () => {
+    const previousProvider = process.env.EVAL_PROVIDER;
+    process.env.EVAL_PROVIDER = "huggingface";
+    const writes: Record<string, string> = {};
+    const infer = vi.fn(async () => prediction());
+    vi.doMock("node:fs", () => ({
+      default: {
+        readFileSync: () => JSON.stringify([tc]),
+        writeFileSync: (file: string, value: string) => {
+          writes[file] = value;
+        },
+      },
+    }));
+    vi.doMock("../src/server/services/huggingface-client", () => ({
+      checkHuggingFaceHealth: async () => ({
+        configured: true,
+        modelAvailable: true,
+        model: "Qwen/Qwen3-32B",
+        provider: "deepinfra",
+      }),
+      executeHuggingFaceExtraction: infer,
+    }));
+    try {
+      await import("../eval/run-model-eval");
+      await vi.waitFor(() => expect(Object.keys(writes)).toHaveLength(2));
+      expect(infer).toHaveBeenCalledWith({
+        title: "Eval independent",
+        meetingDate: tc.meetingDate,
+        timezone: tc.timezone,
+        rawText: tc.notes,
+        model: "Qwen/Qwen3-32B",
+      });
+      const report = JSON.parse(Object.entries(writes).find(([key]) => key.endsWith(".json"))![1]);
+      expect(report).toMatchObject({ status: "COMPLETE", provider: "huggingface", model: "Qwen/Qwen3-32B" });
+      expect(report.metrics.tasks.recall).toBe(0);
+      expect(report.predictions[0].prediction.actionItems).toEqual([]);
+    } finally {
+      if (previousProvider === undefined) delete process.env.EVAL_PROVIDER;
+      else process.env.EVAL_PROVIDER = previousProvider;
+      vi.doUnmock("node:fs");
+      vi.doUnmock("../src/server/services/huggingface-client");
+    }
+  });
 });

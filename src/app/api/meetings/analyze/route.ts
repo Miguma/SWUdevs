@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MeetingIntakeSchema } from "@/types/meeting";
 import { executeOllamaExtraction, InferenceError } from "@/server/services/ollama-client";
+import { executeHuggingFaceExtraction } from "@/server/services/huggingface-client";
 import { preprocessTranscriptText } from "@/server/services/transcript-preprocessor";
 
 export const dynamic = "force-dynamic";
@@ -75,8 +76,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { title, organization, meetingDate, dateUnknown, timezone, participants, rawText, model } =
+    const { title, organization, meetingDate, dateUnknown, timezone, participants, rawText, model, provider, cloudConsent } =
       parseResult.data;
+    if (provider === "huggingface" && !cloudConsent) {
+      return NextResponse.json(
+        { error: "Cloud transfer confirmation is required before sending notes to Hugging Face and DeepInfra." },
+        { status: 400 },
+      );
+    }
 
     const preprocessed = preprocessTranscriptText(rawText);
     if (preprocessed.normalizedText.length < 10) {
@@ -88,7 +95,7 @@ export async function POST(req: NextRequest) {
 
     const effectiveDate = dateUnknown ? undefined : meetingDate || undefined;
 
-    const extraction = await executeOllamaExtraction({
+    const input = {
       title,
       organization,
       meetingDate: effectiveDate,
@@ -96,7 +103,10 @@ export async function POST(req: NextRequest) {
       participants,
       rawText,
       model,
-    });
+    };
+    const extraction = provider === "huggingface"
+      ? await executeHuggingFaceExtraction(input)
+      : await executeOllamaExtraction(input);
 
     return NextResponse.json(extraction, { status: 200 });
   } catch (err: any) {

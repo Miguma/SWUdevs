@@ -24,7 +24,7 @@ import {
 import { parseUploadedFileContent } from "@/server/services/transcript-preprocessor";
 import { reconcileMeeting } from "@/lib/meeting-workflow";
 import { saveDraftNotes, getDraftNotes } from "@/lib/storage/indexeddb";
-import type { OllamaHealthStatus } from "@/server/services/ollama-client";
+import type { AiHealthStatus } from "@/server/services/ai-health";
 
 interface MeetingIntakeProps {
   onExtractionComplete: (extraction: MeetingExtraction) => void;
@@ -51,7 +51,11 @@ export function MeetingIntake({
   const [isAddingParticipant, setIsAddingParticipant] = useState(false);
   const [rawText, setRawText] = useState(initialMeeting?.rawTranscript || "");
   const [model, setModel] = useState("");
-  const [aiStatus, setAiStatus] = useState<OllamaHealthStatus | null>(null);
+  const [provider, setProvider] = useState<"ollama" | "huggingface">(
+    initialMeeting?.analysis?.provider === "huggingface" ? "huggingface" : "ollama",
+  );
+  const [cloudConsent, setCloudConsent] = useState(false);
+  const [aiStatus, setAiStatus] = useState<AiHealthStatus | null>(null);
   const [checkingModels, setCheckingModels] = useState(true);
   const [draftHydrated, setDraftHydrated] = useState(false);
 
@@ -93,7 +97,7 @@ export function MeetingIntake({
     try {
       // A disconnected Ollama service returns 503 with useful status details.
       const response = await fetch("/api/ai/health", { cache: "no-store" });
-      const status: OllamaHealthStatus = await response.json();
+      const status: AiHealthStatus = await response.json();
       setAiStatus(status);
     } catch {
       setAiStatus(null);
@@ -265,8 +269,17 @@ export function MeetingIntake({
       );
       return;
     }
-    if (!model || !aiStatus?.availableModels.includes(model)) {
+    const selectedModel = provider === "huggingface" ? aiStatus?.cloud.model : model;
+    if (provider === "ollama" && (!selectedModel || !aiStatus?.availableModels.includes(selectedModel))) {
       setErrorBanner("Choose an installed local Ollama model before analyzing.");
+      return;
+    }
+    if (provider === "huggingface" && !aiStatus?.cloud.modelAvailable) {
+      setErrorBanner(aiStatus?.cloud.error || "The open-weight cloud model is unavailable. Refresh its status.");
+      return;
+    }
+    if (provider === "huggingface" && !cloudConsent) {
+      setErrorBanner("Confirm that these notes may be sent to Hugging Face and its inference provider.");
       return;
     }
 
@@ -286,7 +299,9 @@ export function MeetingIntake({
           timezone,
           participants,
           rawText,
-          model,
+          model: selectedModel,
+          provider,
+          cloudConsent: provider === "huggingface" && cloudConsent,
         }),
       });
 
@@ -306,8 +321,8 @@ export function MeetingIntake({
       console.error("Extraction error:", err);
       setErrorBanner(err.message || "Failed to process meeting notes.");
       if (
-        err.message?.includes("Ollama") ||
-        err.message?.includes("unreachable")
+        provider === "ollama" &&
+        (err.message?.includes("Ollama") || err.message?.includes("unreachable"))
       ) {
         setErrorDetails(
           `Ensure Ollama is running locally (\`ollama serve\`) and the model is installed (\`ollama pull ${model}\`).`
@@ -565,10 +580,22 @@ export function MeetingIntake({
           </div>
         </div>
 
+        <fieldset className="space-y-2">
+          <legend className="mb-1 text-sm font-semibold text-foreground">Where should AI run?</legend>
+          <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${provider === "ollama" ? "border-primary bg-primary-light/40" : "border-border bg-card"}`}>
+            <input type="radio" name="ai-provider" value="ollama" checked={provider === "ollama"} onChange={() => setProvider("ollama")} className="mt-1 accent-primary" />
+            <span><strong className="block text-sm">My Ollama server</strong><span className="text-xs text-muted-foreground">Notes stay on your configured server.</span></span>
+          </label>
+          <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${provider === "huggingface" ? "border-primary bg-primary-light/40" : "border-border bg-card"}`}>
+            <input type="radio" name="ai-provider" value="huggingface" checked={provider === "huggingface"} onChange={() => setProvider("huggingface")} className="mt-1 accent-primary" />
+            <span><strong className="block text-sm">Open-weight cloud AI</strong><span className="text-xs text-muted-foreground">Qwen3-32B via Hugging Face and DeepInfra.</span></span>
+          </label>
+        </fieldset>
+
         <div className="rounded-xl border border-border bg-background/70 p-3.5">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <label htmlFor="local-model" className="block text-sm font-semibold text-foreground">
-              Local AI model
+            <label htmlFor={provider === "ollama" ? "local-model" : undefined} className="block text-sm font-semibold text-foreground">
+              {provider === "ollama" ? "Local AI model" : "Cloud AI model"}
             </label>
             <button
               type="button"
@@ -581,32 +608,51 @@ export function MeetingIntake({
               Refresh models
             </button>
           </div>
-          <select
-            id="local-model"
-            value={model}
-            onChange={(event) => setModel(event.target.value)}
-            disabled={!aiStatus?.availableModels.length}
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
-          >
-            <option value="">Select an installed model</option>
-            {model && !aiStatus?.availableModels.includes(model) && (
-              <option value={model}>{model} · not installed</option>
-            )}
-            {aiStatus?.availableModels.map((name) => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground" role="status" aria-live="polite">
-            {checkingModels
-              ? "Checking the local Ollama server…"
-              : !aiStatus?.ollamaConnected
-                ? "Ollama is offline. Start ollama serve, then refresh models. Your notes are kept."
-                : !aiStatus.availableModels.length
-                  ? "No local models installed. Run ollama pull qwen3:4b, then refresh models."
-                  : model && !aiStatus.availableModels.includes(model)
-                    ? `The selected model ${model} is no longer installed. Choose another installed model explicitly.`
-                    : `${aiStatus.availableModels.length} local model${aiStatus.availableModels.length === 1 ? "" : "s"} available. Choose one before analysis; notes go only to your Ollama server.`}
-          </p>
+          {provider === "ollama" ? (
+            <>
+              <select
+                id="local-model"
+                value={model}
+                onChange={(event) => setModel(event.target.value)}
+                disabled={!aiStatus?.availableModels.length}
+                className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
+              >
+                <option value="">Select an installed model</option>
+                {model && !aiStatus?.availableModels.includes(model) && (
+                  <option value={model}>{model} · not installed</option>
+                )}
+                {aiStatus?.availableModels.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground" role="status" aria-live="polite">
+                {checkingModels
+                  ? "Checking the local Ollama server…"
+                  : !aiStatus?.ollamaConnected
+                    ? "Ollama is offline. Start ollama serve, then refresh models. Your notes are kept."
+                    : !aiStatus.availableModels.length
+                      ? "No local models installed. Run ollama pull qwen3:4b, then refresh models."
+                      : model && !aiStatus.availableModels.includes(model)
+                        ? `The selected model ${model} is no longer installed. Choose another installed model explicitly.`
+                        : `${aiStatus.availableModels.length} local model${aiStatus.availableModels.length === 1 ? "" : "s"} available. Choose one before analysis; notes go only to your Ollama server.`}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-medium">{aiStatus?.cloud.model || "Qwen/Qwen3-32B"} · DeepInfra</p>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground" role="status" aria-live="polite">
+                {checkingModels
+                  ? "Checking the cloud model…"
+                  : aiStatus?.cloud.modelAvailable
+                    ? "This Apache-2.0 open-weight model is available through the pinned provider."
+                    : aiStatus?.cloud.error || "Cloud AI is unavailable. Refresh its status."}
+              </p>
+              <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-foreground">
+                <input type="checkbox" checked={cloudConsent} onChange={(event) => setCloudConsent(event.target.checked)} className="mt-1 accent-primary" />
+                <span>I understand these notes will be sent to Hugging Face and DeepInfra for analysis.</span>
+              </label>
+            </>
+          )}
         </div>
 
         {/* Bottom Bar: Upload link + Analyze CTA */}
@@ -626,7 +672,7 @@ export function MeetingIntake({
                 className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:underline cursor-pointer"
               >
                 <Paperclip className="w-3.5 h-3.5" />
-                <span>Upload .txt or .md</span>
+                <span>Upload .txt, .md, or .csv</span>
                 <span className="text-[11px] font-normal text-muted-foreground">
                   (optional)
                 </span>
@@ -636,7 +682,7 @@ export function MeetingIntake({
             {loading ? (
               <div className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-semibold text-xs shadow-xs">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Analyzing with Local AI...</span>
+                <span>Analyzing with {provider === "ollama" ? "Local AI" : "Cloud AI"}...</span>
               </div>
             ) : (
               <button
@@ -644,14 +690,14 @@ export function MeetingIntake({
                 className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold text-xs sm:text-sm shadow-xs transition-all cursor-pointer"
               >
                 <Sparkles className="w-4 h-4" />
-                <span>Analyze with Local AI</span>
+                <span>Analyze with {provider === "ollama" ? "Local AI" : "Cloud AI"}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}
           </div>
 
           <p className="text-[11px] text-muted-foreground sm:text-right">
-            Your notes stay on your own AI server.
+            {provider === "ollama" ? "Your notes stay on your own AI server." : "Cloud analysis sends these notes to Hugging Face and DeepInfra."}
           </p>
         </div>
       </form>
