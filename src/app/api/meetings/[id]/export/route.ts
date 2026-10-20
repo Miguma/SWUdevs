@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   generateMarkdownExport,
   generateCsvExport,
+  generateMeetingMinutesExport,
 } from "@/server/services/export-service";
 import { MeetingExtraction } from "@/types/meeting";
 
@@ -24,6 +25,19 @@ export async function POST(
       .slice(0, 40);
     const dateStr = meetingData.meetingDate || new Date().toISOString().slice(0, 10);
 
+    if (format === "pdf") {
+      const { generateMeetingPdf } = await import("@/lib/pdf-export");
+      const doc = generateMeetingPdf(meetingData, { includePending });
+      const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
+      return new NextResponse(pdfBuffer, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="tambayayong-${safeTitle}-${dateStr}.pdf"`,
+        },
+      });
+    }
+
     if (format === "csv") {
       const csvContent = generateCsvExport(meetingData, { includePending });
       return new NextResponse(csvContent, {
@@ -31,6 +45,17 @@ export async function POST(
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
           "Content-Disposition": `attachment; filename="tambayayong-${safeTitle}-${dateStr}.csv"`,
+        },
+      });
+    }
+
+    if (format === "minutes") {
+      const minutesContent = generateMeetingMinutesExport(meetingData, { includePending });
+      return new NextResponse(minutesContent, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/markdown; charset=utf-8",
+          "Content-Disposition": `attachment; filename="tambayayong-${safeTitle}-${dateStr}-minutes.md"`,
         },
       });
     }

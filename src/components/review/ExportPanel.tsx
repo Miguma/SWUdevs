@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { FileDown, FileText, Table, Check, Copy, ScrollText } from "lucide-react";
+import {
+  FileDown,
+  FileText,
+  Table,
+  Check,
+  Copy,
+  ScrollText,
+  Loader2,
+} from "lucide-react";
 import { MeetingExtraction } from "@/types/meeting";
 import {
   generateMarkdownExport,
@@ -14,6 +22,23 @@ interface ExportPanelProps {
 export function ExportPanel({ meeting }: ExportPanelProps) {
   const [includePending, setIncludePending] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  const handleDownloadPdf = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      setPdfError(null);
+      // Lazy-load PDF generator code only when clicked to keep initial bundle light
+      const { exportMeetingToPdf } = await import("@/lib/pdf-export");
+      await exportMeetingToPdf(meeting, { includePending });
+    } catch (err: any) {
+      console.error("PDF generation failed:", err);
+      setPdfError(err?.message || "Failed to generate PDF");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   const handleDownloadMarkdown = () => {
     const md = generateMarkdownExport(meeting, { includePending });
@@ -62,7 +87,10 @@ export function ExportPanel({ meeting }: ExportPanelProps) {
   };
 
   return (
-    <div id="export-results" className="bg-card rounded-xl border border-border p-4 space-y-3 scroll-mt-28">
+    <div
+      id="export-results"
+      className="bg-card rounded-xl border border-border p-4 space-y-3 scroll-mt-28"
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-primary-light text-primary flex items-center justify-center flex-shrink-0">
@@ -73,7 +101,7 @@ export function ExportPanel({ meeting }: ExportPanelProps) {
               Export results
             </h3>
             <p className="text-[11px] text-muted-foreground">
-              Download your action plan or official minutes.
+              Download your action plan, official minutes, or branded PDF.
             </p>
           </div>
         </div>
@@ -98,8 +126,23 @@ export function ExportPanel({ meeting }: ExportPanelProps) {
         </button>
       </div>
 
-      {/* 3 Export options: Markdown, Minutes, CSV */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* 4 Export options: PDF, Markdown Actions, Minutes, CSV */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <button
+          onClick={handleDownloadPdf}
+          disabled={isGeneratingPdf}
+          type="button"
+          className="py-2 px-2.5 rounded-xl border border-primary/40 bg-primary-light/50 hover:bg-primary-light text-primary text-xs font-semibold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+          title="Download branded official PDF report"
+        >
+          {isGeneratingPdf ? (
+            <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+          ) : (
+            <FileDown className="w-3.5 h-3.5 text-primary" />
+          )}
+          <span>PDF Report</span>
+        </button>
+
         <button
           onClick={handleDownloadMarkdown}
           type="button"
@@ -130,6 +173,12 @@ export function ExportPanel({ meeting }: ExportPanelProps) {
           <span>CSV</span>
         </button>
       </div>
+
+      {pdfError && (
+        <p className="text-[11px] text-danger" role="alert">
+          {pdfError}
+        </p>
+      )}
 
       <label className="text-[11px] text-muted-foreground flex items-center gap-2 cursor-pointer pt-0.5">
         <input
