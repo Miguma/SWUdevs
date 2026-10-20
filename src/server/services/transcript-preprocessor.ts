@@ -67,8 +67,38 @@ export function parseUploadedFileContent(
 
   return {
     success: false,
-    error: `Unsupported file format (.${ext}). Tambayayong currently supports .txt, .md, and .csv transcripts.`,
+    error: `Unsupported file format (.${ext}). Tambayayong currently supports .txt, .md, .csv, and .pdf transcripts.`,
   };
+}
+
+export async function parseUploadedPdfBuffer(
+  buffer: Buffer
+): Promise<{ success: boolean; text?: string; error?: string }> {
+  if (!buffer || buffer.length === 0) {
+    return { success: false, error: "The uploaded PDF file is empty." };
+  }
+
+  try {
+    const { PDFParse } = await import("pdf-parse");
+    const parser = new PDFParse({ data: buffer });
+    const textResult = await parser.getText();
+    await parser.destroy();
+
+    const rawText = textResult?.text ? textResult.text.trim() : "";
+    if (!rawText) {
+      return {
+        success: false,
+        error: "The uploaded PDF does not contain selectable text (it may be a scanned image).",
+      };
+    }
+    const processed = preprocessTranscriptText(rawText);
+    return { success: true, text: processed.normalizedText };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: `Failed to extract text from PDF: ${err.message || "Unknown error"}`,
+    };
+  }
 }
 
 export function parseCsvTranscript(csvContent: string): string {

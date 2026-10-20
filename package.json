@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
+    "@types/pdf-parse": "^1.1.5",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "drizzle-orm": "^0.35.3",
@@ -25,6 +26,7 @@
     "jspdf-autotable": "^5.0.9",
     "lucide-react": "^0.454.0",
     "next": "^14.2.18",
+    "pdf-parse": "^2.4.5",
     "pg": "^8.13.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

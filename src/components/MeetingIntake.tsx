@@ -58,6 +58,7 @@ export function MeetingIntake({
   const [loading, setLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isParsingFile, setIsParsingFile] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const latestDraft = useRef({
@@ -211,7 +212,36 @@ export function MeetingIntake({
     setErrorBanner(null);
   };
 
-  const processFile = (file: File) => {
+  const processFile = async (file: File) => {
+    const ext = file.name.toLowerCase().split(".").pop();
+    if (ext === "pdf") {
+      setIsParsingFile(true);
+      setErrorBanner(null);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/transcript/parse", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          setErrorBanner(data.error || "Failed to extract text from PDF.");
+          return;
+        }
+        setRawText(data.text);
+        if (!title) {
+          setTitle(file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " "));
+        }
+        setErrorBanner(null);
+      } catch {
+        setErrorBanner("Failed to upload and parse PDF file.");
+      } finally {
+        setIsParsingFile(false);
+      }
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
@@ -552,7 +582,7 @@ export function MeetingIntake({
                 <div className="text-center space-y-1 text-primary">
                   <FileUp className="w-6 h-6 mx-auto" />
                   <p className="font-semibold text-xs">
-                    Drop transcript file (.txt, .md, .csv)
+                    Drop transcript file (.pdf, .txt, .md, .csv)
                   </p>
                 </div>
               </div>
@@ -563,17 +593,26 @@ export function MeetingIntake({
             <input
               ref={fileInputRef}
               type="file"
-              accept=".txt,.md,.csv"
+              accept=".txt,.md,.csv,.pdf"
               onChange={handleFileInputChange}
               className="hidden"
             />
             <button
               type="button"
+              disabled={isParsingFile}
               onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:underline cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:underline cursor-pointer disabled:opacity-60"
             >
-              <Paperclip className="w-3.5 h-3.5" />
-              <span>Upload .txt, .md, or .csv</span>
+              {isParsingFile ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Paperclip className="w-3.5 h-3.5" />
+              )}
+              <span>
+                {isParsingFile
+                  ? "Extracting text from PDF..."
+                  : "Upload .pdf, .txt, .md, or .csv"}
+              </span>
               <span className="text-[11px] font-normal text-muted-foreground">
                 (optional)
               </span>
