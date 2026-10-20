@@ -45,7 +45,7 @@ export function MeetingHero() {
           </div>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-primary" /> Local AI
+              <ShieldCheck className="h-4 w-4 text-primary" /> Open-weight AI
             </span>
             <span className="flex items-center gap-1.5">
               <Users className="h-4 w-4 text-primary" /> English + Cebuano

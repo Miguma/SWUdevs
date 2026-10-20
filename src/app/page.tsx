@@ -113,7 +113,7 @@ export default function HomePage() {
         {currentMeeting?.id === INITIAL_SAMPLE_EXTRACTION.id && (
           <div role="status" className="mb-5 flex items-start gap-3 rounded-xl border border-primary/20 bg-primary-light/60 p-4 text-sm text-foreground">
             <FileText className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-            <span><strong>Illustrative review preview.</strong> These example items were written by hand to show the workspace. Run “Analyze with Local AI” to replace them with actual model output.</span>
+            <span><strong>Illustrative review preview.</strong> These example items were written by hand to show the workspace. Run “Analyze with Cloud AI” to replace them with actual model output.</span>
           </div>
         )}
 
@@ -152,7 +152,7 @@ export default function HomePage() {
                   </div>
                   <h3 className="text-xl font-semibold tracking-tight">Nothing to review yet</h3>
                   <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                    Add your notes and choose an AI model. You’ll review every suggested action before it becomes your team’s plan.
+                    Add your notes and confirm cloud analysis. You’ll review every suggested action before it becomes your team’s plan.
                   </p>
                   <div className="mt-7 flex items-center justify-center gap-3 text-xs font-medium text-primary">
                     <span>Notes</span><span aria-hidden="true">→</span><span>Source checked</span><span aria-hidden="true">→</span><span>Your call</span>

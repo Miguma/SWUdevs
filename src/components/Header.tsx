@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { History, Plus } from "lucide-react";
-import type { AiHealthStatus } from "@/server/services/ai-health";
+import type { HuggingFaceHealthStatus } from "@/server/services/huggingface-client";
 
 interface HeaderProps {
   onOpenHistory: () => void;
@@ -11,14 +11,14 @@ interface HeaderProps {
 }
 
 export function Header({ onOpenHistory, savedMeetingsCount, onResetHome }: HeaderProps) {
-  const [aiStatus, setAiStatus] = useState<AiHealthStatus | null>(null);
+  const [aiStatus, setAiStatus] = useState<HuggingFaceHealthStatus | null>(null);
 
   useEffect(() => {
     let active = true;
     const refresh = async () => {
       try {
         const response = await fetch("/api/ai/health");
-        const status: AiHealthStatus = await response.json();
+        const status: HuggingFaceHealthStatus = await response.json();
         if (active) setAiStatus(status);
       } catch {
         if (active) setAiStatus(null);
@@ -29,20 +29,14 @@ export function Header({ onOpenHistory, savedMeetingsCount, onResetHome }: Heade
     return () => { active = false; clearInterval(timer); };
   }, []);
 
-  const connected = Boolean(aiStatus?.ollamaConnected);
-  const localModelCount = aiStatus?.availableModels.length || 0;
-  const cloudReady = Boolean(aiStatus?.cloud.modelAvailable);
+  const cloudReady = Boolean(aiStatus?.modelAvailable);
   const aiLabel = !aiStatus
-    ? "Checking local AI"
-    : cloudReady && localModelCount
-      ? "Local + cloud AI ready"
-      : cloudReady
-        ? "Cloud AI ready"
-        : !connected
-      ? "Local AI offline"
-      : localModelCount === 0
-        ? "No local models"
-        : `${localModelCount} local model${localModelCount === 1 ? "" : "s"} ready`;
+    ? "Checking cloud AI"
+    : cloudReady
+      ? "Cloud AI ready"
+      : aiStatus.configured
+        ? "Cloud AI unavailable"
+        : "Cloud AI setup needed";
 
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-md">
@@ -54,7 +48,7 @@ export function Header({ onOpenHistory, savedMeetingsCount, onResetHome }: Heade
 
         <div className="flex items-center gap-2 sm:gap-4">
           <span className="hidden items-center gap-2 rounded-full border border-border bg-white px-3 py-1.5 text-xs font-medium text-muted-foreground md:inline-flex" title={aiStatus?.error || aiLabel}>
-            <span className={`h-2 w-2 rounded-full ${(connected && localModelCount) || cloudReady ? "bg-primary" : "bg-warning"}`} aria-hidden="true" />
+            <span className={`h-2 w-2 rounded-full ${cloudReady ? "bg-primary" : "bg-warning"}`} aria-hidden="true" />
             {aiLabel}
           </span>
           <button type="button" onClick={onOpenHistory} className="inline-flex min-h-10 items-center gap-2 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:bg-primary-light hover:text-foreground sm:px-3">

@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { assembleMeetingExtraction } from "../src/server/services/ollama-client";
+import { assembleMeetingExtraction } from "../src/server/services/extraction-core";
 import { RawExtractionResponseSchema } from "../src/types/meeting";
 import {
   createSerialMeetingSaver,

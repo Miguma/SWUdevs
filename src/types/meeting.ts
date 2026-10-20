@@ -159,7 +159,7 @@ export const MeetingIntakeSchema = z.object({
     }, "Invalid timezone")
     .default("Asia/Manila"),
   model: z.string().max(200).optional(),
-  provider: z.enum(["ollama", "huggingface"]).default("ollama"),
+  provider: z.literal("huggingface").default("huggingface"),
   cloudConsent: z.boolean().default(false),
   participants: z.string().optional().default(""),
   rawText: z

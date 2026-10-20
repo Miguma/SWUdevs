@@ -1,5 +1,23 @@
 # Tambayayong — Codex validation and handoff
 
+## Cloud-only inference — 20 October 2026
+
+Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, branch `codex/ai-ready-polish`. The app now shows only the pinned `Qwen/Qwen3-32B:deepinfra` cloud path. The Ollama route, health checks, service module, and Compose service were removed; historical `analysis.provider` values remain readable in existing saved meetings. The browser still requires a fresh transfer confirmation for analysis. The ignored `.env.local` kept its unrelated entries; only obsolete Ollama keys were removed.
+
+| Check | Observed result |
+|---|---|
+| `npm ci --cache .npm-cache --no-audit --no-fund` | Passed: 175 packages installed from lockfile after stopping the local development server. |
+| `npm run eval:validate` | Passed: 20 cases (6 English, 7 Cebuano, 7 mixed). Dataset structure only. |
+| `npm test` | Passed: 71 tests in 11 files. The API rejects the removed `ollama` provider; cloud consent, model routing, source assembly, and evaluation isolation remain covered. |
+| `npm run typecheck` | Passed with zero errors. |
+| `npm run build` | Passed on Next.js 14.2.35; `/` is 21.7 kB with 109 kB first-load JS. All 6 static pages generated. |
+| `docker compose config --quiet` | Passed. |
+| Docker runtime | Not run: `docker info` could not find the Docker Desktop Linux engine pipe. |
+| Production HTTP | `GET /` returned 200, contained “Open-weight cloud AI,” and did not contain “My Ollama server.” `GET /api/ai/health` returned 503 with `model=Qwen/Qwen3-32B`, `provider=deepinfra`, and `configured=false`. A public-sample POST specifying `provider=ollama` returned 400. |
+| `npm run eval:model` | Exited 1 and wrote `NOT_RUN` with zero evaluated samples and null metrics because `HF_TOKEN` was absent. No live inference or accuracy score is claimed. |
+
+Hugging Face token settings required sign-in. The user reported being signed in through Chrome, but Chrome was unavailable to the browser connector; Windows Computer Use stopped because it could not verify Chrome's current URL. Token creation is pending in the user's account. The server needs `HF_TOKEN` with Inference Providers permission, then a restart and a live public-sample smoke check. Do not paste the token into chat or commit it.
+
 ## Open-weight cloud AI — 20 October 2026
 
 Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, feature branch `codex/ai-ready-polish` (based on `main` at `41b1d8d`). The intake now offers a separate Qwen3-32B cloud choice through Hugging Face Inference Providers and the pinned DeepInfra provider. The server requires an explicit cloud transfer confirmation and keeps `HF_TOKEN` server-side. It uses the existing extraction, provenance, review, and meeting persistence path. The Ollama choice still requires an explicit installed local model. Guest accounts remain deferred.

@@ -6,7 +6,7 @@ import {
   EXTRACTION_SYSTEM_PROMPT,
   InferenceError,
   type AnalyzeInput,
-} from "./ollama-client";
+} from "./extraction-core";
 
 // This Apache-2.0 model and provider are deliberately pinned. No automatic
 // provider or model routing is allowed for meeting notes.

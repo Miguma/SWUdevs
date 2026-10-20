@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { MeetingIntakeSchema } from "@/types/meeting";
-import { executeOllamaExtraction, InferenceError } from "@/server/services/ollama-client";
+import { InferenceError } from "@/server/services/extraction-core";
 import { executeHuggingFaceExtraction } from "@/server/services/huggingface-client";
 import { preprocessTranscriptText } from "@/server/services/transcript-preprocessor";
 
@@ -76,9 +76,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { title, organization, meetingDate, dateUnknown, timezone, participants, rawText, model, provider, cloudConsent } =
+    const { title, organization, meetingDate, dateUnknown, timezone, participants, rawText, model, cloudConsent } =
       parseResult.data;
-    if (provider === "huggingface" && !cloudConsent) {
+    if (!cloudConsent) {
       return NextResponse.json(
         { error: "Cloud transfer confirmation is required before sending notes to Hugging Face and DeepInfra." },
         { status: 400 },
@@ -104,48 +104,15 @@ export async function POST(req: NextRequest) {
       rawText,
       model,
     };
-    const extraction = provider === "huggingface"
-      ? await executeHuggingFaceExtraction(input)
-      : await executeOllamaExtraction(input);
+    const extraction = await executeHuggingFaceExtraction(input);
 
     return NextResponse.json(extraction, { status: 200 });
   } catch (err: any) {
     if (err instanceof InferenceError) return NextResponse.json({ error: err.message, message: err.message }, { status: err.status });
-    // Clean and sanitize error message to never leak internal server topology
-    const rawMsg = err.message || "";
-    const isOllamaOffline =
-      rawMsg.includes("Cannot connect") ||
-      rawMsg.includes("timed out") ||
-      rawMsg.includes("ECONNREFUSED") ||
-      rawMsg.includes("Ollama");
-
-    if (isOllamaOffline) {
-      return NextResponse.json(
-        {
-          error: "Local AI inference service is currently offline or unreachable.",
-          message:
-            "Start Ollama with `ollama serve`, then refresh the installed model list and retry.",
-        },
-        { status: 503 }
-      );
-    }
-
-    if (rawMsg.includes("busy processing other requests")) {
-      return NextResponse.json(
-        {
-          error: "Inference engine busy",
-          message: rawMsg,
-        },
-        { status: 429 }
-      );
-    }
-
     return NextResponse.json(
       {
         error: "Failed to extract meeting action items.",
-        message: rawMsg.includes("parse")
-          ? "The AI model returned an unparseable response. Please retry with clearer notes."
-          : "An unexpected error occurred during transcript extraction.",
+        message: "An unexpected error occurred during transcript extraction.",
       },
       { status: 500 }
     );

@@ -5,7 +5,7 @@ import {
   titleSimilarity,
   type BenchmarkCase,
 } from "../eval/metrics";
-import { assembleMeetingExtraction } from "../src/server/services/ollama-client";
+import { assembleMeetingExtraction } from "../src/server/services/extraction-core";
 import { RawExtractionResponseSchema } from "../src/types/meeting";
 
 const tc: BenchmarkCase = {
@@ -103,46 +103,7 @@ describe("Honest model scoring", () => {
     expect(scoreCase(actual, tc).verifiedItems).toBe(0);
     expect(aggregateScores([]).evidenceValidity).toBeNull();
   });
-  it("live runner sends only source fields and never fills empty predictions from labels", async () => {
-    const writes: Record<string, string> = {};
-    const infer = vi.fn(async () => prediction());
-    vi.doMock("node:fs", () => ({
-      default: {
-        readFileSync: () => JSON.stringify([tc]),
-        writeFileSync: (file: string, value: string) => {
-          writes[file] = value;
-        },
-      },
-    }));
-    vi.doMock("../src/server/services/ollama-client", () => ({
-      checkOllamaHealth: async () => ({
-        ollamaConnected: true,
-        modelAvailable: true,
-        configuredModel: "test-local",
-      }),
-      executeOllamaExtraction: infer,
-    }));
-    await import("../eval/run-model-eval");
-    await vi.waitFor(() => expect(Object.keys(writes)).toHaveLength(2));
-    expect(infer).toHaveBeenCalledWith({
-      title: "Eval independent",
-      meetingDate: tc.meetingDate,
-      timezone: tc.timezone,
-      rawText: tc.notes,
-      model: "test-local",
-    });
-    const report = JSON.parse(
-      Object.entries(writes).find(([key]) => key.endsWith(".json"))![1],
-    );
-    expect(report.status).toBe("COMPLETE");
-    expect(report.metrics.tasks.recall).toBe(0);
-    expect(report.predictions[0].prediction.actionItems).toEqual([]);
-    vi.doUnmock("node:fs");
-    vi.doUnmock("../src/server/services/ollama-client");
-  });
   it("cloud runner uses the pinned model and scores only its actual prediction", async () => {
-    const previousProvider = process.env.EVAL_PROVIDER;
-    process.env.EVAL_PROVIDER = "huggingface";
     const writes: Record<string, string> = {};
     const infer = vi.fn(async () => prediction());
     vi.doMock("node:fs", () => ({
@@ -177,8 +138,6 @@ describe("Honest model scoring", () => {
       expect(report.metrics.tasks.recall).toBe(0);
       expect(report.predictions[0].prediction.actionItems).toEqual([]);
     } finally {
-      if (previousProvider === undefined) delete process.env.EVAL_PROVIDER;
-      else process.env.EVAL_PROVIDER = previousProvider;
       vi.doUnmock("node:fs");
       vi.doUnmock("../src/server/services/huggingface-client");
     }

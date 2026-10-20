@@ -9,25 +9,11 @@ services:
       - "${PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
-      - OLLAMA_HOST=http://ollama:11434
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3:4b}
       - HF_TOKEN=${HF_TOKEN:-}
       - DEFAULT_TIMEZONE=${DEFAULT_TIMEZONE:-Asia/Manila}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-tambayayong}:${POSTGRES_PASSWORD:-tambayayong_dev_secret}@postgres:5432/${POSTGRES_DB:-tambayayong_db}
     depends_on:
       - postgres
-      - ollama
-    networks:
-      - tambayayong_net
-
-  ollama:
-    image: ollama/ollama:latest
-    container_name: tambayayong_ollama
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:11434:11434"
-    volumes:
-      - ollama_models:/root/.ollama
     networks:
       - tambayayong_net
 
@@ -47,7 +33,6 @@ services:
       - tambayayong_net
 
 volumes:
-  ollama_models:
   postgres_data:
 
 networks:

@@ -2,10 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import {
-  checkOllamaHealth,
-  executeOllamaExtraction,
-} from "../src/server/services/ollama-client";
-import {
   checkHuggingFaceHealth,
   executeHuggingFaceExtraction,
 } from "../src/server/services/huggingface-client";
@@ -13,28 +9,17 @@ import { aggregateScores, scoreCase, type BenchmarkCase } from "./metrics";
 
 async function runModelEvaluation() {
   // CLI tools use shell variables, not Next's .env.local loader.
-  const provider = process.env.EVAL_PROVIDER || "ollama";
-  if (provider !== "ollama" && provider !== "huggingface") {
-    throw new Error("EVAL_PROVIDER must be ollama or huggingface; no provider fallback is used.");
-  }
+  const provider = "huggingface";
   const datasetBytes = fs.readFileSync(
     path.resolve(__dirname, "dataset.json"),
     "utf8",
   );
   const dataset: BenchmarkCase[] = JSON.parse(datasetBytes);
-  const inference = provider === "huggingface"
-    ? await checkHuggingFaceHealth().then((health) => ({
-        model: health.model,
-        available: health.configured && health.modelAvailable,
-        unavailableReason: health.error || "Pinned cloud model unavailable",
-      }))
-    : await checkOllamaHealth().then((health) => ({
-        model: health.configuredModel,
-        available: health.ollamaConnected && health.modelAvailable,
-        unavailableReason: health.ollamaConnected
-          ? "Selected model not installed locally"
-          : "Ollama unreachable",
-      }));
+  const inference = await checkHuggingFaceHealth().then((health) => ({
+    model: health.model,
+    available: health.configured && health.modelAvailable,
+    unavailableReason: health.error || "Pinned cloud model unavailable",
+  }));
   const model = inference.model;
   const reportPath = path.resolve(__dirname, "model-eval-report");
   const base = {
@@ -83,9 +68,7 @@ async function runModelEvaluation() {
         rawText: tc.notes,
         model,
       };
-      const prediction = provider === "huggingface"
-        ? await executeHuggingFaceExtraction(input)
-        : await executeOllamaExtraction(input);
+      const prediction = await executeHuggingFaceExtraction(input);
       predictions.push({ id: tc.id, prediction });
       rows.push(scoreCase(prediction, tc));
       console.log(

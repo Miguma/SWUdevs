@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Tambayayong — From conversation to action. Walay mabilin!",
   description:
-    "Open-source bilingual meeting intelligence for student groups, communities, and open-source teams. Turn multilingual notes into accountable action plans with local or open-weight cloud AI.",
+    "Open-source bilingual meeting intelligence for student groups, communities, and open-source teams. Turn multilingual notes into accountable action plans with open-weight cloud AI.",
 };
 
 export default function RootLayout({
