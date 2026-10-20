@@ -34,40 +34,140 @@ const COLORS = {
 };
 
 /**
- * Sanitizes and normalizes untrusted text for PDF output:
- * - Neutralizes formula injection attempts
- * - Normalizes Unicode currency symbols (e.g. Philippine Peso ₱ -> PHP )
- * - Normalizes curly quotes, em/en-dashes, and special symbols
- * - Preserves standard Latin-1 multilingual characters (ñ, Ñ, accented vowels)
- * - Removes control characters that could break PDF stream syntax
+ * Common Unicode symbol mappings to readable, printable ASCII / Latin-1 equivalents.
+ */
+const UNICODE_SYMBOL_MAP: Record<string, string> = {
+  // Currency symbols
+  "\u20B1": "PHP ", // Philippine Peso
+  "\u20AC": "EUR ", // Euro
+  "\u00A3": "GBP ", // British Pound
+  "\u00A5": "JPY ", // Japanese Yen
+  "\u20BD": "RUB ", // Russian Ruble
+  "\u20B9": "INR ", // Indian Rupee
+  "\u20A9": "KRW ", // Korean Won
+  "\u20AB": "VND ", // Vietnamese Dong
+  "\u0E3F": "THB ", // Thai Baht
+
+  // Typographic / curly quotes and dashes
+  "\u201C": '"',
+  "\u201D": '"',
+  "\u2018": "'",
+  "\u2019": "'",
+  "\u201A": ",",
+  "\u201E": '"',
+  "\u00AB": '"',
+  "\u00BB": '"',
+  "\u2014": " - ", // Em dash
+  "\u2013": " - ", // En dash
+  "\u2026": "...", // Ellipsis
+  "\u2022": "*", // Bullet
+  "\u2023": "*",
+  "\u25E6": "*",
+  "\u2043": "*",
+
+  // Common arrows & math symbols
+  "\u2192": "->",
+  "\u21D2": "->",
+  "\u2794": "->",
+  "\u2190": "<-",
+  "\u21D0": "<-",
+  "\u2194": "<->",
+  "\u21D4": "<=>",
+  "\u2265": ">=",
+  "\u2264": "<=",
+  "\u2260": "!=",
+  "\u2248": "~",
+  "\u00D7": "x",
+  "\u00F7": "/",
+  "\u2122": "(TM)",
+  "\u00A9": "(c)",
+  "\u00AE": "(R)",
+
+  // Status & UI markers
+  "\u2713": "[Done]",
+  "\u2714": "[Done]",
+  "\u2611": "[Done]",
+  "\u2705": "[Done]",
+  "\u2717": "[X]",
+  "\u2718": "[X]",
+  "\u2612": "[X]",
+  "\u274C": "[X]",
+  "\u2753": "[?]",
+  "\u2754": "[?]",
+  "\u26A0": "[!]",
+  "\uD83D\uDEA8": "[Warning]",
+  "\uD83D\uDCCC": "[Pin]",
+  "\uD83D\uDCAC": "[Note]",
+};
+
+/**
+ * Sanitizes and normalizes text for PDF output:
+ * - Preserves evidence quotes verbatim (formula injection prefixes like =, +, @, - are NOT stripped)
+ * - Normalizes Unicode symbols, currencies, dashes, and quotes to standard printable representations
+ * - Preserves full Latin-1 character set (ñ, Ñ, accented vowels)
+ * - Decomposes extended Latin letters with diacritics
+ * - Never silently deletes unsupported characters: non-WinAnsi code points are rendered visibly as [U+XXXX]
+ * - Strips dangerous binary control characters that would corrupt PDF syntax
  */
 export function sanitizePdfText(text: unknown): string {
   if (text === null || text === undefined) return "";
   let str = String(text);
 
-  // Neutralize formula injection prefixes
-  if (/^[\s\uFEFF]*[=+@-]/.test(str)) {
-    str = str.replace(/^[\s\uFEFF]*[=+@-]/, "");
+  // 1. Map known Unicode symbols, currencies, quotes, and punctuation
+  for (const [symbol, replacement] of Object.entries(UNICODE_SYMBOL_MAP)) {
+    if (str.includes(symbol)) {
+      str = str.split(symbol).join(replacement);
+    }
   }
 
-  // Normalize common Unicode characters to printable ASCII / Latin-1
-  str = str
-    .replace(/\u20B1/g, "PHP ") // Philippine Peso sign
-    .replace(/[\u201C\u201D]/g, '"') // Curly double quotes
-    .replace(/[\u2018\u2019]/g, "'") // Curly single quotes
-    .replace(/[\u2014\u2013]/g, " - ") // Em-dash & En-dash
-    .replace(/\u2026/g, "...") // Ellipsis
-    .replace(/\u2022/g, "*") // Bullet
-    .replace(/[❓❔]/g, "[?]")
-    .replace(/[✅✔]/g, "[Done]")
-    .replace(/[⚠️]/g, "[!]")
-    .replace(/[🚨]/g, "[Warning]")
-    // Replace remaining non-printable or unsupported characters
-    .replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, " ")
-    // Remove control characters (except newline, return, tab)
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+  // 2. Transliterate or represent remaining characters outside WinAnsi (0x20-0x7E, 0xA0-0xFF)
+  // Instead of silently deleting unsupported characters, we:
+  // a) Decompose Latin characters with diacritics to their base Latin letter
+  // b) For any unmapped code point > 255, represent it visibly as [U+XXXX] so no data is silently lost
+  const result: string[] = [];
+  for (const char of str) {
+    const code = char.codePointAt(0) ?? 0;
 
-  return str.trim();
+    // Standard printable ASCII or Latin-1 (including ñ, Ñ, accented vowels, ¿, ¡)
+    if (
+      (code >= 0x20 && code <= 0x7e) ||
+      (code >= 0xa0 && code <= 0xff) ||
+      char === "\n" ||
+      char === "\r" ||
+      char === "\t"
+    ) {
+      result.push(char);
+      continue;
+    }
+
+    // Attempt Latin decomposition for accented letters not in Latin-1 (e.g. ā, č, š)
+    const decomposed = char.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (
+      decomposed.length > 0 &&
+      decomposed.charCodeAt(0) >= 0x20 &&
+      decomposed.charCodeAt(0) <= 0x7e
+    ) {
+      result.push(decomposed);
+      continue;
+    }
+
+    // Skip binary control characters
+    if (
+      (code >= 0x00 && code <= 0x08) ||
+      code === 0x0b ||
+      code === 0x0c ||
+      (code >= 0x0e && code <= 0x1f) ||
+      code === 0x7f
+    ) {
+      continue;
+    }
+
+    // Visible fallback: render code point token so reader sees the exact character without silent deletion
+    const hex = code.toString(16).toUpperCase().padStart(4, "0");
+    result.push(`[U+${hex}]`);
+  }
+
+  return result.join("").trim();
 }
 
 function formatTaskStatusDisplay(status?: string): string {
@@ -94,7 +194,7 @@ function ensurePageSpace(
   requiredSpaceMm = 28
 ): number {
   const pageHeight = doc.internal.pageSize.getHeight();
-  const bottomMargin = 20;
+  const bottomMargin = 22; // Guard margin above running footer (footer is at 286mm)
   if (currentY + requiredSpaceMm > pageHeight - bottomMargin) {
     doc.addPage();
     return 20; // Top margin for new page
@@ -110,7 +210,7 @@ function drawSectionHeading(
   title: string,
   startY: number
 ): number {
-  const y = ensurePageSpace(doc, startY, 18);
+  const y = ensurePageSpace(doc, startY, 26);
   doc.setFillColor(...COLORS.primary);
   doc.rect(14, y, 2.5, 5, "F");
 
@@ -250,6 +350,7 @@ export function generateMeetingPdf(
       fontSize: 8,
       cellPadding: 1.5,
       textColor: COLORS.primaryDark,
+      overflow: "linebreak",
     },
     columnStyles: {
       0: { fontStyle: "bold", textColor: COLORS.muted, cellWidth: 26 },
@@ -275,39 +376,49 @@ export function generateMeetingPdf(
 
   cursorY = ((doc as any).lastAutoTable?.finalY || cursorY) + 5;
 
-  // 4. Executive Summary Box
+  // 4. Executive Summary Box (Rendered via autoTable for multi-page overflow immunity)
   const summaryText = sanitizePdfText(meeting.summary) ||
     "No executive summary provided for this session.";
 
-  doc.setFillColor(...COLORS.cardBg);
-  doc.setDrawColor(...COLORS.border);
-  doc.setLineWidth(0.3);
+  autoTable(doc, {
+    startY: cursorY,
+    margin: { left: marginX, right: marginX },
+    theme: "plain",
+    pageBreak: "auto",
+    styles: {
+      font: "helvetica",
+      fontSize: 8,
+      cellPadding: { top: 3.5, right: 4, bottom: 3.5, left: 6 },
+      textColor: COLORS.primaryDark,
+      fillColor: COLORS.cardBg,
+      lineColor: COLORS.border,
+      lineWidth: 0.25,
+      overflow: "linebreak",
+    },
+    body: [
+      [
+        {
+          content: `EXECUTIVE SUMMARY\n\n${summaryText}`,
+          styles: {
+            fontStyle: "normal",
+          },
+        },
+      ],
+    ],
+    didDrawCell: (data) => {
+      if (data.section === "body" && data.column.index === 0) {
+        // Draw forest green accent bar on the left edge of the summary card
+        doc.setFillColor(...COLORS.primary);
+        doc.rect(data.cell.x, data.cell.y, 2.5, data.cell.height, "F");
+      }
+    },
+  });
 
-  const summaryLines = doc.splitTextToSize(summaryText, contentWidth - 8);
-  const summaryBoxHeight = Math.max(16, summaryLines.length * 4.2 + 10);
-
-  // Background card
-  doc.roundedRect(marginX, cursorY, contentWidth, summaryBoxHeight, 1.5, 1.5, "FD");
-
-  // Forest green left accent bar
-  doc.setFillColor(...COLORS.primary);
-  doc.rect(marginX, cursorY, 2.5, summaryBoxHeight, "F");
-
-  // Summary Title
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(...COLORS.primary);
-  doc.text("EXECUTIVE SUMMARY", marginX + 5.5, cursorY + 5);
-
-  // Summary Content
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...COLORS.primaryDark);
-  doc.text(summaryLines, marginX + 5.5, cursorY + 9.5);
-
-  cursorY += summaryBoxHeight + 5;
+  cursorY = ((doc as any).lastAutoTable?.finalY || cursorY) + 5;
 
   // 5. Compact Meeting Statistics (KPI Row)
+  cursorY = ensurePageSpace(doc, cursorY, 20);
+
   const statCardWidth = (contentWidth - 9) / 4; // 4 cards with 3mm gaps
   const statCardHeight = 13.5;
   const stats = [
@@ -394,6 +505,8 @@ export function generateMeetingPdf(
       startY: cursorY,
       margin: { left: marginX, right: marginX },
       theme: "striped",
+      pageBreak: "auto",
+      showHead: "everyPage",
       styles: {
         font: "helvetica",
         fontSize: 7.8,
@@ -401,6 +514,7 @@ export function generateMeetingPdf(
         textColor: COLORS.primaryDark,
         lineColor: COLORS.border,
         lineWidth: 0.2,
+        overflow: "linebreak",
       },
       headStyles: {
         fillColor: COLORS.primary,
@@ -507,6 +621,7 @@ export function generateMeetingPdf(
       margin: { left: marginX, right: marginX },
       theme: "striped",
       showHead: "everyPage",
+      pageBreak: "auto",
       styles: {
         font: "helvetica",
         fontSize: 7.2,
@@ -514,6 +629,7 @@ export function generateMeetingPdf(
         textColor: COLORS.primaryDark,
         lineColor: COLORS.border,
         lineWidth: 0.2,
+        overflow: "linebreak",
       },
       headStyles: {
         fillColor: COLORS.primary,
@@ -592,6 +708,8 @@ export function generateMeetingPdf(
       startY: cursorY,
       margin: { left: marginX, right: marginX },
       theme: "striped",
+      pageBreak: "auto",
+      showHead: "everyPage",
       styles: {
         font: "helvetica",
         fontSize: 7.4,
@@ -599,6 +717,7 @@ export function generateMeetingPdf(
         textColor: COLORS.primaryDark,
         lineColor: COLORS.border,
         lineWidth: 0.2,
+        overflow: "linebreak",
       },
       headStyles: {
         fillColor: COLORS.amber,
@@ -666,6 +785,8 @@ export function generateMeetingPdf(
       startY: cursorY,
       margin: { left: marginX, right: marginX },
       theme: "striped",
+      pageBreak: "auto",
+      showHead: "everyPage",
       styles: {
         font: "helvetica",
         fontSize: 7.5,
@@ -673,6 +794,7 @@ export function generateMeetingPdf(
         textColor: COLORS.primaryDark,
         lineColor: COLORS.border,
         lineWidth: 0.2,
+        overflow: "linebreak",
       },
       headStyles: {
         fillColor: COLORS.teal,

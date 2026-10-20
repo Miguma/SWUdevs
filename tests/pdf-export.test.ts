@@ -5,6 +5,8 @@ import {
   exportMeetingToPdf,
 } from "../src/lib/pdf-export";
 import { MeetingExtraction, ActionItem } from "../src/types/meeting";
+import { POST as exportHandler } from "../src/app/api/meetings/[id]/export/route";
+import { NextRequest } from "next/server";
 
 function getPdfRawText(doc: ReturnType<typeof generateMeetingPdf>): string {
   const buffer = Buffer.from(doc.output("arraybuffer"));
@@ -155,7 +157,6 @@ describe("PDF Export Service — Design, Branding, and Data Integrity", () => {
 
   // 2. Long reports and multipage pagination
   it("handles long reports with multi-page automatic pagination and running headers/footers", () => {
-    // Generate 30 action items to force multiple A4 pages
     const manyTasks: ActionItem[] = Array.from({ length: 30 }, (_, i) => ({
       id: `task-${i + 1}`,
       title: `Action Item ${i + 1} - Complete community mobilization and partner outreach deliverable`,
@@ -201,7 +202,26 @@ describe("PDF Export Service — Design, Branding, and Data Integrity", () => {
     expect(pdfText).toContain("Action Item 30");
   });
 
-  // 3. Missing fields (assignees, deadlines, commitment)
+  // 3. Layout and page-break robustness with large summaries
+  it("paginates long executive summaries cleanly without overflow", () => {
+    // 40 lines of summary
+    const hugeSummary = Array.from(
+      { length: 40 },
+      (_, i) => `Paragraph ${i + 1}: Comprehensive project discussion examining operational timeline and resource needs.`
+    ).join("\n\n");
+
+    const meeting = createBaseMeeting({ summary: hugeSummary });
+    const doc = generateMeetingPdf(meeting);
+
+    expect(doc).toBeDefined();
+    // Huge summary should naturally split across pages without throwing or overflowing
+    expect(doc.getNumberOfPages()).toBeGreaterThan(1);
+    const pdfText = getPdfRawText(doc);
+    expect(pdfText).toContain("Paragraph 1");
+    expect(pdfText).toContain("Paragraph 40");
+  });
+
+  // 4. Missing fields (assignees, deadlines, commitment)
   it("displays 'Not assigned' and 'Not confirmed' rather than inventing data", () => {
     const missingFieldsMeeting = createBaseMeeting({
       actionItems: [
@@ -263,7 +283,81 @@ describe("PDF Export Service — Design, Branding, and Data Integrity", () => {
     expect(pdfText).toContain("Not confirmed");
   });
 
-  // 4. Status accuracy: never present draft/pending as human approved
+  // 5. Preserves formula-like characters in evidence quotes (Issue 1)
+  it("preserves formula prefixes (=, +, @, -) in PDF text without stripping evidence quotes", () => {
+    const formulaMeeting = createBaseMeeting({
+      actionItems: [
+        {
+          id: "quote-task-1",
+          title: "=SUM(A1:A10) Report Header",
+          description: "@lead reviewer note",
+          assignees: ["+639171234567"],
+          deadline: {
+            originalText: "-1 day",
+            date: "2026-10-24",
+            time: null,
+            timezone: "Asia/Manila",
+            relation: "by",
+            isAmbiguous: false,
+          },
+          commitmentStatus: "confirmed",
+          priority: "high",
+          status: "todo",
+          evidence: [
+            {
+              quote: "=cmd|' /C calc'!A0 was discussed as a security test vector.",
+              startOffset: 0,
+              endOffset: 55,
+              isVerified: true,
+              provenance: "exact_match",
+            },
+          ],
+          missingInformation: [],
+          needsReview: false,
+          reviewStatus: "approved",
+        },
+      ],
+    });
+
+    const doc = generateMeetingPdf(formulaMeeting);
+    const pdfText = getPdfRawText(doc);
+
+    // Verify sanitizePdfText directly preserves prefixes
+    expect(sanitizePdfText("=SUM(A1:A10) Report Header")).toBe("=SUM(A1:A10) Report Header");
+    expect(sanitizePdfText("@lead reviewer note")).toBe("@lead reviewer note");
+    expect(sanitizePdfText("+639171234567")).toBe("+639171234567");
+    expect(sanitizePdfText("=cmd|' /C calc'!A0 was discussed")).toBe("=cmd|' /C calc'!A0 was discussed");
+
+    // Prefix characters must NOT be stripped in PDF!
+    expect(pdfText).toContain("=SUM");
+    expect(pdfText).toContain("@lead reviewer note");
+    expect(pdfText).toContain("+639171234567");
+    expect(pdfText).toContain("=cmd|'");
+    expect(pdfText).toContain("calc'!A0");
+  });
+
+  // 6. Multilingual font support without silent deletion (Issue 3)
+  it("handles multilingual text and non-Latin characters visibly without silently deleting them", () => {
+    const textWithSymbols = sanitizePdfText("Bayad: ₱1,500 para sa Piña ug Santo Niño. Check: ✓, Question: ❓");
+    expect(textWithSymbols).toContain("PHP 1,500");
+    expect(textWithSymbols).toContain("Piña");
+    expect(textWithSymbols).toContain("Santo Niño");
+    expect(textWithSymbols).toContain("[Done]");
+    expect(textWithSymbols).toContain("[?]");
+
+    // Test unsupported non-Latin Unicode characters (e.g. CJK, Cyrillic)
+    // They must NOT be silently deleted or replaced with blank spaces!
+    const textWithChinese = sanitizePdfText("Project Alpha: 世界 (World)");
+    expect(textWithChinese).not.toContain("Project Alpha:   (World)"); // Must not be blank spaces
+    expect(textWithChinese).toContain("[U+4E16]");
+    expect(textWithChinese).toContain("[U+754C]");
+
+    const textWithCyrillic = sanitizePdfText("Partner: Привет");
+    expect(textWithCyrillic).toContain("[U+041F]");
+    expect(textWithCyrillic).toContain("[U+0440]");
+  });
+
+  // 7. Status accuracy: never present draft/pending as human approved
   it("accurately distinguishes approved, pending-review, and rejected records", () => {
     const statusMeeting = createBaseMeeting({
       actionItems: [
@@ -333,7 +427,7 @@ describe("PDF Export Service — Design, Branding, and Data Integrity", () => {
       ],
     });
 
-    // Case A: Default export (includePending = false)
+    // Default export (includePending = false)
     const docDefault = generateMeetingPdf(statusMeeting, { includePending: false });
     const textDefault = getPdfRawText(docDefault);
 
@@ -342,105 +436,18 @@ describe("PDF Export Service — Design, Branding, and Data Integrity", () => {
     expect(textDefault).not.toContain("Discarded Idea That Should Not Export");
     expect(textDefault).toContain("OFFICIAL ACTION REPORT");
 
-    // Case B: With includePending = true
+    // With includePending = true
     const docWithPending = generateMeetingPdf(statusMeeting, { includePending: true });
     const textWithPending = getPdfRawText(docWithPending);
 
     expect(textWithPending).toContain("Approved Task Item");
     expect(textWithPending).toContain("AI Draft Pending Review Item");
-    // Rejected task must STILL NOT be included
     expect(textWithPending).not.toContain("Discarded Idea That Should Not Export");
-    // Pending items must be clearly flagged as Draft
     expect(textWithPending).toContain("DRAFT & PENDING REVIEW");
     expect(textWithPending).toContain("Pending Review");
   });
 
-  // 5. Multilingual characters: Cebuano, Tagalog, English, ñ/Ñ, Currency
-  it("supports Unicode, mixed Cebuano/Tagalog content, and sanitizes untrusted input", () => {
-    const multilingualMeeting = createBaseMeeting({
-      title: "Sabot sa mga Buluhaton para sa Kapistahan ni Santo Niño",
-      summary: "Nagkasinabot ang grupo nga si Mark magdala ug speaker ug si Ana sa pagkaon.",
-      actionItems: [
-        {
-          id: "multi-task-1",
-          title: "Mag-order ug Piña pie ug lechon manok",
-          description: "Si Niño ug Peña ang mopalit sa merkado",
-          assignees: ["Niño", "Peña"],
-          deadline: {
-            originalText: "ugma sa hapon",
-            date: "2026-10-24",
-            time: "15:00",
-            timezone: "Asia/Manila",
-            relation: "by",
-            isAmbiguous: false,
-          },
-          commitmentStatus: "confirmed",
-          priority: "high",
-          status: "in_progress",
-          evidence: [
-            {
-              quote: "“Si Niño ug Peña mopalit ug pagkaon nagkantidad ug ₱1,500.”",
-              startOffset: 0,
-              endOffset: 55,
-              isVerified: true,
-              provenance: "exact_match",
-            },
-          ],
-          missingInformation: [],
-          needsReview: false,
-          reviewStatus: "approved",
-        },
-        {
-          id: "formula-task",
-          title: "=cmd|' /C calc'!A0 Formula Attempt",
-          description: "@dangerous text",
-          assignees: ["+MaliciousUser"],
-          deadline: {
-            originalText: "bukas",
-            date: "2026-10-24",
-            time: null,
-            timezone: "Asia/Manila",
-            relation: "on",
-            isAmbiguous: false,
-          },
-          commitmentStatus: "confirmed",
-          priority: null,
-          status: "todo",
-          evidence: [],
-          missingInformation: [],
-          needsReview: false,
-          reviewStatus: "approved",
-        },
-      ],
-      decisions: [
-        {
-          id: "dec-ph",
-          decision: "Ang bayad kay ₱500 matag usa — walay labot ang plete.",
-          evidence: [],
-          needsReview: false,
-          reviewStatus: "approved",
-        },
-      ],
-    });
-
-    const doc = generateMeetingPdf(multilingualMeeting);
-    const pdfText = getPdfRawText(doc);
-
-    // Verify Cebuano / Tagalog title & words with ñ / Ñ
-    expect(pdfText).toContain("Santo Niño");
-    expect(pdfText).toContain("Piña pie");
-    expect(pdfText).toContain("Peña");
-
-    // Verify Currency sign is normalized to readable PHP
-    expect(pdfText).toContain("PHP 1,500");
-    expect(pdfText).toContain("PHP 500");
-
-    // Verify formula characters are safely neutralized
-    expect(pdfText).not.toContain("=cmd|");
-    expect(pdfText).toContain("cmd|' /C calc'!A0 Formula Attempt");
-  });
-
-  // 6. Text is selectable and searchable
+  // 8. Vector text searchability
   it("generates vector PDF where text is selectable and searchable", async () => {
     const meeting = createBaseMeeting();
     const blob = await exportMeetingToPdf(meeting);
@@ -449,16 +456,80 @@ describe("PDF Export Service — Design, Branding, and Data Integrity", () => {
     expect(blob.size).toBeGreaterThan(1000);
     expect(blob.type).toBe("application/pdf");
 
-    // Check array buffer directly
     const arrayBuffer = await blob.arrayBuffer();
     const str = Buffer.from(arrayBuffer).toString("latin1");
 
-    // Header, meeting title, tasks, and provenance strings are directly in PDF text stream
     expect(str).toContain("TAMBAYAYONG");
     expect(str).toContain("Community Outreach Strategy Session");
     expect(str).toContain("Coordinate with barangay officials for permit");
     expect(str).toContain("Purchase hygiene supplies and soap");
     expect(str).toContain("Set maximum budget to PHP 25,000");
     expect(str).toContain("How many transport vans will be required?");
+  });
+
+  // 9. API route validation, payload limit, and error privacy (Issue 2)
+  describe("Export API Route Security & Validation", () => {
+    it("rejects invalid export formats with 400 Bad Request", async () => {
+      const meeting = createBaseMeeting();
+      const req = new NextRequest("http://localhost:3000/api/meetings/101/export?format=exe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(meeting),
+      });
+
+      const res = await exportHandler(req, { params: { id: "101" } });
+      expect(res.status).toBe(400);
+
+      const json = await res.json();
+      expect(json.error).toContain("Invalid export format");
+    });
+
+    it("rejects oversized payloads with 413 Payload Too Large", async () => {
+      const hugeString = "a".repeat(6 * 1024 * 1024); // 6MB
+      const req = new NextRequest("http://localhost:3000/api/meetings/101/export?format=pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": String(6 * 1024 * 1024),
+        },
+        body: hugeString,
+      });
+
+      const res = await exportHandler(req, { params: { id: "101" } });
+      expect(res.status).toBe(413);
+
+      const json = await res.json();
+      expect(json.error).toContain("Payload too large");
+    });
+
+    it("rejects malformed JSON with 400 Bad Request without leaking internal details", async () => {
+      const req = new NextRequest("http://localhost:3000/api/meetings/101/export?format=pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "NOT_VALID_JSON{",
+      });
+
+      const res = await exportHandler(req, { params: { id: "101" } });
+      expect(res.status).toBe(400);
+
+      const json = await res.json();
+      expect(json.error).toContain("Malformed JSON payload");
+      expect(json.details).toBeUndefined(); // Must not expose details/stack
+    });
+
+    it("rejects invalid meeting structures with 400 Bad Request", async () => {
+      const invalidMeeting = { randomField: 123 };
+      const req = new NextRequest("http://localhost:3000/api/meetings/101/export?format=pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(invalidMeeting),
+      });
+
+      const res = await exportHandler(req, { params: { id: "101" } });
+      expect(res.status).toBe(400);
+
+      const json = await res.json();
+      expect(json.error).toContain("Invalid meeting data structure");
+    });
   });
 });

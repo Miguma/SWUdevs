@@ -8,16 +8,77 @@ import { MeetingExtraction } from "@/types/meeting";
 
 export const dynamic = "force-dynamic";
 
+// Maximum allowable JSON payload: 5MB
+const MAX_PAYLOAD_BYTES = 5 * 1024 * 1024;
+const ALLOWED_FORMATS = ["pdf", "csv", "minutes", "md"] as const;
+type ExportFormat = (typeof ALLOWED_FORMATS)[number];
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    // 1. Enforce payload size limit via content-length header
+    const contentLength = req.headers.get("content-length");
+    if (contentLength && parseInt(contentLength, 10) > MAX_PAYLOAD_BYTES) {
+      return NextResponse.json(
+        { error: "Payload too large. Maximum export payload size is 5MB." },
+        { status: 413 }
+      );
+    }
+
+    // 2. Validate URL format parameter
     const url = new URL(req.url);
-    const format = url.searchParams.get("format") || "md";
+    const rawFormat = (url.searchParams.get("format") || "md").toLowerCase();
+    if (!ALLOWED_FORMATS.includes(rawFormat as ExportFormat)) {
+      return NextResponse.json(
+        {
+          error: `Invalid export format "${rawFormat}". Supported formats: ${ALLOWED_FORMATS.join(
+            ", "
+          )}`,
+        },
+        { status: 400 }
+      );
+    }
+    const format = rawFormat as ExportFormat;
     const includePending = url.searchParams.get("includePending") === "true";
 
-    const meetingData: MeetingExtraction = await req.json();
+    // 3. Read body with length verification
+    const bodyText = await req.text();
+    if (bodyText.length > MAX_PAYLOAD_BYTES) {
+      return NextResponse.json(
+        { error: "Payload too large. Maximum export payload size is 5MB." },
+        { status: 413 }
+      );
+    }
+
+    // 4. Validate JSON payload structure
+    let meetingData: MeetingExtraction;
+    try {
+      meetingData = JSON.parse(bodyText);
+    } catch {
+      return NextResponse.json(
+        { error: "Malformed JSON payload." },
+        { status: 400 }
+      );
+    }
+
+    if (
+      !meetingData ||
+      typeof meetingData !== "object" ||
+      typeof meetingData.title !== "string" ||
+      !Array.isArray(meetingData.actionItems) ||
+      !Array.isArray(meetingData.decisions) ||
+      !Array.isArray(meetingData.openQuestions)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Invalid meeting data structure. Required fields: title, actionItems, decisions, openQuestions.",
+        },
+        { status: 400 }
+      );
+    }
 
     const safeTitle = (meetingData.title || "meeting")
       .toLowerCase()
@@ -50,7 +111,9 @@ export async function POST(
     }
 
     if (format === "minutes") {
-      const minutesContent = generateMeetingMinutesExport(meetingData, { includePending });
+      const minutesContent = generateMeetingMinutesExport(meetingData, {
+        includePending,
+      });
       return new NextResponse(minutesContent, {
         status: 200,
         headers: {
@@ -69,9 +132,11 @@ export async function POST(
         "Content-Disposition": `attachment; filename="tambayayong-${safeTitle}-${dateStr}.md"`,
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    // Log internally for debugging, but never expose internal errors/stacks to client
+    console.error("Export request failed:", err);
     return NextResponse.json(
-      { error: "Failed to generate export", details: err.message },
+      { error: "Failed to generate export" },
       { status: 500 }
     );
   }
