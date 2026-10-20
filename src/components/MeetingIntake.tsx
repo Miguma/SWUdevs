@@ -558,6 +558,27 @@ export function MeetingIntake({
               </div>
             )}
           </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.md,.csv"
+              onChange={handleFileInputChange}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:underline cursor-pointer"
+            >
+              <Paperclip className="w-3.5 h-3.5" />
+              <span>Upload .txt, .md, or .csv</span>
+              <span className="text-[11px] font-normal text-muted-foreground">
+                (optional)
+              </span>
+            </button>
+          </div>
         </div>
 
         <div className="rounded-xl border border-primary bg-primary-light/30 p-3.5 space-y-3">
@@ -590,39 +611,18 @@ export function MeetingIntake({
             <span>I understand these notes will be sent to Groq for analysis.</span>
           </label>
         </div>
-        {/* Bottom Bar: Upload link + Analyze CTA */}
+        {/* Bottom Bar: Analyze CTA */}
         <div className="pt-1 space-y-1.5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".txt,.md,.csv"
-                onChange={handleFileInputChange}
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:underline cursor-pointer"
-              >
-                <Paperclip className="w-3.5 h-3.5" />
-                <span>Upload .txt, .md, or .csv</span>
-                <span className="text-[11px] font-normal text-muted-foreground">
-                  (optional)
-                </span>
-              </button>
-            </div>
-
+          <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-3">
             {loading ? (
-              <div className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-semibold text-xs shadow-xs">
+              <div className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-semibold text-xs shadow-xs w-full sm:w-auto">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>Analyzing with Cloud AI...</span>
               </div>
             ) : (
               <button
                 type="submit"
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold text-xs sm:text-sm shadow-xs transition-all cursor-pointer"
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold text-xs sm:text-sm shadow-xs transition-all cursor-pointer w-full sm:w-auto"
               >
                 <Sparkles className="w-4 h-4" />
                 <span>Analyze with Cloud AI</span>
