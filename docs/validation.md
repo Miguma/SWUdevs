@@ -1,5 +1,37 @@
 # Tambayayong — Codex validation and handoff
 
+## Persistent missing-owner pipeline regression — 21 October 2026
+
+Branch: `codex/owner-pipeline-regression`, based on `1d97081` to preserve earlier
+fixes. [Full investigation, before/after trace, file list, limits and saved-meeting
+recovery instructions](owner-pipeline-investigation.md).
+
+Reproduced: filtering the model's empty owner list never attributed an explicit
+first-person commitment to its cited speaker. Earlier validation also accepted
+speaker labels without commitment and could cross turn boundaries. Derived
+missing-owner metadata was not cleared. Assembly now resolves a single
+unambiguous omitted speaker, rejects unsupported candidates, and keeps extracted
+tasks pending. Storage schema/keys and the single persistence owner are unchanged.
+
+| Check | Observed result |
+|---|---|
+| `npm ci --cache .npm-cache --no-audit --no-fund` | Passed, 200 packages installed. |
+| `npm test` | Passed, 185 tests in 16 files; 30 new owner-pipeline regressions. |
+| `npm run typecheck` | Passed, including TSX tests and the live smoke script. |
+| `npm run eval:validate` | Passed, 70 annotated cases; syntax only, not model accuracy. |
+| `npm run build` | Passed, Next.js 14.2.35; `/` 28.8 kB / 116 kB first-load. Existing unpdf import.meta warning. Two earlier attempts failed on generated files; a competing dev server was found during the first attempt. Final retry passed with no competing server. |
+| Actual Groq/Qwen smoke | Liza, Jun and Mark assigned, pending; unknown year unresolved; Jun's budget question preserved. [Raw-owner/assembled-owner trace](owner-live-verification.json). Full benchmark not run. |
+| Actual browser | Real inference via the form; reload → History → reopen retained Liza/Jun/Mark. 4 tasks, 3 owners, exactly 1 genuinely unassigned task. Clarification view agreed. No items approved. [Screenshot](verification/owners-after-reload.png). |
+| Persistence protection | Integration test retains manual owner edits, unchanged approval, unrelated saved meeting and unrelated draft. No schema migration or deletion. |
+| `git diff --check` | Passed. |
+| Docker | Engine unavailable: `dockerDesktopLinuxEngine` named pipe missing. |
+
+Browser smoke data was entered on `127.0.0.1:3000`; normal localhost guest data
+was preserved. Historical saved owners are not silently inferred during
+hydration: reopen and re-analyze unedited AI suggestions, or edit the owner on a
+human-edited task after checking its source. Opt-in development diagnostics use
+person aliases and omit source text, titles and secrets.
+
 ## Missing-Owner Pipeline & Boundary-Safe Attribution Fix — 20 October 2026
 
 Checkout: `C:\Users\marka\OneDrive\Desktop\Tambayayong`, dedicated feature branch `codex/speaker-ownership-fix` (based on `codex/speaker-aware-ownership` at `892b14a`).

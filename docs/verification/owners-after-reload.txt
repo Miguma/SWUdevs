@@ -1,0 +1,293 @@
+Browser tab: 8, Title: "Tambayayong — From conversation to action. Walay mabilin!", URL: "http://127.0.0.1:3000/".
+1 AXWebArea Tambayayong — From conversation to action. Walay mabilin!, URL: 127.0.0.1:3000/
+	2 container Workspace navigation
+		3 button Tambayayong, new meeting
+			4 container
+				5 text tambayayong .
+			6 text Better together.
+		7 container Workspace sections
+			8 text WORKSPACE
+			9 link Description: Overview, Value: 127.0.0.1:3000/#overview
+			10 link Description: Meeting notes, Value: 127.0.0.1:3000/#meeting-workspace
+			11 link Description: Action review, Value: 127.0.0.1:3000/#step-2-review
+			12 button Saved meetings 1
+				102 text Saved meetings
+				103 text 1
+		13 container
+			14 text Bayanihan
+			15 text turns ideas
+			16 text into action.
+	17 container
+		18 text Cloud AI · Qwen 3.8 via Groq
+		19 button History 1
+			104 text History
+			105 text 1
+		20 button Export, Help: Jump to export results
+		21 button New meeting
+	22 container main-content
+		23 container overview
+			24 text AI · MEETING-TO-ACTION TRACKER
+			25 heading From conversations to community progress., Value: 1
+				26 text From conversations to  community progress.
+			27 text Turn meeting notes into clear action items, decisions, and next steps — with open-weight cloud AI and your review.
+		28 container meeting-workspace
+			106 text 1
+			107 heading Meeting notes, Value: 2
+				108 text Meeting notes
+			109 text Paste your notes, or load an example to try it out.
+			110 button Load sample meeting
+				111 image
+				112 text Load sample meeting
+			113 container
+				114 text Meeting title  *
+				115 text field (settable) Meeting title *, Value: Owner regression — public verification, ID: meeting-title
+				116 text Organization / Team
+				117 image
+				118 text field (settable) Organization / Team, ID: meeting-org
+				119 text Date
+				120 image
+				121 date field (disabled, settable) Date, ID: meeting-date
+				122 text Timezone
+				123 image
+				124 pop up button (collapsed, settable) Timezone, Value: Philippines (GMT+8), ID: meeting-timezone, Secondary Actions: Expand
+					125 menu
+						126 (selected) Philippines (GMT+8)
+						127 UTC (GMT+0)
+						128 New York (EST/EDT)
+						129 Los Angeles (PST/PDT)
+						130 Tokyo (GMT+9)
+						131 Singapore (GMT+8)
+				132 checkbox (settable, integer) Description: Meeting date unknown, Value: 1
+				133 text Meeting date unknown Participants (optional)
+				134 button Add
+					135 image
+					136 text Add
+				137 text Meeting notes / transcript  * 284  characters
+				138 text entry area (settable) Meeting notes / transcript *, ID: meeting-notes, Value: Liza: "Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27."
+Jun: "Mangita ko og presyo sa gloves ug mga sako, pero wala pa ta kasabot sa pinal nga badyet."
+Mark: "Sige, ako na ang moasikaso sa permiso."
+Ana: "Action item: prepare the registration desk. No owner has been assigned."
+				139 button Upload .pdf, .txt, .md, or .csv (optional)
+					140 image
+					141 text Upload .pdf, .txt, .md, or .csv
+					142 text (optional)
+				143 text Open-weight cloud AI Qwen 3.8 27B via Groq's free tier.
+				144 button Refresh status
+				145 text qwen/qwen3.8-27b  · Groq The pinned model is available. Groq's free-tier limits apply when you analyze.
+				146 checkbox (settable, integer) Description: I understand these notes will be sent to Groq for analysis., Value: 0
+				147 text I understand these notes will be sent to Groq for analysis.
+				148 button Analyze with Cloud AI
+					149 image
+					150 text Analyze with Cloud AI
+					151 image
+				152 text Cloud analysis sends these notes to Groq. Free-tier rate limits apply.
+			81 container Description: Action review, ID: step-2-review
+				153 text 2
+				154 heading Action items, Value: 2
+					155 text Action items
+				156 text Review, edit, and confirm extracted items.
+				157 button Review List
+				158 button Action Board 0
+					159 image
+					160 text Action Board
+					161 text 0
+				162 button Clarify 4
+					163 image
+					164 text Clarify
+					165 text 4
+				166 text Review Completion 0  of  5  reviewed ( 0 %)
+				167 container Action item summary
+					168 text 4
+					169 text Action items
+					170 text 0
+					171 text Reviewed
+					172 text 3
+					173 text With assignees
+					174 text 4
+					175 text Need dates
+					176 text 1
+					177 text Need owner
+				178 button All (4)
+				179 button Pending review (4)
+				180 button Approved (0)
+				181 button Needs info (4)
+				182 button Add task
+					183 image
+					184 text Add task
+				185 button Inspect Create and submit poster
+					186 button Approve task
+					187 heading Create and submit poster, Value: 4
+						188 text Create and submit poster
+					189 container Original wording from notes
+						190 text ( Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27. )
+					191 text Pending review
+					192 container
+						193 button Edit task
+							194 image
+						195 button Delete task
+							196 image
+					197 text Liza will create the poster and submit it by October 27.
+					198 image
+					199 text Missing deadline
+					200 image
+					201 text Liza
+					202 image
+					203 text Oktubre 27
+					204 image
+					205 text Confirmed
+					206 button 1 source, Help: View verbatim source in transcript
+						207 image
+						208 text 1
+						209 text source
+				210 button Inspect Check prices of gloves and sacks
+					211 button Approve task
+					212 heading Check prices of gloves and sacks, Value: 4
+						213 text Check prices of gloves and sacks
+					214 container Original wording from notes
+						215 text ( Mangita ko og presyo sa gloves ug mga sako )
+					216 text Pending review
+					217 container
+						218 button Edit task
+							219 image
+						220 button Delete task
+							221 image
+					222 text Jun will check the prices of gloves and sacks. Note: This is an inquiry, not a purchase.
+					223 image
+					224 text Missing deadline
+					225 image
+					226 text Jun
+					227 image
+					228 text No date
+					229 image
+					230 text Confirmed
+					231 button 1 source, Help: View verbatim source in transcript
+						232 image
+						233 text 1
+						234 text source
+				235 button Inspect Handle permit application
+					236 button Approve task
+					237 heading Handle permit application, Value: 4
+						238 text Handle permit application
+					239 container Original wording from notes
+						240 text ( ako na ang moasikaso sa permiso )
+					241 text Pending review
+					242 container
+						243 button Edit task
+							244 image
+						245 button Delete task
+							246 image
+					247 text Mark will handle the permit application.
+					248 image
+					249 text Missing deadline
+					250 image
+					251 text Mark
+					252 image
+					253 text No date
+					254 image
+					255 text Confirmed
+					256 button 1 source, Help: View verbatim source in transcript
+						257 image
+						258 text 1
+						259 text source
+				260 button Inspect Prepare registration desk
+					261 button Approve task
+					262 heading Prepare registration desk, Value: 4
+						263 text Prepare registration desk
+					264 container Original wording from notes
+						265 text ( prepare the registration desk )
+					266 text Needs owner
+					267 container
+						268 button Edit task
+							269 image
+						270 button Delete task
+							271 image
+					272 text Prepare the registration desk. No specific owner has been assigned yet.
+					273 image
+					274 text Missing owner
+					275 image
+					276 text Missing deadline
+					277 image
+					278 text Unassigned
+					279 image
+					280 text No date
+					281 image
+					282 text Confirmed
+					283 button 1 source, Help: View verbatim source in transcript
+						284 image
+						285 text 1
+						286 text source
+				287 heading DECISIONS (0), Value: 3
+					288 text DECISIONS ( 0 )
+				289 text No decisions recorded.
+				290 container
+					291 text field (settable)
+					292 button Add
+				293 heading OPEN QUESTIONS (1), Value: 3
+					294 text OPEN QUESTIONS ( 1 )
+				295 text What is the final budget?
+				296 button Open, Help: Click to toggle answered status
+				297 button Inspect source
+					298 image
+					299 text Inspect source
+				300 button Add answer
+					301 image
+				302 button Edit question text
+					303 image
+				304 button Approve question
+					305 image
+				306 button Dismiss question
+					307 image
+				308 button Delete question
+					309 image
+				310 container
+					311 text field (settable)
+					312 button Add
+				313 image
+				314 heading Source evidence, Value: 3
+					315 text Source evidence
+				316 text From your meeting notes
+				317 button Full text, Help: Open full transcript context inspector
+					318 text Full text
+					319 image
+				320 container
+					321 text “ Liza: "Ako ang maghimo sa poster ug ipasa nako sa Oktubre 27." ”
+				322 container
+					323 text Line 1 in your notes · Exact textual match
+				324 image
+				325 text What to verify
+				326 text The quote is a text match. Check whether it supports the action, owner, commitment, and date before approving this item.
+				327 text Mark as...
+				328 button Approve
+					329 image
+					330 text Approve
+				331 button Needs info
+					332 image
+					333 text Needs info
+				334 button Dismiss
+					335 image
+					336 text Dismiss
+				337 container export-results
+					338 image
+					339 heading Export results, Value: 3
+						340 text Export results
+					341 text Download your action plan, official minutes, or branded PDF.
+					342 button Copy, Help: Copy Action Plan Markdown to clipboard
+						343 image
+						344 text Copy
+					345 button PDF Report, Help: Download branded official PDF report
+						346 image
+						347 text PDF Report
+					348 button Actions, Help: Download Action Plan as Markdown
+						349 image
+						350 text Actions
+					351 button Minutes, Help: Download formatted Meeting Minutes (.md)
+						352 image
+						353 text Minutes
+					354 button CSV, Help: Download Action Items spreadsheet (.csv)
+						355 image
+						356 text CSV
+					357 container
+						358 checkbox (settable, integer) Description: Include pending review items, Value: 0
+						359 text Include pending review items
+
+The focused UI element is 1 AXWebArea Tambayayong — From conversation to action. Walay mabilin!, URL: 127.0.0.1:3000/

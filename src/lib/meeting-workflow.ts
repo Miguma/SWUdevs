@@ -6,6 +6,8 @@ import type {
   OpenQuestion,
 } from "@/types/meeting";
 import { verifyEvidenceQuote } from "@/server/services/evidence-verifier";
+import { hasTaskOwner, syncMeetingOwnerInformation } from "./owner-state";
+import { traceOwnerState } from "./owner-diagnostics";
 
 const normalize = (text: string) =>
   text
@@ -116,7 +118,7 @@ export function reconcileMeeting(
     }
     return result;
   };
-  return {
+  const reconciled = syncMeetingOwnerInformation({
     ...fresh,
     id: previous.id,
     createdAt: previous.createdAt,
@@ -127,7 +129,9 @@ export function reconcileMeeting(
       ...fresh.warnings,
       "Re-analysis replaced the previous AI pass. Human edits and reviewed items were retained; changed or unmatched source items need review.",
     ],
-  };
+  });
+  traceOwnerState("reconciled", reconciled.actionItems);
+  return reconciled;
 }
 
 export function getReviewProgress(meeting: MeetingExtraction) {
@@ -216,7 +220,7 @@ export function isTaskOverdue(
 
 export function getClarificationReasons(task: ActionItem): string[] {
   const reasons: string[] = [];
-  if (task.assignees.length === 0) {
+  if (!hasTaskOwner(task)) {
     reasons.push("Missing owner");
   }
   if (!task.deadline.date) {

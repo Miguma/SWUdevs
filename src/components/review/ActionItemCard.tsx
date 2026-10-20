@@ -13,6 +13,7 @@ import {
 import { ActionItem, ReviewStatus, TaskStatus, Evidence } from "@/types/meeting";
 import { formatDateDisplay } from "@/lib/utils";
 import { isTaskOverdue, getClarificationReasons } from "@/lib/meeting-workflow";
+import { hasTaskOwner } from "@/lib/owner-state";
 
 interface ActionItemCardProps {
   task: ActionItem;
@@ -39,7 +40,7 @@ export function ActionItemCard({
   onInspectEvidence,
   showExecutionControls = false,
 }: ActionItemCardProps) {
-  const isUnassigned = task.assignees.length === 0;
+  const isUnassigned = !hasTaskOwner(task);
   const hasMissingOrAmbiguousDate =
     !task.deadline.date || task.deadline.isAmbiguous;
   const primaryEvidence = task.evidence && task.evidence[0];

@@ -1,5 +1,7 @@
 import { openDB, DBSchema, IDBPDatabase } from "idb";
 import { MeetingExtraction } from "@/types/meeting";
+import { syncMeetingOwnerInformation } from "../owner-state";
+import { traceOwnerState } from "../owner-diagnostics";
 
 interface TambayayongDB extends DBSchema {
   meetings: {
@@ -65,18 +67,26 @@ function getDB(): Promise<IDBPDatabase<TambayayongDB>> {
 export async function saveGuestMeeting(meeting: MeetingExtraction): Promise<void> {
   const db = await getDB();
   // The caller owns revision time. Re-saving must not invent a new revision.
-  await db.put("meetings", meeting);
+  const snapshot = syncMeetingOwnerInformation(meeting);
+  await db.put("meetings", snapshot);
+  traceOwnerState("persisted", snapshot.actionItems);
 }
 
 export async function getAllGuestMeetings(): Promise<MeetingExtraction[]> {
   const db = await getDB();
   const meetings = await db.getAllFromIndex("meetings", "by-date");
-  return meetings.reverse(); // Newest first
+  const normalized = meetings.reverse().map(syncMeetingOwnerInformation);
+  normalized.forEach(m => traceOwnerState("hydrated", m.actionItems));
+  return normalized; // Newest first
 }
 
 export async function getGuestMeetingById(id: string): Promise<MeetingExtraction | undefined> {
   const db = await getDB();
-  return db.get("meetings", id);
+  const meeting = await db.get("meetings", id);
+  if (!meeting) return undefined;
+  const normalized = syncMeetingOwnerInformation(meeting);
+  traceOwnerState("hydrated", normalized.actionItems);
+  return normalized;
 }
 
 export async function deleteGuestMeeting(id: string): Promise<void> {

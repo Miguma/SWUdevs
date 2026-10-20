@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ActionItem, PriorityLevel, TaskStatus } from "@/types/meeting";
+import { syncOwnerInformation } from "@/lib/owner-state";
 
 interface ActionItemEditorProps {
   task: ActionItem;
@@ -56,7 +57,7 @@ export function ActionItemEditor({
       isUserEdited: true,
     };
 
-    onSave(updated);
+    onSave(syncOwnerInformation(updated));
   };
 
   return (

@@ -1,0 +1,89 @@
+{
+  "kind": "actual-inference-public-smoke",
+  "at": "2026-10-20T16:18:23.271Z",
+  "provider": "groq",
+  "model": "qwen/qwen3.8-27b",
+  "success": true,
+  "tasks": [
+    {
+      "title": "Create and submit poster",
+      "rawModelAssignees": [
+        "Liza"
+      ],
+      "assembledAssignees": [
+        "Liza"
+      ],
+      "reviewStatus": "pending",
+      "deadline": null,
+      "missingInformation": [
+        "deadline"
+      ],
+      "clarificationReasons": [
+        "Missing deadline"
+      ],
+      "evidence": [
+        {
+          "start": 0,
+          "end": 62,
+          "verified": true,
+          "sourceMatches": true
+        }
+      ]
+    },
+    {
+      "title": "Check prices of gloves and sacks",
+      "rawModelAssignees": [
+        "Jun"
+      ],
+      "assembledAssignees": [
+        "Jun"
+      ],
+      "reviewStatus": "pending",
+      "deadline": null,
+      "missingInformation": [
+        "deadline"
+      ],
+      "clarificationReasons": [
+        "Missing deadline"
+      ],
+      "evidence": [
+        {
+          "start": 63,
+          "end": 158,
+          "verified": true,
+          "sourceMatches": true
+        }
+      ]
+    },
+    {
+      "title": "Handle permit",
+      "rawModelAssignees": [
+        "Mark"
+      ],
+      "assembledAssignees": [
+        "Mark"
+      ],
+      "reviewStatus": "pending",
+      "deadline": null,
+      "missingInformation": [
+        "deadline"
+      ],
+      "clarificationReasons": [
+        "Missing deadline"
+      ],
+      "evidence": [
+        {
+          "start": 159,
+          "end": 205,
+          "verified": true,
+          "sourceMatches": true
+        }
+      ]
+    }
+  ],
+  "openQuestions": [
+    "What is the final budget for supplies?",
+    "Who will be assigned as volunteers for registration?"
+  ],
+  "fullBenchmarkRun": false
+}

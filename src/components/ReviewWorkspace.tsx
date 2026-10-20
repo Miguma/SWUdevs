@@ -36,6 +36,8 @@ import {
   isTaskOverdue,
 } from "@/lib/meeting-workflow";
 import { formatDateDisplay } from "@/lib/utils";
+import { hasTaskOwner } from "@/lib/owner-state";
+import { traceOwnerState } from "@/lib/owner-diagnostics";
 
 import { ActionItemCard } from "./review/ActionItemCard";
 import { ActionItemEditor } from "./review/ActionItemEditor";
@@ -54,6 +56,7 @@ export function ReviewWorkspace({
   meeting,
   onUpdateMeeting,
 }: ReviewWorkspaceProps) {
+  useEffect(() => { traceOwnerState("rendered", meeting.actionItems); }, [meeting.actionItems]);
   const [viewMode, setViewMode] = useState<"review" | "board" | "clarifications">("review");
   const [filter, setFilter] = useState<
     "all" | "pending" | "approved" | "needs_info"
@@ -240,7 +243,7 @@ export function ReviewWorkspace({
     (t) => !t.deadline.date || t.deadline.isAmbiguous
   ).length;
   const needOwnerCount = meeting.actionItems.filter(
-    (t) => t.assignees.length === 0
+    (t) => !hasTaskOwner(t)
   ).length;
 
   const isTaskNeedsInfo = (t: ActionItem) =>
