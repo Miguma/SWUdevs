@@ -261,7 +261,10 @@ export function MeetingIntake({
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) processFile(file);
+    if (file) {
+      processFile(file);
+      e.target.value = "";
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {

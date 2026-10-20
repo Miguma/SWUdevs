@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
       const result = await parseUploadedPdfBuffer(buffer);
 
       if (!result.success) {
+        console.error("[PDF Parse Error]:", result.error);
         return NextResponse.json(
           { error: result.error || "Failed to extract text from PDF." },
           { status: 400 }

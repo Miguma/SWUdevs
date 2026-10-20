@@ -72,26 +72,30 @@ export function parseUploadedFileContent(
 }
 
 export async function parseUploadedPdfBuffer(
-  buffer: Buffer
+  buffer: Buffer | Uint8Array
 ): Promise<{ success: boolean; text?: string; error?: string }> {
   if (!buffer || buffer.length === 0) {
     return { success: false, error: "The uploaded PDF file is empty." };
   }
 
   try {
-    const { PDFParse } = await import("pdf-parse");
-    const parser = new PDFParse({ data: buffer });
-    const textResult = await parser.getText();
-    await parser.destroy();
+    const { extractText } = await import("unpdf");
+    const uint8 = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    const result = await extractText(uint8);
+    const rawText = Array.isArray(result.text)
+      ? result.text.join("\n\n")
+      : typeof result.text === "string"
+      ? result.text
+      : "";
 
-    const rawText = textResult?.text ? textResult.text.trim() : "";
-    if (!rawText) {
+    const trimmed = rawText.trim();
+    if (!trimmed) {
       return {
         success: false,
         error: "The uploaded PDF does not contain selectable text (it may be a scanned image).",
       };
     }
-    const processed = preprocessTranscriptText(rawText);
+    const processed = preprocessTranscriptText(trimmed);
     return { success: true, text: processed.normalizedText };
   } catch (err: any) {
     return {
