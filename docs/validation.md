@@ -1,5 +1,11 @@
 # Tambayayong — Codex validation and handoff
 
+## Groq key and first live inference — 20 October 2026
+
+The user supplied a Groq API key, which was placed in ignored `.env.local` and not committed. After stopping the old server and restarting the production app, `GET /api/ai/health` returned HTTP 200 with `configured=true`, `modelAvailable=true`, `provider=groq`, and the exact pinned `qwen/qwen3.8-27b` model. One consented request using only public sample notes returned HTTP 200 with two action items, zero decisions, zero open questions, and `analysis.provider=groq` with the pinned model. This confirms live routing and extraction, not correctness on the 20-case benchmark or semantic accuracy. The existing `eval/model-eval-report.*` remains `NOT_RUN` because its CLI check ran before the key was saved; a full benchmark was not run against the free-tier quota.
+
+The key value was pasted into chat. Rotate it in Groq and replace the value in `.env.local` when convenient; do not place the replacement in chat or Git.
+
 ## Groq free-tier switch — 20 October 2026
 
 The current app pins the Apache-2.0 `qwen/qwen3.8-27b` model on Groq's Free plan. Groq's published free-plan limits list this model, and its structured-output documentation lists strict JSON schema support. This is a service offering with rate limits, not a guarantee of unlimited free inference. The app sends notes only after explicit confirmation, uses `GROQ_API_KEY` server-side, never falls back to another model/provider, and preserves historical `ollama` and `huggingface` provider metadata in saved meetings. The old Hugging Face token was removed from ignored `.env.local`; no Groq key is present yet.
