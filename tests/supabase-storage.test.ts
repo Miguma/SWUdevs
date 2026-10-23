@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { INITIAL_SAMPLE_EXTRACTION } from "@/components/SampleMeetingData";
-import { getAllCloudMeetings, saveCloudMeeting } from "@/lib/storage/supabase";
+import { getAllCloudMeetings, saveCloudMeeting, classifySupabaseError, CloudSyncError, getCloudMeetingById, deleteCloudMeeting } from "@/lib/storage/supabase";
 import type { Database } from "@/lib/supabase/database.types";
 import { didStorageOwnerChange } from "@/lib/storage/ownership";
 
@@ -61,5 +61,100 @@ describe("user_meetings migration", () => {
     expect(migration).toContain("revoke all on table public.user_meetings from anon");
     expect(migration.match(/\(select auth\.uid\(\)\) = user_id/g)).toHaveLength(5);
     expect(migration).toContain("references auth.users(id) on delete cascade");
+  });
+});
+
+describe("Supabase error classification and diagnostics", () => {
+  it("classifies missing table (404 PGRST205) with clear migration instructions", () => {
+    const error = classifySupabaseError(
+      { code: "PGRST205", message: "Could not find the table 'public.user_meetings' in the schema cache" },
+      404
+    );
+    expect(error).toBeInstanceOf(CloudSyncError);
+    expect(error.kind).toBe("database_missing_table");
+    expect(error.status).toBe(404);
+    expect(error.code).toBe("PGRST205");
+    expect(error.userMessage).toContain("public.user_meetings");
+    expect(error.actionHint).toContain("20261020164254_add_user_meetings.sql");
+  });
+
+  it("classifies session expiration and unauthenticated requests", () => {
+    const error = classifySupabaseError({ code: "PGRST301", message: "JWT expired" }, 401);
+    expect(error.kind).toBe("not_authenticated");
+    expect(error.status).toBe(401);
+    expect(error.userMessage).toContain("session has expired");
+  });
+
+  it("classifies permission and RLS violations", () => {
+    const error = classifySupabaseError({ code: "42501", message: "new row violates row-level security policy" }, 403);
+    expect(error.kind).toBe("permission_denied");
+    expect(error.status).toBe(403);
+    expect(error.userMessage).toContain("permission");
+  });
+
+  it("classifies network and offline errors", () => {
+    const error = classifySupabaseError(new Error("Failed to fetch"));
+    expect(error.kind).toBe("network_error");
+    expect(error.userMessage).toContain("Network connection lost");
+    expect(error.actionHint).toContain("Retry save");
+  });
+
+  it("classifies unconfigured Supabase gracefully", () => {
+    const error = classifySupabaseError(new Error("Supabase is not configured"));
+    expect(error.kind).toBe("not_configured");
+    expect(error.actionHint).toContain("NEXT_PUBLIC_SUPABASE_URL");
+  });
+
+  it("keeps diagnostics safe without leaking bearer tokens or notes", () => {
+    const rawError = {
+      code: "PGRST205",
+      message: "Could not find the table 'public.user_meetings' in the schema cache",
+      details: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.sensitive_payload",
+    };
+    const classified = classifySupabaseError(rawError, 404);
+    expect(classified.userMessage).not.toContain("eyJ");
+    expect(classified.userMessage).not.toContain("Bearer");
+    expect(classified.actionHint).not.toContain("eyJ");
+    expect(classified.code).toBe("PGRST205");
+    expect(classified.status).toBe(404);
+  });
+
+  it("saveCloudMeeting throws classified CloudSyncError on missing table", async () => {
+    const upsert = vi.fn().mockResolvedValue({
+      error: { code: "PGRST205", message: "Could not find the table 'public.user_meetings' in the schema cache" },
+      status: 404,
+    });
+    const client = { from: vi.fn().mockReturnValue({ upsert }) } as unknown as SupabaseClient<Database>;
+
+    await expect(saveCloudMeeting(INITIAL_SAMPLE_EXTRACTION, client)).rejects.toMatchObject({
+      name: "CloudSyncError",
+      kind: "database_missing_table",
+      status: 404,
+      code: "PGRST205",
+    });
+  });
+
+  it("getAllCloudMeetings, getCloudMeetingById, and deleteCloudMeeting propagate CloudSyncError", async () => {
+    const mockMissingTable = {
+      error: { code: "PGRST205", message: "Could not find table" },
+      status: 404,
+    };
+    const client = {
+      from: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue(mockMissingTable),
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue(mockMissingTable),
+          }),
+        }),
+        delete: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue(mockMissingTable),
+        }),
+      }),
+    } as unknown as SupabaseClient<Database>;
+
+    await expect(getAllCloudMeetings(client)).rejects.toBeInstanceOf(CloudSyncError);
+    await expect(getCloudMeetingById("test-id", client)).rejects.toBeInstanceOf(CloudSyncError);
+    await expect(deleteCloudMeeting("test-id", client)).rejects.toBeInstanceOf(CloudSyncError);
   });
 });

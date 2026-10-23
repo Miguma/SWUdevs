@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
-import { getAllCloudMeetings, saveCloudMeeting } from "@/lib/storage/supabase";
+import { getAllCloudMeetings, saveCloudMeeting, CloudSyncError } from "@/lib/storage/supabase";
 import { didStorageOwnerChange } from "@/lib/storage/ownership";
 import {
   Check,
@@ -41,6 +41,12 @@ function scrollToWorkspace() {
   document.getElementById("start")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+export interface SaveErrorInfo {
+  message: string;
+  actionHint?: string;
+  diagnostic?: string;
+}
+
 export function Workspace() {
   const { user, loading: authLoading, signOut } = useAuth();
   const previousStorageOwner = useRef<string | null | undefined>(undefined);
@@ -48,7 +54,7 @@ export function Workspace() {
   const [currentMeeting, setCurrentMeeting] = useState<MeetingExtraction | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<SaveErrorInfo | null>(null);
   const [planUpdated, setPlanUpdated] = useState(false);
   const [intakeHasContent, setIntakeHasContent] = useState(false);
   const [newDraftId, setNewDraftId] = useState(getActiveDraftId);
@@ -93,10 +99,25 @@ export function Workspace() {
       setSaveError(null);
       await (user ? cloudSerialSave(meeting) : serialSave(meeting));
       await refreshSavedCount();
-    } catch {
-      setSaveError(user
-        ? "Could not sync this meeting to your account. Export your plan to keep a copy."
-        : "Could not save to this browser. Export your plan to keep a copy.");
+    } catch (err) {
+      if (err instanceof CloudSyncError) {
+        const diag = [
+          err.code ? `code: ${err.code}` : null,
+          typeof err.status === "number" ? `HTTP ${err.status}` : null,
+        ].filter(Boolean).join(" · ");
+        setSaveError({
+          message: err.userMessage,
+          actionHint: err.actionHint,
+          diagnostic: diag || undefined,
+        });
+      } else {
+        setSaveError({
+          message: user
+            ? "Could not sync this meeting to your account."
+            : "Could not save to this browser. Export your plan to keep a copy.",
+          actionHint: "Export your plan to keep a copy, or click 'Retry save' to try again.",
+        });
+      }
     }
   };
 
@@ -170,7 +191,7 @@ export function Workspace() {
       >
         <div className="flex flex-wrap items-center justify-end gap-2 pb-3 sm:justify-end">
           {!authLoading && (user ? (
-            <button type="button" className="workspace-top-action font-brand" onClick={() => void signOut().catch(() => setSaveError("Could not sign out. Please try again."))}>Sign out</button>
+            <button type="button" className="workspace-top-action font-brand" onClick={() => void signOut().catch(() => setSaveError({ message: "Could not sign out. Please try again." }))}>Sign out</button>
           ) : (
             <Link href="/sign-in" className="workspace-top-action font-brand">Sign in</Link>
           ))}
@@ -196,13 +217,36 @@ export function Workspace() {
           </button>
         </div>
 
-        <InlineNotice
-          message={saveError}
-          tone="warning"
-          className="pb-4"
-        />
-        {saveError && currentMeeting && (
-          <button type="button" className="workspace-top-action mb-4" onClick={() => void persistMeeting(currentMeeting)}>Retry save</button>
+        {saveError && (
+          <div className="pb-4 space-y-2">
+            <InlineNotice
+              message={`${saveError.message}${saveError.actionHint ? ` ${saveError.actionHint}` : ""}`}
+              tone="warning"
+            />
+            {saveError.diagnostic && (
+              <p className="pl-5 font-mono text-[11px] text-muted-foreground">
+                Safe diagnostic: {saveError.diagnostic}
+              </p>
+            )}
+            {currentMeeting && (
+              <div className="flex flex-wrap items-center gap-2 pl-5">
+                <button
+                  type="button"
+                  className="workspace-top-action text-xs font-brand"
+                  onClick={() => void persistMeeting(currentMeeting)}
+                >
+                  Retry save
+                </button>
+                <button
+                  type="button"
+                  className="workspace-top-action text-xs font-brand"
+                  onClick={() => { setStep("share"); scrollToWorkspace(); }}
+                >
+                  Export copy now
+                </button>
+              </div>
+            )}
+          </div>
         )}
         {currentMeeting?.id === INITIAL_SAMPLE_EXTRACTION.id && (
           <InlineNotice message="Illustrative review preview. These items were written by hand. Analyze your notes for actual AI suggestions." tone="warning" className="pb-4" />

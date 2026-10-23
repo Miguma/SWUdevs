@@ -1,5 +1,47 @@
 # Tambayayong — Codex validation and handoff
 
+## Signed-In Meeting Synchronization Diagnostics & Fix — 23 October 2026
+
+Branch: `codex/orlando-ai-integration`. Investigates and resolves the signed-in account
+meeting synchronization failure ("Could not sync this meeting to your account. Export your plan to keep a copy.").
+
+### Root Cause Analysis
+1. **Remote Schema Absence**:
+   The remote Supabase project (`icbkzymarccjhugcqqgo.supabase.co`) does not have the `public.user_meetings` table in its PostgreSQL database. PostgREST responded with HTTP status `404 Not Found` and error code `PGRST205`:
+   `{"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'public.user_meetings' in the schema cache"}`.
+   The migration file `supabase/migrations/20261020164254_add_user_meetings.sql` exists locally with full RLS policies (`auth.uid() = user_id`) and grants to `authenticated`, but had never been executed on the remote database.
+2. **Error Swallowing & Masking**:
+   The cloud storage client (`src/lib/storage/supabase.ts`) previously collapsed all errors into a generic `Error("Could not save the meeting to your account")`, discarding HTTP status and code.
+3. **Generic UI Feedback**:
+   `Workspace.tsx` and `MeetingHistoryModal.tsx` displayed flat warnings without distinguishing missing migrations, expired auth sessions, RLS permission violations, network outages, or configuration errors.
+
+### Implemented Solutions
+1. **Classified Cloud Sync Errors**:
+   Created `CloudSyncError` and `classifySupabaseError()` in `src/lib/storage/supabase.ts` categorizing errors into:
+   - `database_missing_table`: maps `PGRST205`, `42P01`, and HTTP 404 to explicit instructions referencing migration `supabase/migrations/20261020164254_add_user_meetings.sql`.
+   - `not_authenticated`: maps `PGRST301`, HTTP 401, and expired JWTs to re-authentication instructions.
+   - `permission_denied`: maps `42501` and HTTP 403 to RLS scoping notices.
+   - `network_error`: maps fetch / offline failures to connection check instructions.
+   - `not_configured`: maps missing environment configurations.
+   - `validation_error`: maps schema/payload failures.
+2. **Safe Technical Diagnostics**:
+   Exposes sanitized codes (`code: PGRST205 · HTTP 404`) in the UI without exposing JWT tokens, credentials, or meeting transcript text.
+3. **Data Loss Prevention & Session Recovery**:
+   Unsaved meeting state remains preserved in `currentMeeting` React state. The UI provides direct `Retry save` and `Export copy now` (PDF/Markdown/CSV) actions so user work is never lost.
+4. **Security & Boundary Preservation**:
+   RLS remains strictly scoped to `auth.uid() = user_id`. No service role keys or anon DDL privileges used. Guest IndexedDB stores and drafts remain separate and fully preserved.
+
+| Check | Observed result |
+|---|---|
+| `npm run eval:validate` | Passed: 70 dataset cases validated (15 English, 15 Cebuano, 15 Tagalog, 15 mixed, 10 edge cases). |
+| `npm test` | Passed: 231 tests in 24 files (100% passing; 8 new supabase storage and error classification tests). |
+| `npm run typecheck` | Passed: 0 TypeScript errors (`tsc --noEmit -p tsconfig.check.json`). |
+| `npm run build` | Passed: Next.js 14.2.35 production build successful; all 13 static pages generated. |
+| Supabase live query | Verified: Remote Supabase endpoint returns PGRST205 HTTP 404 confirming `public.user_meetings` is not yet applied on remote project. |
+| Docker | Engine unavailable: `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`. |
+
+---
+
 ## Orlando Redesigned UI & Full AI Integration — 23 October 2026
 
 Branch: `codex/orlando-ai-integration`. Integrates Orlando's redesigned single-page

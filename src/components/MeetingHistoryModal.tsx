@@ -12,7 +12,13 @@ import {
 } from "@/lib/storage/indexeddb";
 import { formatDateDisplay } from "@/lib/utils";
 import { useAuth } from "@/components/AuthProvider";
-import { deleteCloudMeeting, duplicateCloudMeeting, getAllCloudMeetings } from "@/lib/storage/supabase";
+import { deleteCloudMeeting, duplicateCloudMeeting, getAllCloudMeetings, CloudSyncError } from "@/lib/storage/supabase";
+
+export interface LoadErrorInfo {
+  message: string;
+  actionHint?: string;
+  diagnostic?: string;
+}
 
 interface MeetingHistoryModalProps {
   isOpen: boolean;
@@ -33,7 +39,7 @@ export function MeetingHistoryModal({
   const [meetings, setMeetings] = useState<MeetingExtraction[]>([]);
   const [drafts, setDrafts] = useState<GuestDraft[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<LoadErrorInfo | null>(null);
 
   const loadMeetings = async () => {
     try {
@@ -47,8 +53,22 @@ export function MeetingHistoryModal({
       setMeetings(all);
       setDrafts(savedDrafts);
       onMeetingsChange();
-    } catch {
-      setLoadError("Could not load saved work. Your records have not been removed. Please retry.");
+    } catch (err) {
+      if (err instanceof CloudSyncError) {
+        const diag = [
+          err.code ? `code: ${err.code}` : null,
+          typeof err.status === "number" ? `HTTP ${err.status}` : null,
+        ].filter(Boolean).join(" · ");
+        setLoadError({
+          message: err.userMessage,
+          actionHint: err.actionHint,
+          diagnostic: diag || undefined,
+        });
+      } else {
+        setLoadError({
+          message: "Could not load saved work. Your records have not been removed. Please retry.",
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -63,14 +83,46 @@ export function MeetingHistoryModal({
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!window.confirm("Delete this saved meeting?")) return;
-    await (user ? deleteCloudMeeting(id) : deleteGuestMeeting(id));
-    await loadMeetings();
+    try {
+      await (user ? deleteCloudMeeting(id) : deleteGuestMeeting(id));
+      await loadMeetings();
+    } catch (err) {
+      if (err instanceof CloudSyncError) {
+        const diag = [
+          err.code ? `code: ${err.code}` : null,
+          typeof err.status === "number" ? `HTTP ${err.status}` : null,
+        ].filter(Boolean).join(" · ");
+        setLoadError({
+          message: err.userMessage,
+          actionHint: err.actionHint,
+          diagnostic: diag || undefined,
+        });
+      } else {
+        setLoadError({ message: "Could not delete meeting. Please retry." });
+      }
+    }
   };
 
   const handleDuplicate = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    await (user ? duplicateCloudMeeting(id) : duplicateGuestMeeting(id));
-    await loadMeetings();
+    try {
+      await (user ? duplicateCloudMeeting(id) : duplicateGuestMeeting(id));
+      await loadMeetings();
+    } catch (err) {
+      if (err instanceof CloudSyncError) {
+        const diag = [
+          err.code ? `code: ${err.code}` : null,
+          typeof err.status === "number" ? `HTTP ${err.status}` : null,
+        ].filter(Boolean).join(" · ");
+        setLoadError({
+          message: err.userMessage,
+          actionHint: err.actionHint,
+          diagnostic: diag || undefined,
+        });
+      } else {
+        setLoadError({ message: "Could not duplicate meeting. Please retry." });
+      }
+    }
   };
 
   if (!isOpen) return null;
@@ -98,7 +150,20 @@ export function MeetingHistoryModal({
         </div>
 
         {/* Content list */}
-        {loadError && <div role="alert" className="text-sm text-warning">{loadError}<button type="button" className="workspace-top-action" onClick={() => void loadMeetings()}>Retry</button></div>}
+        {loadError && (
+          <div role="alert" className="p-3 rounded-xl border border-warning/40 text-warning text-xs space-y-1.5">
+            <p className="font-semibold leading-snug">{loadError.message}</p>
+            {loadError.actionHint && <p className="opacity-90 leading-relaxed">{loadError.actionHint}</p>}
+            {loadError.diagnostic && <p className="font-mono text-[10px] opacity-75">Safe diagnostic: {loadError.diagnostic}</p>}
+            <button
+              type="button"
+              className="workspace-top-action text-xs mt-1"
+              onClick={() => void loadMeetings()}
+            >
+              Retry
+            </button>
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto space-y-2.5 py-1 pr-1">
           {loading ? (
             <div className="text-center py-10 text-xs text-muted-foreground">
