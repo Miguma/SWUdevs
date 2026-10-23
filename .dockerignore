@@ -8,3 +8,5 @@ coverage
 *.tsbuildinfo
 npm-debug.log*
 eval/*report.json
+walkthrough-video
+.npm-cache
