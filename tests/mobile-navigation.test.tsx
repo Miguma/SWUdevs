@@ -58,7 +58,7 @@ describe("Mobile navigation and clean workspace header", () => {
     expect(desktopNav).toContain(">Sign up<");
   });
 
-  it("removes Sign In button from above the meeting notes form", () => {
+  it("removes Sign In button and hides History and Export on mobile above the meeting notes form", () => {
     const html = renderToStaticMarkup(<LandingPage />);
 
     // The start section of the workspace contains the workspace top action bar
@@ -68,7 +68,8 @@ describe("Mobile navigation and clean workspace header", () => {
     expect(startSection).not.toContain(">Sign in<");
     expect(startSection).not.toContain(">Sign out<");
 
-    // But the workspace top actions remain intact and nowrap
+    // History and Export are hidden on mobile (hidden sm:inline-flex) since they live in the mobile hamburger
+    expect(startSection).toContain("hidden font-brand whitespace-nowrap sm:inline-flex");
     expect(startSection).toContain("History");
     expect(startSection).toContain("Export");
     expect(startSection).toContain("New meeting");

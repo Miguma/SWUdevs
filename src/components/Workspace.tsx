@@ -220,7 +220,7 @@ export function Workspace() {
             id="workspace-history-btn"
             type="button"
             onClick={() => setHistoryOpen(true)}
-            className="workspace-top-action flex-1 font-brand whitespace-nowrap sm:flex-none"
+            className="workspace-top-action hidden font-brand whitespace-nowrap sm:inline-flex"
             aria-label={savedCount > 0 ? `History, ${savedCount} saved` : "History"}
           >
             <History className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -236,7 +236,7 @@ export function Workspace() {
             type="button"
             disabled={!Boolean(currentMeeting)}
             onClick={() => { setStep("share"); scrollToWorkspace(); }}
-            className="workspace-top-action flex-1 font-brand whitespace-nowrap sm:flex-none"
+            className="workspace-top-action hidden font-brand whitespace-nowrap sm:inline-flex"
             title={currentMeeting ? "Open the share options" : "Analyze a meeting first, then export"}
             aria-label="Export"
           >
@@ -248,7 +248,7 @@ export function Workspace() {
             type="button"
             onClick={startNewMeeting}
             disabled={!currentMeeting && !intakeHasContent}
-            className="workspace-top-action flex-1 font-brand whitespace-nowrap text-primary disabled:opacity-100 disabled:text-muted-foreground sm:flex-none sm:rounded-full sm:border sm:border-primary/40 sm:bg-primary-light/50 sm:px-4 sm:transition-colors sm:enabled:hover:bg-primary-light sm:disabled:border-border sm:disabled:bg-transparent"
+            className="workspace-top-action font-brand whitespace-nowrap text-primary disabled:opacity-100 disabled:text-muted-foreground sm:rounded-full sm:border sm:border-primary/40 sm:bg-primary-light/50 sm:px-4 sm:transition-colors sm:enabled:hover:bg-primary-light sm:disabled:border-border sm:disabled:bg-transparent"
             title={currentMeeting || intakeHasContent ? "New meeting" : "Nothing to clear yet"}
             aria-label="New meeting"
           >

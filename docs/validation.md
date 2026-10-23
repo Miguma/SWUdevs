@@ -24,9 +24,10 @@ navigation, removes crowded workspace actions, integrates History & Export into 
    - Preserves desktop navigation with clean text links and account controls.
 2. **Decluttered Workspace Action Bar (`src/components/Workspace.tsx`)**:
    - Removed the `Sign in` / `Sign out` button from above the meeting notes form.
-   - Retained only the core meeting workspace actions: `History`, `Export`, and `New meeting`.
+   - Hid `History` and `Export` on mobile (`hidden sm:inline-flex`) above the form since they are accessible in the mobile hamburger menu, eliminating clutter and duplication on mobile screens.
+   - Kept `History` and `Export` visible and easily accessible on desktop screens (`sm:inline-flex`).
    - Connected `tambayayong:open-history`, `tambayayong:open-export`, and `tambayayong:state-change` custom events to synchronize state between the mobile hamburger menu and workspace.
-   - Applied `whitespace-nowrap` to prevent the `History` label from wrapping onto two lines on narrow mobile viewports.
+   - Applied `whitespace-nowrap` to prevent label wrapping on narrow viewports.
 3. **Seamless Guest Mode & Removed "Continue as Guest" (`src/components/AuthScreen.tsx`)**:
    - Removed the redundant "Continue as guest" button and "No account needed" divider.
    - Visitors land directly on the workspace (`/`) in guest mode backed by local IndexedDB (`tambayayong_guest_db`) without any gate or required login.
