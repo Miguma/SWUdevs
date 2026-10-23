@@ -3,7 +3,7 @@
 ## Mobile Navigation & Guest Experience Polish — 23 October 2026
 
 Branch: `codex/mobile-navigation-guest-ux`. Delivers accessible mobile hamburger
-navigation, removes crowded workspace actions, and enforces frictionless guest mode by default.
+navigation, removes crowded workspace actions, integrates History & Export into the mobile menu, and enforces frictionless guest mode by default.
 
 ### Key Changes
 1. **Accessible Mobile Hamburger Menu (`src/components/LandingNav.tsx`)**:
@@ -15,6 +15,9 @@ navigation, removes crowded workspace actions, and enforces frictionless guest m
        - What Is This? (`/what-is`)
        - How It Works (`/how-it-works`)
        - Meeting Workspace (`/#start`)
+     - **Workspace Actions**:
+       - History: displays live saved meetings count badge (`History N`), opens meeting history modal.
+       - Export: opens export/share options or prompts user to generate a plan first.
      - **Account**:
        - Guest: Sign In (`/sign-in`), Sign Up (`/sign-up`)
        - Authenticated: User email status indicator, Sign Out button
@@ -22,20 +25,21 @@ navigation, removes crowded workspace actions, and enforces frictionless guest m
 2. **Decluttered Workspace Action Bar (`src/components/Workspace.tsx`)**:
    - Removed the `Sign in` / `Sign out` button from above the meeting notes form.
    - Retained only the core meeting workspace actions: `History`, `Export`, and `New meeting`.
+   - Connected `tambayayong:open-history`, `tambayayong:open-export`, and `tambayayong:state-change` custom events to synchronize state between the mobile hamburger menu and workspace.
    - Applied `whitespace-nowrap` to prevent the `History` label from wrapping onto two lines on narrow mobile viewports.
 3. **Seamless Guest Mode & Removed "Continue as Guest" (`src/components/AuthScreen.tsx`)**:
    - Removed the redundant "Continue as guest" button and "No account needed" divider.
    - Visitors land directly on the workspace (`/`) in guest mode backed by local IndexedDB (`tambayayong_guest_db`) without any gate or required login.
    - Replaced auth screen back-link with "Back to workspace".
 4. **Automated Regression Coverage (`tests/mobile-navigation.test.tsx`)**:
-   - Added 5 unit tests covering mobile hamburger accessibility, menu section hierarchy, desktop nav account integration, workspace action bar cleanliness, and guest button removal.
+   - Added 6 unit tests covering mobile hamburger accessibility, menu section hierarchy, workspace actions (History & Export) integration, desktop nav account integration, workspace action bar cleanliness, and guest button removal.
 
 | Check | Observed result |
 |---|---|
 | `npm run eval:validate` | Passed: 70 dataset cases validated (15 English, 15 Cebuano, 15 Tagalog, 15 mixed, 10 edge cases). |
-| `npm test` | Passed: 236 tests in 25 files (100% passing; 5 new mobile navigation regression tests). |
+| `npm test` | Passed: 237 tests in 25 files (100% passing; 6 mobile navigation regression tests). |
 | `npm run typecheck` | Passed: 0 TypeScript errors (`tsc --noEmit -p tsconfig.check.json`). |
-| `npm run build` | Passed: Next.js 14.2.35 production build successful; all 13 static pages generated. |
+| `npm run build` | Passed: Next.js 14.2.35 production build successful; all 13 static pages generated cleanly. |
 | Docker | Engine unavailable: `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`. |
 
 ---
@@ -62,7 +66,7 @@ proof of ownership, commitment, semantics, or approval.
 | Walkthrough typecheck | Passed: `npx tsc --noEmit` in `walkthrough-video/`. |
 | Remotion Studio | Passed: composition mounted at 1920×1080, 30 fps, 1,800 frames, with no Studio error. Intro, notes, evidence review, tracking, and export scenes were visually inspected; caption overflow was corrected. |
 | Voice-over | Passed: `public/voiceover.wav` generated locally from `voiceover.ssml`; measured duration 56.85 seconds. |
-| MP4 render | Not run: the request was to create the walkthrough, not explicitly render/export an MP4. The interactive Studio preview remains the review surface, and `npm run render` is documented for export. |
+| MP4 render | Passed through Remotion Studio's client-side H.264 renderer: 1,800/1,800 frames completed and produced a 9,714,495-byte MP4. Server-side FFmpeg rendering was blocked by Windows system integrity policy (`0xC0E90002`), so the browser-native encoder was used instead. |
 | Docker / real-model inference | Not run: this video-only change does not modify application runtime, extraction, persistence, provenance, or evaluation behavior. |
 
 ---

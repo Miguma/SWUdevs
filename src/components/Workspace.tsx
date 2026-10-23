@@ -79,6 +79,33 @@ export function Workspace() {
   }, [authLoading, user?.id]);
 
   useEffect(() => {
+    const handleOpenHistory = () => setHistoryOpen(true);
+    const handleOpenExport = () => {
+      if (currentMeeting) {
+        setStep("share");
+        scrollToWorkspace();
+      } else {
+        scrollToWorkspace();
+      }
+    };
+    window.addEventListener("tambayayong:open-history", handleOpenHistory);
+    window.addEventListener("tambayayong:open-export", handleOpenExport);
+    return () => {
+      window.removeEventListener("tambayayong:open-history", handleOpenHistory);
+      window.removeEventListener("tambayayong:open-export", handleOpenExport);
+    };
+  }, [currentMeeting]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(
+      new CustomEvent("tambayayong:state-change", {
+        detail: { savedCount, hasMeeting: Boolean(currentMeeting) },
+      })
+    );
+  }, [savedCount, Boolean(currentMeeting)]);
+
+  useEffect(() => {
     if (authLoading) return;
     const nextOwner = user?.id ?? null;
     if (didStorageOwnerChange(previousStorageOwner.current, nextOwner)) {
@@ -190,6 +217,7 @@ export function Workspace() {
       >
         <div className="flex items-center justify-end gap-2 pb-3">
           <button
+            id="workspace-history-btn"
             type="button"
             onClick={() => setHistoryOpen(true)}
             className="workspace-top-action flex-1 font-brand whitespace-nowrap sm:flex-none"
@@ -204,6 +232,7 @@ export function Workspace() {
             )}
           </button>
           <button
+            id="workspace-export-btn"
             type="button"
             disabled={!Boolean(currentMeeting)}
             onClick={() => { setStep("share"); scrollToWorkspace(); }}

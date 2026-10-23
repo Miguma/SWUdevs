@@ -12,8 +12,12 @@ import {
   UserPlus,
   LogOut,
   User as UserIcon,
+  History as HistoryIcon,
+  Download,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import { getAllCloudMeetings } from "@/lib/storage/supabase";
+import { getAllGuestMeetings } from "@/lib/storage/indexeddb";
 
 const navLinks = [
   { href: "/#start", label: "Tool" },
@@ -24,8 +28,35 @@ const navLinks = [
 export function LandingNav() {
   const { user, loading: authLoading, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [savedCount, setSavedCount] = useState(0);
+  const [hasMeeting, setHasMeeting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Sync workspace state (savedCount and meeting presence)
+  useEffect(() => {
+    const handleState = (e: Event) => {
+      const detail = (e as CustomEvent<{ savedCount?: number; hasMeeting?: boolean }>).detail;
+      if (typeof detail?.savedCount === "number") setSavedCount(detail.savedCount);
+      if (typeof detail?.hasMeeting === "boolean") setHasMeeting(detail.hasMeeting);
+    };
+    window.addEventListener("tambayayong:state-change", handleState);
+
+    let active = true;
+    void (async () => {
+      try {
+        const count = (await (user ? getAllCloudMeetings() : getAllGuestMeetings())).length;
+        if (active) setSavedCount(count);
+      } catch {
+        // Fallback gracefully if storage is unavailable
+      }
+    })();
+
+    return () => {
+      active = false;
+      window.removeEventListener("tambayayong:state-change", handleState);
+    };
+  }, [user?.id]);
 
   // Close menu on Escape key press
   useEffect(() => {
@@ -53,6 +84,26 @@ export function LandingNav() {
   }, [isOpen]);
 
   const closeMenu = () => setIsOpen(false);
+
+  const handleHistoryClick = () => {
+    closeMenu();
+    const btn = document.getElementById("workspace-history-btn");
+    if (btn) {
+      btn.click();
+    } else {
+      window.dispatchEvent(new CustomEvent("tambayayong:open-history"));
+    }
+  };
+
+  const handleExportClick = () => {
+    closeMenu();
+    const btn = document.getElementById("workspace-export-btn");
+    if (btn) {
+      btn.click();
+    } else {
+      window.dispatchEvent(new CustomEvent("tambayayong:open-export"));
+    }
+  };
 
   return (
     <div className="flex items-center">
@@ -185,7 +236,51 @@ export function LandingNav() {
           {/* Divider */}
           <div className="h-px w-full bg-border/70" />
 
-          {/* Section 2: Account */}
+          {/* Section 2: Workspace Actions (History & Export) */}
+          <div className="space-y-1.5">
+            <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">
+              Workspace Actions
+            </p>
+            <div className="flex flex-col space-y-1">
+              <button
+                type="button"
+                onClick={handleHistoryClick}
+                className="flex min-h-[44px] w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-primary-light/50 hover:text-primary active:bg-primary-light cursor-pointer"
+                aria-label={savedCount > 0 ? `History, ${savedCount} saved` : "History"}
+              >
+                <div className="flex items-center gap-3">
+                  <HistoryIcon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <span>History</span>
+                </div>
+                {savedCount > 0 && (
+                  <span className="font-brand text-[10px] font-semibold tabular-nums text-primary bg-primary-light/60 border border-primary/30 px-2 py-0.5 rounded-full">
+                    {savedCount}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={handleExportClick}
+                className="flex min-h-[44px] w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-primary-light/50 hover:text-primary active:bg-primary-light cursor-pointer"
+                title={hasMeeting ? "Open the share options" : "Analyze a meeting first, then export"}
+              >
+                <div className="flex items-center gap-3">
+                  <Download className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <span>Export</span>
+                </div>
+                {!hasMeeting && (
+                  <span className="text-[10px] text-muted-foreground/60 font-normal">
+                    (open plan first)
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="h-px w-full bg-border/70" />
+
+          {/* Section 3: Account */}
           <div className="space-y-1.5">
             <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">
               Account

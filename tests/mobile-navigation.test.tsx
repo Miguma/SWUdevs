@@ -75,6 +75,17 @@ describe("Mobile navigation and clean workspace header", () => {
     expect(startSection).toContain("whitespace-nowrap");
   });
 
+  it("includes History and Export actions inside the mobile hamburger menu", () => {
+    const html = renderToStaticMarkup(<LandingNav />);
+
+    const menuStart = html.indexOf('id="mobile-navigation-menu"');
+    const menu = html.slice(menuStart);
+
+    expect(menu).toContain("Workspace Actions");
+    expect(menu).toContain("History");
+    expect(menu).toContain("Export");
+  });
+
   it("removes Continue as Guest button from the authentication screens", () => {
     const signInHtml = renderToStaticMarkup(<AuthScreen mode="sign-in" />);
     const signUpHtml = renderToStaticMarkup(<AuthScreen mode="sign-up" />);
