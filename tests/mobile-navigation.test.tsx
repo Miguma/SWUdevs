@@ -86,6 +86,16 @@ describe("Mobile navigation and clean workspace header", () => {
     expect(menu).toContain("Export");
   });
 
+  it("ensures mobile navigation panel has an opaque background and dark backdrop", () => {
+    const html = renderToStaticMarkup(<LandingNav />);
+
+    const menuStart = html.indexOf('id="mobile-navigation-menu"');
+    const menuTag = html.slice(menuStart, html.indexOf(">", menuStart) + 1);
+
+    expect(menuTag).toContain("bg-card");
+    expect(html).toContain("bg-black/50");
+  });
+
   it("removes Continue as Guest button from the authentication screens", () => {
     const signInHtml = renderToStaticMarkup(<AuthScreen mode="sign-in" />);
     const signUpHtml = renderToStaticMarkup(<AuthScreen mode="sign-up" />);

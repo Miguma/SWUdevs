@@ -7,7 +7,7 @@ import { Workspace } from "@/components/Workspace";
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-20 border-b border-border/70 bg-background/95 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-border/70 bg-background">
         <div className="mx-auto flex h-[70px] max-w-6xl items-center justify-between gap-3 px-4 sm:px-8">
           <Brand />
           <LandingNav />

@@ -31,13 +31,17 @@ navigation, removes crowded workspace actions, integrates History & Export into 
    - Removed the redundant "Continue as guest" button and "No account needed" divider.
    - Visitors land directly on the workspace (`/`) in guest mode backed by local IndexedDB (`tambayayong_guest_db`) without any gate or required login.
    - Replaced auth screen back-link with "Back to workspace".
-4. **Automated Regression Coverage (`tests/mobile-navigation.test.tsx`)**:
-   - Added 6 unit tests covering mobile hamburger accessibility, menu section hierarchy, workspace actions (History & Export) integration, desktop nav account integration, workspace action bar cleanliness, and guest button removal.
+4. **Opaque Mobile Surface & Stacking Context Fix (`src/components/LandingNav.tsx`, `src/app/page.tsx`)**:
+   - Replaced invalid `bg-card/98` with design token `bg-card` so the mobile dropdown has a solid, opaque background that prevents underlying meeting notes text from bleeding through.
+   - Removed `backdrop-blur-md` on the root sticky header and raised its z-index to `z-40` (`z-50` for dropdown panel, `z-40` for backdrop), fixing the Chromium/WebKit bug where `backdrop-filter` creates a containing block that clips `fixed` descendants.
+   - Fixed the backdrop overlay with `bg-black/50` dimming to focus attention cleanly on the active menu.
+5. **Automated Regression Coverage (`tests/mobile-navigation.test.tsx`)**:
+   - Added 7 unit tests covering mobile hamburger accessibility, menu section hierarchy, workspace actions (History & Export) integration, opaque card surfaces, desktop nav account integration, workspace action bar cleanliness, and guest button removal.
 
 | Check | Observed result |
 |---|---|
 | `npm run eval:validate` | Passed: 70 dataset cases validated (15 English, 15 Cebuano, 15 Tagalog, 15 mixed, 10 edge cases). |
-| `npm test` | Passed: 237 tests in 25 files (100% passing; 6 mobile navigation regression tests). |
+| `npm test` | Passed: 238 tests in 25 files (100% passing; 7 mobile navigation regression tests). |
 | `npm run typecheck` | Passed: 0 TypeScript errors (`tsc --noEmit -p tsconfig.check.json`). |
 | `npm run build` | Passed: Next.js 14.2.35 production build successful; all 13 static pages generated cleanly. |
 | Docker | Engine unavailable: `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`. |

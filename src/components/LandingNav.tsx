@@ -179,7 +179,7 @@ export function LandingNav() {
       {/* Mobile Navigation Dropdown & Backdrop */}
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 top-[70px] z-30 bg-black/40 backdrop-blur-xs transition-opacity duration-200 sm:hidden ${
+        className={`fixed inset-0 top-[70px] z-40 bg-black/50 transition-opacity duration-200 sm:hidden ${
           isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         onClick={closeMenu}
@@ -193,7 +193,7 @@ export function LandingNav() {
         role="dialog"
         aria-modal="true"
         aria-label="Mobile navigation"
-        className={`fixed inset-x-0 top-[70px] z-40 max-h-[calc(100vh-70px)] overflow-y-auto border-b border-border bg-card/98 px-5 py-6 shadow-2xl backdrop-blur-md transition-all duration-200 ease-out sm:hidden ${
+        className={`fixed inset-x-0 top-[70px] z-50 max-h-[calc(100vh-70px)] overflow-y-auto border-b border-border bg-card px-5 py-6 shadow-2xl transition-all duration-200 ease-out sm:hidden ${
           isOpen
             ? "translate-y-0 opacity-100"
             : "-translate-y-2 opacity-0 pointer-events-none"
