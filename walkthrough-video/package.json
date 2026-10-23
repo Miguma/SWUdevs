@@ -5,19 +5,19 @@
   "scripts": {
     "voiceover": "powershell -ExecutionPolicy Bypass -File scripts/generate-voiceover.ps1",
     "studio": "remotion studio src/index.ts --no-open",
-    "render": "remotion render src/index.ts TambayayongWalkthrough out/tambayayong-system-walkthrough.mp4"
+    "render": "remotion render src/index.ts TambayayongWalkthrough out/tambayayong-system-walkthrough.mp4 --concurrency=1"
   },
   "dependencies": {
     "@remotion/cli": "4.0.534",
     "@remotion/media": "4.0.534",
     "@remotion/transitions": "4.0.534",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "remotion": "4.0.534"
   },
   "devDependencies": {
-    "@types/react": "18.3.12",
-    "@types/react-dom": "18.3.1",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
     "typescript": "5.6.3"
   }
 }

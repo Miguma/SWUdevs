@@ -17,6 +17,12 @@ Open the `TambayayongWalkthrough` composition. The timeline is exactly 60 second
 
 ## Export
 
+Use **Render → Client-side render → Render video** in Remotion Studio. This
+produces `out/TambayayongWalkthrough.mp4` with the browser-native encoder.
+
+The command below is also available where Windows permits Remotion's bundled
+FFmpeg binary:
+
 ```powershell
 npm run render
 ```
