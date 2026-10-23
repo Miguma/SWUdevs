@@ -1,0 +1,17 @@
+<speak version="1.0" xml:lang="en-US">
+  <voice name="Microsoft Zira Desktop">
+    <prosody rate="+2%">
+      Meet Tambayayong: the meeting assistant that turns English, Cebuano, and Tagalog conversations into clear, reviewable action plans.
+      <break time="500ms"/>
+      Start by naming the meeting, then paste your notes, upload a file, or explore the built-in sample. Your notes are sent to Groq only after you confirm.
+      <break time="450ms"/>
+      The pinned Qwen model drafts tasks, decisions, open questions, owners, and dates. Every suggestion stays pending—nothing is silently approved.
+      <break time="450ms"/>
+      In Review, inspect each item against its exact source quotation. A quote proves where the words came from, but people still decide the meaning, owner, commitment, and go-ahead.
+      <break time="450ms"/>
+      Approve, edit, or dismiss. Then switch to Tracking to move trusted work from To do, to In progress, Blocked, or Completed.
+      <break time="450ms"/>
+      Finally, share the plan as a polished PDF, action list, meeting minutes, or CSV. Tambayayong: walay mabilin—no action left behind.
+    </prosody>
+  </voice>
+</speak>

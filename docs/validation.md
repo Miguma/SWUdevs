@@ -1,5 +1,72 @@
 # Tambayayong — Codex validation and handoff
 
+## Mobile Navigation & Guest Experience Polish — 23 October 2026
+
+Branch: `codex/mobile-navigation-guest-ux`. Delivers accessible mobile hamburger
+navigation, removes crowded workspace actions, and enforces frictionless guest mode by default.
+
+### Key Changes
+1. **Accessible Mobile Hamburger Menu (`src/components/LandingNav.tsx`)**:
+   - Added a responsive hamburger menu button with Lucide `Menu` / `X` icons in the top-right corner of the mobile header.
+   - Smooth opening and closing animation with backdrop overlay and click-outside dismissal.
+   - Keyboard accessible: closes on `Escape` key press with focus restoration and prevents body scroll when active.
+   - Organized into clear sections:
+     - **Navigation** (prioritizing understanding first):
+       - What Is This? (`/what-is`)
+       - How It Works (`/how-it-works`)
+       - Meeting Workspace (`/#start`)
+     - **Account**:
+       - Guest: Sign In (`/sign-in`), Sign Up (`/sign-up`)
+       - Authenticated: User email status indicator, Sign Out button
+   - Preserves desktop navigation with clean text links and account controls.
+2. **Decluttered Workspace Action Bar (`src/components/Workspace.tsx`)**:
+   - Removed the `Sign in` / `Sign out` button from above the meeting notes form.
+   - Retained only the core meeting workspace actions: `History`, `Export`, and `New meeting`.
+   - Applied `whitespace-nowrap` to prevent the `History` label from wrapping onto two lines on narrow mobile viewports.
+3. **Seamless Guest Mode & Removed "Continue as Guest" (`src/components/AuthScreen.tsx`)**:
+   - Removed the redundant "Continue as guest" button and "No account needed" divider.
+   - Visitors land directly on the workspace (`/`) in guest mode backed by local IndexedDB (`tambayayong_guest_db`) without any gate or required login.
+   - Replaced auth screen back-link with "Back to workspace".
+4. **Automated Regression Coverage (`tests/mobile-navigation.test.tsx`)**:
+   - Added 5 unit tests covering mobile hamburger accessibility, menu section hierarchy, desktop nav account integration, workspace action bar cleanliness, and guest button removal.
+
+| Check | Observed result |
+|---|---|
+| `npm run eval:validate` | Passed: 70 dataset cases validated (15 English, 15 Cebuano, 15 Tagalog, 15 mixed, 10 edge cases). |
+| `npm test` | Passed: 236 tests in 25 files (100% passing; 5 new mobile navigation regression tests). |
+| `npm run typecheck` | Passed: 0 TypeScript errors (`tsc --noEmit -p tsconfig.check.json`). |
+| `npm run build` | Passed: Next.js 14.2.35 production build successful; all 13 static pages generated. |
+| Docker | Engine unavailable: `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`. |
+
+---
+
+## 60-second narrated system walkthrough — 23 October 2026
+
+Branch: `codex/mobile-navigation-guest-ux`. Added a standalone Remotion project in
+`walkthrough-video/` that reflects the observed current Notes → AI draft → Review →
+Tracking → Share workflow and the existing green/white visual system. The 1920×1080
+composition is exactly 1,800 frames at 30 fps (60 seconds). Its 56.85-second English
+voice-over was generated locally with Microsoft Zira from the checked-in SSML source;
+no narration text or credential was sent to an external voice provider. The video
+uses the pinned `qwen/qwen3.8-27b` / Groq path in its explanation, keeps transfer
+confirmation explicit, and describes quotations as textual provenance rather than
+proof of ownership, commitment, semantics, or approval.
+
+| Check | Observed result |
+|---|---|
+| `npm ci --cache .npm-cache --include=dev --no-audit --no-fund` | Passed: 212 root packages installed from the lockfile. Earlier attempts encountered Windows/OneDrive `ENOTEMPTY` races and left an incomplete generated dependency directory; the final clean retry passed after that directory was absent. |
+| `npm run eval:validate` | Passed: 70 dataset cases validated (15 English, 15 Cebuano, 15 Tagalog, 15 mixed, 10 edge cases). Annotation validation only; no model-accuracy claim. |
+| `npm test` | Passed: 236 tests in 25 files. |
+| `npm run typecheck` | Passed with zero TypeScript errors. |
+| `npm run build` | Passed: Next.js 14.2.35 production build generated all 13 static pages. The sandboxed attempt was blocked by `EPERM` creating `.next/static/chunks/app`; the permitted retry passed. The existing nonfatal `unpdf` `import.meta` warning remains. |
+| Walkthrough typecheck | Passed: `npx tsc --noEmit` in `walkthrough-video/`. |
+| Remotion Studio | Passed: composition mounted at 1920×1080, 30 fps, 1,800 frames, with no Studio error. Intro, notes, evidence review, tracking, and export scenes were visually inspected; caption overflow was corrected. |
+| Voice-over | Passed: `public/voiceover.wav` generated locally from `voiceover.ssml`; measured duration 56.85 seconds. |
+| MP4 render | Not run: the request was to create the walkthrough, not explicitly render/export an MP4. The interactive Studio preview remains the review surface, and `npm run render` is documented for export. |
+| Docker / real-model inference | Not run: this video-only change does not modify application runtime, extraction, persistence, provenance, or evaluation behavior. |
+
+---
+
 ## Signed-In Meeting Synchronization Diagnostics & Fix — 23 October 2026
 
 Branch: `codex/orlando-ai-integration`. Investigates and resolves the signed-in account
