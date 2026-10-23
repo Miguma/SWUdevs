@@ -1,10 +1,18 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
+export const viewport: Viewport = {
+  themeColor: "#f8faf8",
+};
+
 export const metadata: Metadata = {
-  title: "Tambayayong — From conversation to action. Walay mabilin!",
+  title: {
+    default: "Tambayayong | Meeting notes to action plans",
+    template: "Tambayayong | %s",
+  },
+  applicationName: "Tambayayong",
   description:
-    "Open-source bilingual meeting intelligence for student groups, communities, and open-source teams. Turn multilingual notes into accountable action plans with open-weight cloud AI.",
+    "Turn bilingual meeting notes into reviewed action plans with owners and dates. Free, open source, and private by default.",
 };
 
 export default function RootLayout({
@@ -14,6 +22,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className="antialiased bg-background text-foreground min-h-screen flex flex-col">
         {children}
       </body>
