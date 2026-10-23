@@ -1,6 +1,6 @@
 {
   "kind": "actual-inference-public-smoke",
-  "at": "2026-10-20T16:18:23.271Z",
+  "at": "2026-10-23T05:02:05.641Z",
   "provider": "groq",
   "model": "qwen/qwen3.8-27b",
   "success": true,

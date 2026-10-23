@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-10-23T05:02:58.145Z",
+  "model": "qwen/qwen3.8-27b",
+  "provider": "groq",
+  "totalActionItems": 3,
+  "totalDecisions": 1,
+  "totalOpenQuestions": 3,
+  "ownersFound": {
+    "Liza": "Create and submit event poster",
+    "Jun": "Check prices of gloves and sacks",
+    "Mark": "Handle event permit"
+  },
+  "humanReviewCheck": {
+    "approvedTaskId": "act-1-16c52892",
+    "reloadedReviewStatus": "approved",
+    "reloadedExecutionStatus": "in_progress"
+  },
+  "pdfExportSize": 18446,
+  "success": true
+}

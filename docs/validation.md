@@ -1,5 +1,43 @@
 # Tambayayong — Codex validation and handoff
 
+## Orlando Redesigned UI & Full AI Integration — 23 October 2026
+
+Branch: `codex/orlando-ai-integration`. Integrates Orlando's redesigned single-page
+interface and design system (`origin/feat/landing-and-workspace`) with Tambayayong's
+complete multilingual AI meeting-to-action engine.
+
+Key architecture points:
+1. **Redesigned Interface & Components**:
+   - Flat green/white design system with `LandingNav`, `Workspace` controller (3-step flow: `notes` -> `plan` -> `share`), and footer legal links.
+   - `ReviewWorkspace` with two clean text tabs (`Review` and `Tracking`), quiet status filters (`All`, `To review`, `Needs info`, `Approved`, `Dismissed`), and execution board filters (`All`, `To do`, `In progress`, `Blocked`, `Completed`).
+   - `ActionItemCard` with inline Approve/Dismiss review decisions, explicit execution status selector, and plain-text missing details notices (`No date`, `Proposed`, `Unassigned`).
+   - `EvidenceInspector` requiring verified, non-manual source quotations before highlighting context.
+   - Info pages (`/what-is`, `/how-it-works`) and legal pages (`/privacy`, `/terms`).
+   - `DatePicker`, `InlineNotice`, and custom `icons.tsx` design tokens.
+2. **Backend & Model Fidelity**:
+   - Pinned open-weight `qwen/qwen3.8-27b` model through Groq's free tier. Server-side credentials only.
+   - Full Cebuano/Bisaya, Tagalog, and English vocabulary fidelity (`silhig` = broom, `pala` = shovel, `sako` = sack, `gwantes` = gloves).
+   - Speaker-aware task ownership: resolves first-person commitments (`ako`, `ko`, `nako`, `kami`, `I`, `I'll`) to named speakers (`Liza`, `Jun`, `Mark`) without cross-turn boundary contamination.
+   - Multilingual deadline detection across sentences, turns, and dates without inventing missing years.
+   - All newly extracted items default strictly to `reviewStatus: "pending"`.
+3. **Storage & Exports**:
+   - `Workspace` is the sole persistence owner, serializing saves to guest IndexedDB (`tambayayong_guest_db`) or Supabase cloud storage when signed in.
+   - Re-analysis uses `reconcileMeeting` to preserve human approvals, manual tasks, and user edits.
+   - Branded PDF export (`generateMeetingPdf`), CSV, Markdown, and Meeting Minutes exports consume reviewed meeting data.
+
+| Check | Observed result |
+|---|---|
+| `npm run eval:validate` | Passed: 70 dataset cases validated (15 English, 15 Cebuano, 15 Tagalog, 15 mixed, 10 edge cases). |
+| `npm test` | Passed: 223 tests in 24 files (100% passing across extraction, deadline resolver, owner pipeline, export, UI, and storage). |
+| `npm run typecheck` | Passed: 0 TypeScript errors (`tsc --noEmit -p tsconfig.check.json`). |
+| `npm run build` | Passed: Next.js 14.2.35 production build successful; all 13 static pages generated. |
+| Actual Groq / Qwen inference | Passed: Live inference on `docs/verification/orlando-bisaya.txt` using `qwen/qwen3.8-27b` extracted 3 tasks with exact owners (Liza, Jun, Mark), 1 decision, and 3 open questions. |
+| End-to-end lifecycle verification | Passed via `scripts/verify-orlando-bisaya-live.ts`: Live inference -> task attribution -> human review approval -> execution status change -> IndexedDB guest persistence -> reload verification -> branded PDF export (18,446 bytes). |
+| Docker | Engine unavailable: `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`. |
+| Browser | Playwright/Puppeteer CLI tools not installed in environment; verified via comprehensive React DOM SSR component suites (`tests/workspace-ui.test.tsx`, `tests/review-workspace.test.tsx`, `tests/action-item-card.test.tsx`, `tests/meeting-intake.test.tsx`, `tests/owner-pipeline.test.tsx`). |
+
+---
+
 ## Supabase accounts and per-user meeting sync — 21 October 2026
 
 Branch: `codex/owner-pipeline-regression`. This pass replaces the account preview
