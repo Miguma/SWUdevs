@@ -13,6 +13,9 @@ import { parseUploadedPdfBuffer } from "../src/server/services/transcript-prepro
 import { jsPDF } from "jspdf";
 import { syncOwnerInformation } from "../src/lib/owner-state";
 import { traceOwnerAssembly, traceOwnerState } from "../src/lib/owner-diagnostics";
+import { generateMeetingPdf } from "../src/lib/pdf-export";
+import { generateCsvExport, generateMarkdownExport, generateMeetingMinutesExport } from "../src/server/services/export-service";
+import { EvidenceInspector } from "../src/components/review/EvidenceInspector";
 
 // Deterministic model fixture, never an inference accuracy result.
 const statements = [
@@ -166,8 +169,9 @@ describe("Owner pipeline", () => {
     const reloaded = (await getGuestMeetingById(meeting.id))!;
     expect(reloaded.actionItems.map(t => t.assignees)).toEqual([["Liza"], ["Jun"], ["Mark"], []]);
     const markup = renderToStaticMarkup(<ReviewWorkspace meeting={reloaded} onUpdateMeeting={() => {}} />);
-    expect(markup).toContain("Need owner");
-    expect(markup).toContain("<strong>1</strong><small>Need owner</small>");
+    expect(markup).toContain("Needs info");
+    expect(markup.match(/>Unassigned</g)).toHaveLength(1);
+    for (const name of ["Liza", "Jun", "Mark"]) expect(markup).toContain(name);
     expect(reloaded.actionItems.filter(t => getClarificationReasons(t).includes("Missing owner"))).toHaveLength(1);
     for (const [i, t] of reloaded.actionItems.entries()) {
       const html = renderToStaticMarkup(<ActionItemCard task={t} onSetStatus={() => {}} onEdit={() => {}} onDelete={() => {}} onInspectEvidence={() => {}} />);
@@ -175,20 +179,40 @@ describe("Owner pipeline", () => {
         expect(html).toContain(["Liza", "Jun", "Mark"][i]);
         expect(html).not.toContain("Needs owner");
         expect(html).not.toContain("Missing owner");
-        expect(html).toContain("Pending review");
-      } else expect(html).toContain("Needs owner");
+        expect(html).toContain(`aria-label="Approve ${t.title}"`);
+        expect(html).not.toContain('aria-pressed="true"');
+      } else expect(html).toContain("Unassigned");
     }
     const previous = structuredClone(reloaded);
     previous.actionItems[0].reviewStatus = "approved";
     previous.actionItems[1].isUserEdited = true;
     previous.actionItems[1].assignees = ["Human chosen owner"];
-    const merged = reconcileMeeting(previous, assembleMeetingExtraction(input, raw));
+    const merged = reconcileMeeting(previous, { ...assembleMeetingExtraction(input, raw), analysis: meeting.analysis });
     await save(merged);
     const final = (await getGuestMeetingById(previous.id))!;
     expect(final.actionItems[0].reviewStatus).toBe("approved");
     expect(final.actionItems[1].assignees).toEqual(["Human chosen owner"]);
     expect(final.id).toBe(previous.id);
+    expect(final.analysis?.model).toBe(GROQ_MODEL);
+    const pdf = Buffer.from(generateMeetingPdf(final).output("arraybuffer")).toString("latin1");
+    expect(pdf).toContain("%PDF-");
+    expect(pdf).toContain("Liza");
+    for (const output of [generateCsvExport(final), generateMarkdownExport(final), generateMeetingMinutesExport(final)]) {
+      expect(output).toContain("Liza");
+      expect(output).not.toContain("Human chosen owner"); // Pending work is excluded by default.
+    }
     expect(await getGuestMeetingById(unrelated.id)).toEqual(unrelated);
     expect(await getDraftNotes(undefined, "draft:owner-regression-unrelated")).toMatchObject(draft);
+  });
+
+  it("never presents manual or unverified text as a located source quotation", () => {
+    for (const provenance of ["manual", "unverified"] as const) {
+      const html = renderToStaticMarkup(<EvidenceInspector
+        evidence={{quote: "Liza", startOffset: 0, endOffset: 4, isVerified: false, provenance}}
+        rawTranscript="Liza: Ako ang maghimo sa poster."
+        onClose={() => {}}
+      />);
+      expect(html).not.toContain("<mark");
+    }
   });
 });

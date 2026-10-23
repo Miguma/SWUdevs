@@ -11,6 +11,7 @@ import {
   generateCsvExport,
   generateMeetingMinutesExport,
 } from "../src/server/services/export-service";
+import { createManualEvidence } from "../src/server/services/evidence-verifier";
 import { ActionItem, MeetingExtraction, OpenQuestion } from "../src/types/meeting";
 
 describe("Phase 3: Action Tracking & Execution Status", () => {
@@ -358,6 +359,16 @@ describe("Phase 3: Action Tracking & Execution Status", () => {
         evidence: [],
       };
       expect(getClarificationReasons(manualTask)).not.toContain("Unverified citation");
+    });
+
+    it("exempts manually added items with manual evidence from the citation warning", () => {
+      const manualTask: ActionItem = {
+        ...baseMeeting.actionItems[0],
+        isManual: true,
+        evidence: [createManualEvidence()],
+      };
+
+      expect(getClarificationReasons(manualTask)).toEqual([]);
     });
 
     it("flags source-changed items requiring review as 'Source changed'", () => {

@@ -59,7 +59,7 @@ flowchart TD
 
 ### 2.1 Client Subsystem
 - **Framework:** Next.js 14/15 App Router with React 18/19.
-- **Styling & Components:** Tailwind CSS with custom theme tokens (`#247D59` primary green, warm neutrals `#F8FAF8`), Radix UI primitives / shadcn/ui, Lucide icons.
+- **Styling & Components:** Tailwind CSS with custom theme tokens (`#247D59` primary green, warm neutrals `#F8FAF8`), Radix UI primitives / shadcn/ui, HugeIcons icons (stroke-rounded free set, through the central wrapper in `src/components/icons.tsx`).
 - **State Management:** URL state, React Hook Form with Zod validation, local IndexedDB layer for offline/guest auto-save.
 - **Bilingual UI:** Clean interface with bilingual notes guidance (English & Cebuano hints).
 

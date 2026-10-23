@@ -1,29 +1,63 @@
+"use client";
+
+import React from "react";
 import Link from "next/link";
 import type { MouseEventHandler } from "react";
 
+/**
+ * The wordmark. It always points home; when the reader is already on the
+ * landing page it glides back to the top instead of re-running the route and
+ * snapping the scroll position, and it leaves modified clicks (new tab, new
+ * window, download) to the browser.
+ */
 export function Brand({
-  light = false,
   onClick,
 }: {
-  light?: boolean;
   onClick?: MouseEventHandler<HTMLAnchorElement>;
 }) {
+  const handleClick: MouseEventHandler<HTMLAnchorElement> = (event) => {
+    onClick?.(event);
+    if (event.defaultPrevented) return;
+
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    // Other routes: let <Link> navigate home (client-side, starts at the top).
+    if (window.location.pathname !== "/") return;
+
+    event.preventDefault();
+
+    // Drop a stale #hash so a later refresh does not jump past the top.
+    if (window.location.hash) {
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search
+      );
+    }
+
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+  };
+
   return (
     <Link
       href="/"
-      onClick={onClick}
-      className={`inline-flex items-center gap-2.5 rounded-lg ${light ? "text-white" : "text-foreground"}`}
+      onClick={handleClick}
+      className="tap-44 inline-flex items-center rounded-lg px-1 py-1 text-foreground"
       aria-label="Tambayayong home"
     >
-      <span
-        aria-hidden="true"
-        className={`flex h-10 w-10 items-center justify-center rounded-xl text-xl font-bold ${light ? "bg-white/15 text-white" : "bg-primary text-white"}`}
-      >
-        T<span className="text-emerald-200">.</span>
-      </span>
-      <span className="text-lg font-bold tracking-tight">
-        Tambayayong
-        <span className={light ? "text-emerald-200" : "text-primary"}>.</span>
+      <span className="font-brand text-[21px] font-semibold leading-none tracking-[-0.02em]">
+        tambayayong<span className="text-primary">.</span>
       </span>
     </Link>
   );
