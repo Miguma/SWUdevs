@@ -31,7 +31,7 @@
 | **Language** | TypeScript | `^5.6.3` (strict mode, checked via `tsconfig.check.json`) |
 | **UI Library** | React | `18.3.1` |
 | **Styling** | Tailwind CSS | `^3.4.14` + custom CSS variables (`#F8FAF8` canvas, `#247D59` pine green, `#172B24` ink) |
-| **Icons** | Lucide React | `^0.454.0` |
+| **Icons** | HugeIcons (`@hugeicons/react` + `@hugeicons/core-free-icons`) | `@hugeicons/react` `^1.1.10`, free set `^4.3.5` |
 | **Validation** | Zod | `^3.23.8` (request payloads & structured LLM JSON outputs) |
 | **Client Persistence** | IndexedDB (`idb`) | `^8.0.0` (`meetings` and `drafts` object stores) |
 | **AI Inference** | Groq free tier | Pinned `qwen/qwen3.8-27b` chat completion |
@@ -65,9 +65,11 @@ Tambayayong/
 │   ├── app/
 │   │   ├── globals.css                # Brand color tokens & base styles
 │   │   ├── layout.tsx                 # Root HTML layout & metadata
-│   │   ├── page.tsx                   # Main 2-column notes and review workspace
-│   │   ├── sign-in/page.tsx           # Preview Sign-In screen (explicitly labeled preview)
-│   │   ├── sign-up/page.tsx           # Preview Sign-Up screen (explicitly labeled preview)
+│   │   ├── page.tsx                   # Landing page and tool entry point
+│   │   ├── what-is/page.tsx           # Product explainer route
+│   │   ├── how-it-works/page.tsx      # Workflow explainer route
+│   │   ├── privacy/page.tsx           # Privacy policy route
+│   │   ├── terms/page.tsx             # Terms of service route
 │   │   └── api/
 │   │       ├── health/route.ts        # App health endpoint (GET /api/health)
 │   │       ├── ai/health/route.ts     # Cloud model availability (GET /api/ai/health)
@@ -75,22 +77,25 @@ Tambayayong/
 │   │           ├── analyze/route.ts   # Rate-limited AI extraction endpoint (POST /api/meetings/analyze)
 │   │           └── [id]/export/route.ts # Server-side Markdown/CSV export (POST /api/meetings/[id]/export)
 │   ├── components/
-│   │   ├── Header.tsx                 # Top bar: Cloud AI status, Saved and New meeting controls
+│   │   ├── Workspace.tsx              # Single-page notes and review workspace owner
 │   │   ├── MeetingIntake.tsx          # Step 1 card: metadata, participant pills, transcript editor, file upload
 │   │   ├── ReviewWorkspace.tsx        # Step 2 card: progress, task stream, evidence and export
 │   │   ├── MeetingHistoryModal.tsx    # Modal for reopening, duplicating, or deleting IndexedDB meetings
 │   │   ├── SampleMeetingData.ts       # Bilingual example and hand-authored review preview
 │   │   ├── Brand.tsx                  # Shared brand mark component
-│   │   ├── AuthScreen.tsx             # Preview authentication UI component
+│   │   ├── LandingNav.tsx             # Static landing header and footer route links
+│   │   ├── InfoPage.tsx               # Shared shell for the explainer routes
+│   │   ├── LegalPage.tsx              # Shared shell for the legal routes
+│   │   ├── InlineNotice.tsx           # Inline status/notice component
+│   │   ├── DatePicker.tsx             # Accessible calendar popover
+│   │   ├── icons.tsx                  # HugeIcons wrapper re-exports
 │   │   └── review/
 │   │       ├── ActionItemCard.tsx     # Selectable task card with checkbox, status badge, metadata, source link
 │   │       ├── ActionItemEditor.tsx   # Inline editor (returns edited tasks to pending review)
 │   │       ├── DecisionSection.tsx    # Confirmed decisions list with approve/dismiss & quote inspection
 │   │       ├── OpenQuestionsSection.tsx # Open questions list with approve/dismiss & quote inspection
 │   │       ├── EvidenceInspector.tsx  # Full-transcript modal highlighting exact character offsets
-│   │       ├── ExportPanel.tsx        # Side-by-side Markdown (.md) and formula-safe CSV (.csv) export card
-│   │       ├── ReviewHeader.tsx       # Compact review header component
-│   │       └── ItemReviewControls.tsx # Shared status & quote inspection controls
+│   │       └── ExportPanel.tsx        # Side-by-side Markdown (.md) and formula-safe CSV (.csv) export card
 │   ├── lib/
 │   │   ├── meeting-workflow.ts        # reconcileMeeting, getReviewProgress, createSerialMeetingSaver
 │   │   ├── use-dialog-focus.ts        # Accessible modal focus trap & Escape handler
