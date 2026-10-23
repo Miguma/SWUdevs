@@ -42,7 +42,7 @@ export const INITIAL_SAMPLE_EXTRACTION: MeetingExtraction = {
     {
       id: "sample-act-1",
       title: "Finish event poster",
-      description: "Complete the outreach event poster for marketing.",
+      description: "Poster for the outreach event.",
       assignees: ["Maria"],
       deadline: {
         originalText: "October 23, 2026",
@@ -65,8 +65,8 @@ export const INITIAL_SAMPLE_EXTRACTION: MeetingExtraction = {
     },
     {
       id: "sample-act-2",
-      title: "Reserve the barangay hall",
-      description: "Contact and reserve the venue for the event.",
+      title: "Reserve barangay hall",
+      description: "Venue reservation for the event.",
       assignees: ["John"],
       deadline: {
         originalText: "tomorrow",
@@ -90,7 +90,7 @@ export const INITIAL_SAMPLE_EXTRACTION: MeetingExtraction = {
     {
       id: "sample-act-3",
       title: "Bring the sound system",
-      description: "Prepare and bring the sound system for the event.",
+      description: "Sound system for the event.",
       assignees: ["Carlo"],
       deadline: {
         originalText: null,
@@ -116,8 +116,8 @@ export const INITIAL_SAMPLE_EXTRACTION: MeetingExtraction = {
     },
     {
       id: "sample-act-4",
-      title: "Find and coordinate with sponsors",
-      description: "Look for potential sponsors and coordinate with them.",
+      title: "Find event sponsors",
+      description: "Find and coordinate sponsors.",
       assignees: [],
       deadline: {
         originalText: null,
@@ -141,7 +141,7 @@ export const INITIAL_SAMPLE_EXTRACTION: MeetingExtraction = {
     {
       id: "sample-act-5",
       title: "Hold the outreach event",
-      description: "Target date for the community outreach event.",
+      description: "Community outreach event day.",
       assignees: ["Team"],
       deadline: {
         originalText: "November 7, 2026",

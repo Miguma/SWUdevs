@@ -2,20 +2,15 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Sparkles,
-  Calendar,
-  Globe,
-  Users,
-  AlertCircle,
+  ChevronDown,
   Loader2,
   FileUp,
-  Paperclip,
-  ArrowRight,
   X,
   Plus,
   FileText,
-  RefreshCw,
-} from "lucide-react";
+} from "@/components/icons";
+import { InlineNotice } from "@/components/InlineNotice";
+import { DatePicker } from "@/components/DatePicker";
 import { MeetingExtraction } from "@/types/meeting";
 import {
   SAMPLE_CEBUANO_ENGLISH_MEETING,
@@ -26,9 +21,19 @@ import { reconcileMeeting } from "@/lib/meeting-workflow";
 import { saveDraftNotes, getDraftNotes } from "@/lib/storage/indexeddb";
 import type { GroqHealthStatus } from "@/server/services/groq-client";
 
+const TIMEZONE_OPTIONS = [
+  { value: "Asia/Manila", label: "Philippines (GMT+8)" },
+  { value: "UTC", label: "UTC (GMT+0)" },
+  { value: "America/New_York", label: "New York (EST/EDT)" },
+  { value: "America/Los_Angeles", label: "Los Angeles (PST/PDT)" },
+  { value: "Asia/Tokyo", label: "Tokyo (GMT+9)" },
+  { value: "Asia/Singapore", label: "Singapore (GMT+8)" },
+] as const;
+
 interface MeetingIntakeProps {
   onExtractionComplete: (extraction: MeetingExtraction) => void;
   onLoadSampleMeeting?: (sampleExtraction: MeetingExtraction) => void;
+  onDraftStateChange?: (hasContent: boolean) => void;
   initialMeeting?: MeetingExtraction | null;
   newDraftId?: string;
 }
@@ -36,6 +41,7 @@ interface MeetingIntakeProps {
 export function MeetingIntake({
   onExtractionComplete,
   onLoadSampleMeeting,
+  onDraftStateChange,
   initialMeeting,
   newDraftId = "current_draft",
 }: MeetingIntakeProps) {
@@ -52,15 +58,26 @@ export function MeetingIntake({
   const [rawText, setRawText] = useState(initialMeeting?.rawTranscript || "");
   const [cloudConsent, setCloudConsent] = useState(false);
   const [aiStatus, setAiStatus] = useState<GroqHealthStatus | null>(null);
-  const [checkingModels, setCheckingModels] = useState(true);
+
   const [draftHydrated, setDraftHydrated] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isParsingFile, setIsParsingFile] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [timezoneOpen, setTimezoneOpen] = useState(false);
+  const [timezoneVisible, setTimezoneVisible] = useState(false);
+  const [isModeTransitioning, setIsModeTransitioning] = useState(false);
+  const [tabContentHeight, setTabContentHeight] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const detailsContentRef = useRef<HTMLDivElement>(null);
+  const timezoneWrapperRef = useRef<HTMLDivElement>(null);
+  const timezoneTriggerRef = useRef<HTMLButtonElement>(null);
+  const timezoneMenuRef = useRef<HTMLDivElement>(null);
+  const tabContentRef = useRef<HTMLDivElement>(null);
+  const modeTransitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestDraft = useRef({
     title, organization, meetingDate, dateUnknown, timezone, participants, rawText,
     meetingId: initialMeeting?.id,
@@ -89,7 +106,6 @@ export function MeetingIntake({
   }, []);
 
   const refreshModel = async () => {
-    setCheckingModels(true);
     try {
       const response = await fetch("/api/ai/health", { cache: "no-store" });
       if (!response.ok) {
@@ -100,8 +116,6 @@ export function MeetingIntake({
       setAiStatus(status);
     } catch {
       setAiStatus(null);
-    } finally {
-      setCheckingModels(false);
     }
   };
 
@@ -179,6 +193,80 @@ export function MeetingIntake({
     draftHydrated,
   ]);
 
+  useEffect(() => {
+    const node = detailsContentRef.current;
+    if (node) node.inert = !detailsOpen;
+  }, [detailsOpen]);
+
+  useEffect(() => {
+    if (!detailsOpen) setTimezoneOpen(false);
+  }, [detailsOpen]);
+
+  useEffect(() => {
+    if (timezoneOpen) {
+      setTimezoneVisible(true);
+      return;
+    }
+    if (!timezoneVisible) return;
+    const timer = setTimeout(() => setTimezoneVisible(false), 220);
+    return () => clearTimeout(timer);
+  }, [timezoneOpen, timezoneVisible]);
+
+  useEffect(() => {
+    if (!timezoneOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!timezoneWrapperRef.current?.contains(event.target as Node)) {
+        setTimezoneOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setTimezoneOpen(false);
+        timezoneTriggerRef.current?.focus({ preventScroll: true });
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [timezoneOpen]);
+
+  useEffect(() => {
+    if (!timezoneOpen) return;
+    const menu = timezoneMenuRef.current;
+    if (!menu) return;
+    const target =
+      menu.querySelector<HTMLButtonElement>('[role="option"][aria-selected="true"]') ??
+      menu.querySelector<HTMLButtonElement>('[role="option"]');
+    target?.focus({ preventScroll: true });
+  }, [timezoneOpen]);
+
+  useEffect(() => {
+    const element = tabContentRef.current;
+    if (!element) return;
+
+    const updateHeight = () => {
+      setTabContentHeight(element.getBoundingClientRect().height);
+    };
+
+    updateHeight();
+    if (typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => () => {
+    if (modeTransitionTimer.current) {
+      clearTimeout(modeTransitionTimer.current);
+    }
+  }, []);
+
   const participantList = participants
     .split(",")
     .map((p) => p.trim())
@@ -235,7 +323,7 @@ export function MeetingIntake({
           // In case of HTML error page from server or proxy
         }
         if (!res.ok || !data?.success) {
-          setErrorBanner(data?.error || `Failed to extract text from PDF (HTTP ${res.status}).`);
+          setErrorBanner(data?.error || "We couldn't read that PDF. Please try again.");
           return;
         }
         setRawText(data.text);
@@ -244,7 +332,7 @@ export function MeetingIntake({
         }
         setErrorBanner(null);
       } catch (err: any) {
-        setErrorBanner(err?.message || "Failed to upload and parse PDF file.");
+        setErrorBanner(err?.message || "We couldn't read that file. Please try again.");
       } finally {
         setIsParsingFile(false);
       }
@@ -262,7 +350,7 @@ export function MeetingIntake({
         }
         setErrorBanner(null);
       } else {
-        setErrorBanner(parsed.error || "Failed to parse file content.");
+        setErrorBanner(parsed.error || "We couldn't read that file.");
       }
     };
     reader.readAsText(file);
@@ -296,22 +384,24 @@ export function MeetingIntake({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      setErrorBanner("Please provide a meeting title.");
+      setErrorBanner("Give your meeting a name to continue.");
       return;
     }
     if (!rawText.trim() || rawText.trim().length < 10) {
       setErrorBanner(
-        "Please paste at least 10 characters of meeting notes or transcript."
+        "Add a bit more of your notes (at least 10 characters) and try again."
+      );
+      return;
+    }
+    if (!cloudConsent) {
+      setErrorBanner(
+        "Tick the box to confirm these notes can be sent to Groq for analysis."
       );
       return;
     }
     const selectedModel = aiStatus?.model;
     if (!aiStatus?.modelAvailable) {
-      setErrorBanner(aiStatus?.error || "The open-weight cloud model is unavailable. Refresh its status.");
-      return;
-    }
-    if (!cloudConsent) {
-      setErrorBanner("Confirm that these notes may be sent to Groq for analysis.");
+      setErrorBanner(aiStatus?.error || "The AI helper is not available right now. Please try again soon.");
       return;
     }
 
@@ -347,7 +437,7 @@ export function MeetingIntake({
         throw new Error(
           data?.message ||
           data?.error ||
-          `Analysis service error (HTTP ${res.status}). Please try again.`
+          `Something went wrong while drafting your plan. Please try again.`
         );
       }
 
@@ -370,334 +460,548 @@ export function MeetingIntake({
   };
 
   const charCount = rawText.length;
+  const selectedTimezoneLabel =
+    TIMEZONE_OPTIONS.find((option) => option.value === timezone)?.label ?? timezone;
+
+  const handleTimezoneSelect = (value: string) => {
+    setTimezone(value);
+    setTimezoneOpen(false);
+    timezoneTriggerRef.current?.focus({ preventScroll: true });
+  };
+
+  const handleTimezoneMenuKeyDown = (
+    event: React.KeyboardEvent<HTMLDivElement>
+  ) => {
+    if (
+      event.key !== "ArrowDown" &&
+      event.key !== "ArrowUp" &&
+      event.key !== "Home" &&
+      event.key !== "End"
+    ) {
+      return;
+    }
+
+    const menu = timezoneMenuRef.current;
+    if (!menu) return;
+    const options = Array.from(
+      menu.querySelectorAll<HTMLButtonElement>('[role="option"]')
+    );
+    if (options.length === 0) return;
+
+    event.preventDefault();
+    const currentIndex = options.indexOf(
+      document.activeElement as HTMLButtonElement
+    );
+    let nextIndex = currentIndex;
+    if (event.key === "ArrowDown") {
+      nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % options.length;
+    } else if (event.key === "ArrowUp") {
+      nextIndex =
+        currentIndex < 0
+          ? options.length - 1
+          : (currentIndex - 1 + options.length) % options.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else {
+      nextIndex = options.length - 1;
+    }
+    options[nextIndex]?.focus({ preventScroll: true });
+  };
+
+  const [inputMode, setInputMode] = useState<"text" | "file" | "sample">("text");
+
+  const handleInputModeChange = (mode: typeof inputMode) => {
+    if (mode === inputMode) return;
+
+    setInputMode(mode);
+    setIsModeTransitioning(true);
+
+    if (modeTransitionTimer.current) {
+      clearTimeout(modeTransitionTimer.current);
+    }
+    modeTransitionTimer.current = setTimeout(() => {
+      setIsModeTransitioning(false);
+      modeTransitionTimer.current = null;
+    }, 320);
+  };
+
+  const hasDraftContent =
+    title.trim().length > 0 ||
+    organization.trim().length > 0 ||
+    meetingDate.trim().length > 0 ||
+    dateUnknown ||
+    participants.trim().length > 0 ||
+    rawText.trim().length > 0 ||
+    newParticipant.trim().length > 0 ||
+    isAddingParticipant ||
+    inputMode !== "text" ||
+    timezone !== SAMPLE_CEBUANO_ENGLISH_MEETING.timezone;
+
+  useEffect(() => {
+    onDraftStateChange?.(hasDraftContent);
+  }, [hasDraftContent, onDraftStateChange]);
 
   return (
-    <div className="workspace-panel bg-card rounded-2xl border border-border p-5 sm:p-6 space-y-4">
-      {/* Step 1 Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="workspace-step flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary-light text-lg font-bold text-primary">
-            1
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-foreground leading-tight">
-              Meeting notes
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Paste your notes, or load an example to try it out.
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={loadSample}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-card hover:bg-slate-50 text-foreground border border-border transition-colors cursor-pointer shadow-2xs flex-shrink-0"
-        >
-          <FileText className="w-3.5 h-3.5 text-primary" />
-          <span>Load sample meeting</span>
-        </button>
+    <div className="workspace-panel overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="px-4 pt-5 sm:px-6 sm:pt-6">
+        <h2 className="font-brand text-base font-semibold leading-tight tracking-[-0.01em] text-foreground">
+          Meeting notes
+        </h2>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          Give the meeting a name, drop in your notes, and we&apos;ll draft a plan.
+        </p>
       </div>
 
-      {/* Error alert banner */}
-      {errorBanner && (
-        <div
-          role="alert"
-          className="p-3 rounded-xl bg-danger-light border border-danger/30 text-danger flex items-start gap-2.5 text-xs"
-        >
-          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <div className="space-y-0.5">
-            <p className="font-semibold">{errorBanner}</p>
-          </div>
-        </div>
-      )}
+      <InlineNotice
+        message={errorBanner}
+        className="px-4 pt-4 sm:px-6"
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-3.5">
-        {/* Meeting Title */}
-        <div>
-          <label
-            htmlFor="meeting-title"
-            className="block text-xs font-semibold text-foreground mb-1"
-          >
-            Meeting title <span className="text-primary">*</span>
-          </label>
-          <input
-            id="meeting-title"
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Community Outreach Planning"
-            required
-            className="w-full px-3.5 py-2 rounded-xl border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary text-xs sm:text-sm text-foreground transition-all"
-          />
-        </div>
-
-        {/* Organization / Team */}
-        <div>
-          <label
-            htmlFor="meeting-org"
-            className="block text-xs font-semibold text-foreground mb-1"
-          >
-            Organization / Team
-          </label>
-          <div className="relative">
-            <Users className="w-4 h-4 text-primary/70 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+      <form onSubmit={handleSubmit}>
+        <div className="space-y-4 px-4 py-5 sm:px-6">
+          <div>
+            <label
+              htmlFor="meeting-title"
+              className="mb-1.5 block text-[11px] font-medium text-muted-foreground"
+            >
+              Meeting title
+            </label>
             <input
-              id="meeting-org"
+              id="meeting-title"
               type="text"
-              value={organization}
-              onChange={(e) => setOrganization(e.target.value)}
-              placeholder="Tambayayong"
-              className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary text-xs sm:text-sm text-foreground transition-all"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Community Outreach Planning"
+              required
+              className="ui-input"
             />
           </div>
-        </div>
 
-        {/* Date & Timezone Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label
-              htmlFor="meeting-date"
-              className="block text-xs font-semibold text-foreground mb-1"
+          <div className="border-t border-border pt-4">
+            <button
+              type="button"
+              onClick={() => {
+                const next = !detailsOpen;
+                setDetailsOpen(next);
+                if (!next) {
+                  setTimezoneOpen(false);
+                  setTimezoneVisible(false);
+                }
+              }}
+              aria-expanded={detailsOpen}
+              aria-controls="meeting-details-content"
+              className="tap-44 flex w-full cursor-pointer items-center justify-between gap-2 rounded-sm text-left text-xs font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
             >
-              Date
-            </label>
-            <div className="relative">
-              <Calendar className="w-4 h-4 text-primary/70 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                id="meeting-date"
-                type="date"
-                disabled={dateUnknown}
-                value={meetingDate}
-                onChange={(e) => setMeetingDate(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-xl border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary text-xs sm:text-sm text-foreground disabled:opacity-50 disabled:bg-slate-50 transition-all"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label
-              htmlFor="meeting-timezone"
-              className="block text-xs font-semibold text-foreground mb-1"
-            >
-              Timezone
-            </label>
-            <div className="relative">
-              <Globe className="w-4 h-4 text-primary/70 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select
-                id="meeting-timezone"
-                value={timezone}
-                onChange={(e) => setTimezone(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-xl border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/15 focus:border-primary text-xs sm:text-sm text-foreground transition-all"
-              >
-                <option value="Asia/Manila">Philippines (GMT+8)</option>
-                <option value="UTC">UTC (GMT+0)</option>
-                <option value="America/New_York">New York (EST/EDT)</option>
-                <option value="America/Los_Angeles">
-                  Los Angeles (PST/PDT)
-                </option>
-                <option value="Asia/Tokyo">Tokyo (GMT+9)</option>
-                <option value="Asia/Singapore">Singapore (GMT+8)</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={dateUnknown}
-            onChange={(event) => setDateUnknown(event.target.checked)}
-            className="h-3.5 w-3.5 accent-primary"
-          />
-          Meeting date unknown
-        </label>
-
-        {/* Participants Pill Input */}
-        <div>
-          <label className="block text-xs font-semibold text-foreground mb-1">
-            Participants{" "}
-            <span className="font-normal text-muted-foreground">(optional)</span>
-          </label>
-          <div className="min-h-[38px] px-2.5 py-1.5 rounded-xl border border-border bg-card flex flex-wrap items-center gap-1.5">
-            {participantList.map((person) => (
-              <span
-                key={person}
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-foreground border border-border/80"
-              >
-                <span>{person}</span>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveParticipant(person)}
-                  className="text-muted-foreground hover:text-foreground cursor-pointer"
-                  aria-label={`Remove ${person}`}
-                >
-                  <X className="w-3 h-3" />
-                </button>
+              <span>
+                Meeting details{" "}
+                <span className="font-normal text-muted-foreground">
+                  (optional)
+                </span>
               </span>
-            ))}
-
-            {isAddingParticipant ? (
-              <input
-                type="text"
-                value={newParticipant}
-                onChange={(e) => setNewParticipant(e.target.value)}
-                onBlur={handleAddParticipantCommit}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === ",") {
-                    e.preventDefault();
-                    handleAddParticipantCommit();
-                  } else if (e.key === "Escape") {
-                    setNewParticipant("");
-                    setIsAddingParticipant(false);
-                  }
-                }}
-                placeholder="Name..."
-                autoFocus
-                className="px-2 py-0.5 text-xs bg-transparent focus:outline-none w-20"
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsAddingParticipant(true)}
-                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium text-primary bg-primary-light/60 hover:bg-primary-light transition-colors cursor-pointer"
+              <span
+                aria-hidden="true"
+                className="relative flex h-3.5 w-3.5 shrink-0 items-center justify-center text-muted-foreground"
               >
-                <Plus className="w-3 h-3" />
-                <span>Add</span>
-              </button>
-            )}
+                <span
+                  className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 motion-reduce:transition-none ${
+                    detailsOpen ? "opacity-0" : "opacity-100"
+                  }`}
+                >
+                  +
+                </span>
+                <span
+                  className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 motion-reduce:transition-none ${
+                    detailsOpen ? "opacity-100" : "opacity-0"
+                  }`}
+                >
+                  −
+                </span>
+              </span>
+            </button>
+            <div
+              id="meeting-details-content"
+              ref={detailsContentRef}
+              aria-hidden={detailsOpen ? undefined : true}
+              className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${
+                detailsOpen
+                  ? "grid-rows-[1fr] opacity-100"
+                  : "grid-rows-[0fr] opacity-0"
+              }`}
+            >
+              <div className={`min-h-0 space-y-3 pt-4 ${timezoneVisible ? "overflow-visible" : "overflow-hidden"}`}>
+                <div>
+                  <label
+                    htmlFor="meeting-org"
+                    className="mb-1.5 block text-[11px] font-medium text-muted-foreground"
+                  >
+                    Organization / Team
+                  </label>
+                  <input
+                    id="meeting-org"
+                    type="text"
+                    value={organization}
+                    onChange={(e) => setOrganization(e.target.value)}
+                    placeholder="Tambayayong"
+                    className="ui-input"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <label
+                        htmlFor="meeting-date"
+                        className="text-[11px] font-medium text-muted-foreground"
+                      >
+                        Date
+                      </label>
+                      <label className="tap-44 inline-flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={dateUnknown}
+                          onChange={(event) => setDateUnknown(event.target.checked)}
+                          className="h-3.5 w-3.5 accent-primary"
+                        />
+                        Date unknown
+                      </label>
+                    </div>
+                    <DatePicker
+                      id="meeting-date"
+                      value={meetingDate}
+                      onChange={setMeetingDate}
+                      disabled={dateUnknown}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="meeting-timezone"
+                      className="mb-1.5 block text-[11px] font-medium text-muted-foreground"
+                    >
+                      Timezone
+                    </label>
+                    <div
+                      ref={timezoneWrapperRef}
+                      className="relative"
+                      onBlur={(event) => {
+                        if (
+                          timezoneOpen &&
+                          !event.currentTarget.contains(
+                            event.relatedTarget as Node
+                          )
+                        ) {
+                          setTimezoneOpen(false);
+                        }
+                      }}
+                    >
+                      <button
+                        ref={timezoneTriggerRef}
+                        type="button"
+                        id="meeting-timezone"
+                        aria-haspopup="listbox"
+                        aria-expanded={timezoneOpen}
+                        aria-controls="meeting-timezone-menu"
+                        onClick={() => {
+                          setTimezoneVisible(true);
+                          setTimezoneOpen((open) => !open);
+                        }}
+                        onKeyDown={(event) => {
+                          if (
+                            event.key === "ArrowDown" ||
+                            event.key === "ArrowUp"
+                          ) {
+                            event.preventDefault();
+                            setTimezoneVisible(true);
+                            setTimezoneOpen(true);
+                          }
+                        }}
+                        className="ui-input flex cursor-pointer items-center justify-between gap-2 text-left"
+                      >
+                        <span className="min-w-0 truncate">
+                          {selectedTimezoneLabel}
+                        </span>
+                        <ChevronDown
+                          aria-hidden="true"
+                          className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none ${
+                            timezoneOpen ? "rotate-180" : ""
+                          }`}
+                        />
+                      </button>
+
+                      <div
+                        ref={timezoneMenuRef}
+                        id="meeting-timezone-menu"
+                        role="listbox"
+                        aria-label="Timezone"
+                        aria-hidden={timezoneOpen ? undefined : true}
+                        onKeyDown={handleTimezoneMenuKeyDown}
+                        className={`absolute inset-x-0 top-full z-30 mt-1.5 origin-top overflow-hidden rounded-lg border bg-card transition-[max-height,opacity,transform] duration-200 ease-out motion-reduce:transition-none ${
+                          timezoneOpen
+                            ? "max-h-72 translate-y-0 border-border opacity-100"
+                            : "pointer-events-none max-h-0 -translate-y-1 border-transparent opacity-0"
+                        }`}
+                      >
+                        <div className="p-1">
+                          {TIMEZONE_OPTIONS.map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              role="option"
+                              aria-selected={timezone === option.value}
+                              tabIndex={timezoneOpen ? 0 : -1}
+                              onClick={() => handleTimezoneSelect(option.value)}
+                              className={`tap-44 flex w-full items-center rounded-md px-2.5 py-2 text-left text-xs transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none ${
+                                timezone === option.value
+                                  ? "font-medium text-primary"
+                                  : "text-foreground"
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
+                    Participants{" "}
+                    <span className="font-normal">(optional)</span>
+                  </label>
+                  <div className="flex min-h-9 flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg border border-border bg-card px-2.5 py-1.5">
+                    {participantList.map((person, index) => (
+                      <React.Fragment key={person}>
+                        {index > 0 && (
+                          <span
+                            aria-hidden="true"
+                            className="text-muted-foreground/40"
+                          >
+                            ·
+                          </span>
+                        )}
+                        <span className="inline-flex items-center gap-0.5 text-xs text-foreground">
+                          <span>{person}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveParticipant(person)}
+                            className="tap-icon cursor-pointer rounded p-1 text-muted-foreground transition-colors hover:text-foreground"
+                            aria-label={`Remove ${person}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      </React.Fragment>
+                    ))}
+
+                    {isAddingParticipant ? (
+                      <input
+                        type="text"
+                        value={newParticipant}
+                        onChange={(e) => setNewParticipant(e.target.value)}
+                        onBlur={handleAddParticipantCommit}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === ",") {
+                            e.preventDefault();
+                            handleAddParticipantCommit();
+                          } else if (e.key === "Escape") {
+                            setNewParticipant("");
+                            setIsAddingParticipant(false);
+                          }
+                        }}
+                        placeholder="Name..."
+                        autoFocus
+                        className="min-h-11 w-24 bg-transparent px-1 py-0.5 text-base text-foreground placeholder:text-muted-foreground/70 focus:outline-none sm:min-h-0 sm:text-xs"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingParticipant(true)}
+                        className="tap-44-inline inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary-hover"
+                      >
+                        <Plus className="h-3 w-3" />
+                        <span>Add</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-
-        {/* Meeting Notes / Transcript */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <label
-              htmlFor="meeting-notes"
-              className="text-xs font-semibold text-foreground"
-            >
-              Meeting notes / transcript <span className="text-primary">*</span>
-            </label>
-            <span className="text-[11px] text-muted-foreground">
-              {charCount.toLocaleString()} characters
-            </span>
+        <div className="border-t border-border px-5 py-5 sm:px-6">
+          <div
+            className="flex items-end gap-0 border-b border-border sm:gap-6"
+            role="group"
+            aria-label="Choose input"
+          >
+            {([
+              { id: "text", label: "Text" },
+              { id: "file", label: "File" },
+              { id: "sample", label: "Sample" },
+            ] as const).map(({ id, label }) => {
+              const active = inputMode === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => handleInputModeChange(id)}
+                  aria-pressed={active}
+                  className={`tap-44-inline flex-1 -mb-px cursor-pointer border-b-2 pb-2 text-[13px] transition-colors sm:flex-none ${
+                    active
+                      ? "border-primary font-medium text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
           <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={`relative rounded-xl border transition-all ${
-              isDragging
-                ? "border-primary ring-2 ring-primary/20 bg-primary-light/20"
-                : "border-border bg-card focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15"
+            className={`overflow-hidden motion-reduce:transition-none ${
+              isModeTransitioning
+                ? "transition-[height] duration-300 ease-out"
+                : ""
             }`}
+            style={{ height: tabContentHeight ?? undefined }}
           >
-            <textarea
-              id="meeting-notes"
-              rows={9}
-              value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
-              placeholder="Paste your meeting notes or transcript here..."
-              className="w-full p-3.5 rounded-xl border-none bg-transparent focus:outline-none text-xs sm:text-[13px] leading-relaxed text-foreground resize-y"
-            />
-
-            {isDragging && (
-              <div className="absolute inset-0 bg-primary-light/90 backdrop-blur-xs rounded-xl flex items-center justify-center border-2 border-dashed border-primary">
-                <div className="text-center space-y-1 text-primary">
-                  <FileUp className="w-6 h-6 mx-auto" />
-                  <p className="font-semibold text-xs">
-                    Drop transcript file (.pdf, .txt, .md, .csv)
-                  </p>
+            <div ref={tabContentRef} className="flow-root pb-1 pt-4">
+              {inputMode === "text" && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label
+                      htmlFor="meeting-notes"
+                      className="text-[11px] font-medium text-muted-foreground"
+                    >
+                      Meeting notes / transcript
+                    </label>
+                    <span className="text-[11px] tabular-nums text-muted-foreground">
+                      {charCount.toLocaleString()} characters
+                    </span>
+                  </div>
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className="relative"
+                  >
+                    <textarea
+                      id="meeting-notes"
+                      rows={8}
+                      value={rawText}
+                      onChange={(e) => setRawText(e.target.value)}
+                      placeholder="Paste your meeting notes or transcript here..."
+                      className="ui-input min-h-[180px] resize-y text-[13px] leading-relaxed"
+                    />
+                    {isDragging && (
+                      <div className="absolute inset-0 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-card">
+                        <div className="space-y-1 text-center text-primary">
+                          <FileUp className="mx-auto h-5 w-5" />
+                          <p className="text-xs font-medium">
+                            Drop your file here (PDF, TXT, MD, CSV)
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between pt-1">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".txt,.md,.csv,.pdf"
-              onChange={handleFileInputChange}
-              className="hidden"
-            />
-            <button
-              type="button"
-              disabled={isParsingFile}
-              onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center gap-1.5 text-xs text-primary font-medium hover:underline cursor-pointer disabled:opacity-60"
-            >
-              {isParsingFile ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Paperclip className="w-3.5 h-3.5" />
               )}
-              <span>
-                {isParsingFile
-                  ? "Extracting text from PDF..."
-                  : "Upload .pdf, .txt, .md, or .csv"}
-              </span>
-              <span className="text-[11px] font-normal text-muted-foreground">
-                (optional)
-              </span>
-            </button>
-          </div>
-        </div>
 
-        <div className="rounded-xl border border-primary bg-primary-light/30 p-3.5 space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-foreground">Open-weight cloud AI</p>
-              <p className="text-xs text-muted-foreground">Qwen 3.8 27B via Groq's free tier.</p>
+              {inputMode === "file" && (
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`flex flex-col items-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center transition-colors ${
+                    isDragging
+                      ? "border-primary bg-card"
+                      : "border-border bg-card"
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".txt,.md,.csv,.pdf"
+                    onChange={handleFileInputChange}
+                    className="hidden"
+                  />
+                  <FileUp
+                    className="h-5 w-5 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <p className="text-sm font-medium text-foreground">
+                    {isDragging
+                      ? "Drop your file"
+                      : "Drag & drop or select a file"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    PDF, TXT, MD, or CSV
+                  </p>
+                  <button
+                    type="button"
+                    disabled={isParsingFile}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="tap-44 mt-1 inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+                  >
+                    {isParsingFile && (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    )}
+                    <span>
+                      {isParsingFile ? "Reading your file..." : "Choose file"}
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {inputMode === "sample" && (
+                <div className="py-8 text-center">
+                  <p className="mx-auto max-w-md text-xs leading-relaxed text-muted-foreground">
+                    Not sure where to start? Load a short sample meeting and see
+                    how it becomes a reviewed plan.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={loadSample}
+                    className="tap-44 mt-3 inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border border-primary/40 bg-primary-light/50 px-4 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary-light"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    <span>Load sample meeting</span>
+                  </button>
+                </div>
+              )}
             </div>
-            <button
-              type="button"
-              onClick={() => void refreshModel()}
-              disabled={checkingModels}
-              aria-busy={checkingModels}
-              className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-primary hover:bg-primary-light"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${checkingModels ? "animate-spin" : ""}`} aria-hidden="true" />
-              Refresh status
-            </button>
           </div>
-          <p className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-medium">{aiStatus?.model || "qwen/qwen3.8-27b"} · Groq</p>
-          <p className="text-xs leading-5 text-muted-foreground" role="status" aria-live="polite">
-            {checkingModels
-              ? "Checking the cloud model…"
-              : aiStatus?.modelAvailable
-                ? "The pinned model is available. Groq's free-tier limits apply when you analyze."
-                : aiStatus?.error || "Cloud AI is unavailable. Refresh its status."}
-          </p>
-          <label className="flex items-start gap-2 text-xs leading-5 text-foreground">
-            <input type="checkbox" checked={cloudConsent} onChange={(event) => setCloudConsent(event.target.checked)} className="mt-1 accent-primary" />
-            <span>I understand these notes will be sent to Groq for analysis.</span>
-          </label>
         </div>
-        {/* Bottom Bar: Analyze CTA */}
-        <div className="pt-1 space-y-1.5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-3">
+        <div className="border-t border-border px-4 py-4 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="flex items-start gap-2 text-xs leading-5 text-foreground">
+              <input
+                type="checkbox"
+                checked={cloudConsent}
+                onChange={(event) => setCloudConsent(event.target.checked)}
+                className="mt-1 accent-primary"
+              />
+              <span>
+                It&apos;s okay to send my notes to Groq to draft my plan.
+              </span>
+            </label>
             {loading ? (
-              <div className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-semibold text-xs shadow-xs w-full sm:w-auto">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Analyzing with Cloud AI...</span>
+              <div className="inline-flex min-h-11 w-full cursor-default items-center justify-center gap-2 rounded-lg bg-muted px-5 py-2.5 text-xs font-semibold text-muted-foreground sm:w-auto">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Drafting your plan...</span>
               </div>
             ) : (
               <button
                 type="submit"
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold text-xs sm:text-sm shadow-xs transition-all cursor-pointer w-full sm:w-auto"
+                className="ui-button-primary w-full sm:w-auto"
               >
-                <Sparkles className="w-4 h-4" />
-                <span>Analyze with Cloud AI</span>
-                <ArrowRight className="w-4 h-4" />
+                <span>Draft my action plan</span>
               </button>
             )}
           </div>
-
-          <p className="text-[11px] text-muted-foreground sm:text-right">
-            Cloud analysis sends these notes to Groq. Free-tier rate limits apply.
-          </p>
         </div>
       </form>
     </div>

@@ -231,14 +231,17 @@ export function getClarificationReasons(task: ActionItem): string[] {
   }
   const hasVerifiedEvidence =
     task.evidence.length > 0 &&
-    task.evidence.some(
+    (task.evidence.some(
       (ev) => ev.isVerified && ev.provenance !== "unverified",
-    );
+    ) ||
+      task.evidence.some((ev) => ev.provenance === "manual"));
   if (!task.isManual && !hasVerifiedEvidence) {
     reasons.push("Unverified citation");
   } else if (
     task.evidence.some(
-      (ev) => !ev.isVerified || ev.provenance === "unverified",
+      (ev) =>
+        ev.provenance !== "manual" &&
+        (!ev.isVerified || ev.provenance === "unverified"),
     )
   ) {
     reasons.push("Unverified citation");

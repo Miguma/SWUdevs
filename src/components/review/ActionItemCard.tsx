@@ -1,18 +1,8 @@
 import React from "react";
-import {
-  Check,
-  Edit2,
-  Trash2,
-  User,
-  Calendar,
-  Clock,
-  Flag,
-  Link2,
-  AlertTriangle,
-} from "lucide-react";
+import { Check, Edit2, Trash2, Link2, X } from "@/components/icons";
 import { ActionItem, ReviewStatus, TaskStatus, Evidence } from "@/types/meeting";
 import { formatDateDisplay } from "@/lib/utils";
-import { isTaskOverdue, getClarificationReasons } from "@/lib/meeting-workflow";
+import { isTaskOverdue } from "@/lib/meeting-workflow";
 
 interface ActionItemCardProps {
   task: ActionItem;
@@ -24,8 +14,15 @@ interface ActionItemCardProps {
   onDelete: (taskId: string) => void;
   onInspectEvidence: (evidence: Evidence) => void;
   showExecutionControls?: boolean;
+  showReviewControls?: boolean;
   timezone?: string;
 }
+
+type MetaItem = {
+  key: string;
+  label: string;
+  tone?: "warning" | "danger";
+};
 
 export function ActionItemCard({
   task,
@@ -38,44 +35,77 @@ export function ActionItemCard({
   onDelete,
   onInspectEvidence,
   showExecutionControls = false,
+  showReviewControls = true,
 }: ActionItemCardProps) {
   const isUnassigned = task.assignees.length === 0;
-  const hasMissingOrAmbiguousDate =
-    !task.deadline.date || task.deadline.isAmbiguous;
   const primaryEvidence = task.evidence && task.evidence[0];
   const isApproved = task.reviewStatus === "approved";
   const isRejected = task.reviewStatus === "rejected";
   const overdue = isTaskOverdue(task, timezone || task.deadline.timezone);
-  const clarificationReasons = getClarificationReasons(task);
   const currentExecStatus = task.status || "todo";
+  const hasVerifiedEvidence =
+    task.evidence.some(
+      (evidence) => evidence.isVerified && evidence.provenance !== "unverified"
+    ) || task.evidence.some((evidence) => evidence.provenance === "manual");
+  const unverifiedCitation =
+    !task.isManual && !hasVerifiedEvidence
+      ? true
+      : task.evidence.some(
+          (evidence) =>
+            evidence.provenance !== "manual" &&
+            (!evidence.isVerified || evidence.provenance === "unverified")
+        );
+  const hasAmbiguousDate = Boolean(task.deadline.date && task.deadline.isAmbiguous);
+  const sourceChanged = Boolean(task.retainedFromReview && task.needsReview);
+  const dateText = task.deadline.date
+    ? formatDateDisplay(task.deadline.date)
+    : "No date";
 
-  // Status badge logic matching reference design
-  let statusBadge = {
-    label: "Pending review",
-    className: "bg-warning-light text-warning border-warning/20",
-  };
-  if (isApproved) {
-    statusBadge = {
-      label: "Approved",
-      className: "bg-primary-light text-primary border-primary/20",
-    };
-  } else if (isRejected) {
-    statusBadge = {
-      label: "Dismissed",
-      className: "bg-slate-100 text-muted-foreground border-border",
-    };
-  } else if (isUnassigned) {
-    statusBadge = {
-      label: "Needs owner",
-      className: "bg-danger-light text-danger border-danger/20",
-    };
+  const meta: MetaItem[] = [
+    {
+      key: "owner",
+      label: isUnassigned ? "Unassigned" : task.assignees.join(", "),
+      tone: isUnassigned ? "warning" : undefined,
+    },
+    {
+      key: "date",
+      label: overdue ? `Overdue · ${dateText}` : dateText,
+      tone: !task.deadline.date ? "warning" : overdue ? "danger" : undefined,
+    },
+  ];
+
+  if (hasAmbiguousDate) {
+    meta.push({ key: "ambiguous", label: "Ambiguous", tone: "warning" });
   }
+  if (task.commitmentStatus === "proposed") {
+    meta.push({ key: "commitment", label: "Proposed", tone: "warning" });
+  } else if (task.commitmentStatus === "unclear") {
+    meta.push({ key: "commitment", label: "Unclear", tone: "warning" });
+  }
+  if (sourceChanged) {
+    meta.push({ key: "source-changed", label: "Source changed", tone: "warning" });
+  }
+  if (unverifiedCitation) {
+    meta.push({ key: "citation", label: "Source unverified", tone: "warning" });
+  }
+
+  const sourceLabel =
+    primaryEvidence?.provenance === "manual"
+      ? "Added by you"
+      : unverifiedCitation
+      ? "Open source"
+      : `${task.evidence.length} ${
+          task.evidence.length === 1 ? "source" : "sources"
+        }`;
 
   return (
     <div
       onClick={onSelect}
       onKeyDown={(event) => {
-        if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+        if (
+          event.target === event.currentTarget &&
+          (event.key === "Enter" || event.key === " ")
+        ) {
           event.preventDefault();
           onSelect?.();
         }
@@ -83,221 +113,198 @@ export function ActionItemCard({
       role="button"
       tabIndex={0}
       aria-label={`Inspect ${task.title}`}
-      className={`rounded-xl border transition-all p-3.5 cursor-pointer ${
+      className={`group relative -mx-3 cursor-pointer border-b border-b-border/70 border-l-2 px-3 py-3.5 transition-colors last:border-b-0 ${
         isSelected
-          ? "border-primary bg-primary-light/15 ring-1 ring-primary/25 shadow-2xs"
-          : isRejected
-          ? "border-border/60 opacity-55 bg-slate-50/40"
-          : "bg-card border-border hover:border-primary/40"
-      }`}
+          ? "border-l-primary bg-muted/50"
+          : "border-l-transparent hover:bg-muted/30"
+      } ${isRejected ? "opacity-55" : ""}`}
     >
-      <div className="flex items-start gap-3">
-        {/* Left Checkbox */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSetStatus(task.id, isApproved ? "pending" : "approved");
-          }}
-          className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors cursor-pointer ${
-            isApproved
-              ? "bg-primary border-primary text-white"
-              : "border-slate-300 bg-card hover:border-primary"
-          }`}
-          aria-label={isApproved ? "Mark as pending" : "Approve task"}
-        >
-          {isApproved && <Check className="w-3 h-3 stroke-[2.5]" />}
-        </button>
-
-        {/* Main Content */}
-        <div className="flex-1 min-w-0 space-y-1.5">
-          {/* Top Row: Title + Badge + Quick Edit/Delete */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h4
-                className={`text-sm font-bold leading-snug ${
-                  isRejected
-                    ? "line-through text-muted-foreground"
-                    : "text-foreground"
-                }`}
-              >
-                {task.title}
-              </h4>
-
-              {task.sourceTitle &&
-                task.sourceTitle.toLowerCase().trim() !==
-                  task.title.toLowerCase().trim() && (
-                  <span
-                    className="text-[11px] text-muted-foreground font-normal italic"
-                    title="Original wording from notes"
-                  >
-                    ({task.sourceTitle})
-                  </span>
-                )}
-
-              <span
-                className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${statusBadge.className}`}
-              >
-                {statusBadge.label}
-              </span>
-
-              {overdue && (
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md border bg-danger-light text-danger border-danger/30 inline-flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3" />
-                  <span>Overdue</span>
-                </span>
-              )}
-            </div>
-
-            <div
-              className="flex items-center gap-0.5 flex-shrink-0"
-              onClick={(e) => e.stopPropagation()}
+      <div className="min-w-0">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h4
+              className={`text-sm font-medium leading-snug ${
+                isRejected
+                  ? "text-muted-foreground line-through"
+                  : "text-foreground"
+              }`}
             >
-              <button
-                type="button"
-                onClick={() => onEdit(task)}
-                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-slate-100 transition-colors cursor-pointer"
-                title="Edit task"
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(task.id)}
-                className="p-1 rounded-md text-muted-foreground hover:text-danger hover:bg-danger-light/60 transition-colors cursor-pointer"
-                title="Delete task"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
+              {task.title}
+            </h4>
+
+            {task.sourceTitle &&
+              task.sourceTitle.toLowerCase().trim() !==
+                task.title.toLowerCase().trim() && (
+                <p
+                  className="mt-0.5 truncate text-[11px] italic leading-relaxed text-muted-foreground"
+                  title={task.sourceTitle}
+                >
+                  {task.sourceTitle}
+                </p>
+              )}
           </div>
 
-          {/* Description */}
-          {task.description && (
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {task.description}
-            </p>
-          )}
+          <div
+            className="flex shrink-0 items-center gap-0.5 opacity-100 transition-opacity duration-150 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => onEdit(task)}
+              className="tap-icon rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
+              title="Edit task"
+              aria-label={`Edit ${task.title}`}
+            >
+              <Edit2 className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(task.id)}
+              className="tap-icon rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-danger cursor-pointer"
+              title="Delete task"
+              aria-label={`Delete ${task.title}`}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
 
-          {/* Clarification Reasons (if any) */}
-          {clarificationReasons.length > 0 && !isRejected && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-              {clarificationReasons.map((reason) => (
+        {task.description && (
+          <p
+            className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground"
+            title={task.description}
+          >
+            {task.description}
+          </p>
+        )}
+
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-[11.5px] text-muted-foreground">
+            {meta.map((item, index) => (
+              <React.Fragment key={item.key}>
+                {index > 0 && (
+                  <span aria-hidden="true" className="text-muted-foreground/50">
+                    ·
+                  </span>
+                )}
                 <span
-                  key={reason}
-                  className="text-[10px] font-medium px-2 py-0.5 rounded-md border bg-amber-50 text-amber-800 border-amber-200 inline-flex items-center gap-1"
+                  className={
+                    item.tone === "danger"
+                      ? "font-medium text-danger"
+                      : item.tone === "warning"
+                      ? "text-warning"
+                      : undefined
+                  }
                 >
-                  <AlertTriangle className="w-2.5 h-2.5 text-amber-600" />
-                  <span>{reason}</span>
+                  {item.label}
                 </span>
-              ))}
-            </div>
-          )}
+              </React.Fragment>
+            ))}
 
-          {/* Bottom Metadata Pills + Source Link */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px]">
-            <div className="flex flex-wrap items-center gap-1.5">
-              {/* Execution Status Selector for Approved/Tracker items */}
-              {(isApproved || showExecutionControls) && onSetExecutionStatus && (
-                <div
-                  className="inline-flex items-center gap-1 mr-1"
-                  onClick={(e) => e.stopPropagation()}
+            {primaryEvidence && (
+              <>
+                {meta.length > 0 && (
+                  <span aria-hidden="true" className="text-muted-foreground/50">
+                    ·
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (onSelect) onSelect();
+                    onInspectEvidence(primaryEvidence);
+                  }}
+                  className="tap-44 inline-flex items-center gap-1 rounded py-0.5 text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+                  title="See these words in your notes"
                 >
-                  <select
-                    value={currentExecStatus}
-                    onChange={(e) =>
-                      onSetExecutionStatus(task.id, e.target.value as TaskStatus)
-                    }
-                    aria-label={`Execution status for ${task.title}`}
-                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border transition-colors cursor-pointer focus:outline-none ${
-                      currentExecStatus === "completed"
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                        : currentExecStatus === "in_progress"
-                        ? "bg-blue-50 text-blue-700 border-blue-300"
-                        : currentExecStatus === "blocked"
-                        ? "bg-rose-50 text-rose-700 border-rose-300"
-                        : "bg-slate-100 text-slate-700 border-slate-300"
+                  <Link2 className="h-3 w-3" />
+                  <span>{sourceLabel}</span>
+                </button>
+              </>
+            )}
+          </div>
+
+          <div
+            className="flex flex-wrap items-center gap-x-4 gap-y-1.5"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {showReviewControls && (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSetStatus(task.id, isApproved ? "pending" : "approved")
+                  }
+                  aria-pressed={isApproved}
+                  aria-label={
+                    isApproved
+                      ? `Approved: ${task.title}. Activate to move back to pending.`
+                      : `Approve ${task.title}`
+                  }
+                  className={`tap-44 inline-flex items-center gap-1.5 py-1 text-[11.5px] font-medium transition-colors cursor-pointer ${
+                    isApproved
+                      ? "text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`grid h-3.5 w-3.5 place-items-center rounded-[3px] border ${
+                      isApproved ? "border-primary" : "border-border"
                     }`}
                   >
-                    <option value="todo">To do</option>
-                    <option value="in_progress">In progress</option>
-                    <option value="blocked">Blocked</option>
-                    <option value="completed">Completed</option>
-                  </select>
-                </div>
-              )}
+                    {isApproved && <Check className="h-2.5 w-2.5" />}
+                  </span>
+                  <span>{isApproved ? "Approved" : "Approve"}</span>
+                </button>
 
-              {/* Assignee */}
-              <span
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border ${
-                  isUnassigned
-                    ? "bg-slate-50 text-muted-foreground border-border"
-                    : "bg-slate-50 text-foreground border-border/80 font-medium"
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSetStatus(task.id, isRejected ? "pending" : "rejected")
+                  }
+                  aria-pressed={isRejected}
+                  aria-label={
+                    isRejected
+                      ? `Dismissed: ${task.title}. Activate to move back to pending.`
+                      : `Dismiss ${task.title}`
+                  }
+                  className={`tap-44 inline-flex items-center gap-1.5 py-1 text-[11.5px] font-medium transition-colors cursor-pointer ${
+                    isRejected
+                      ? "text-muted-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <X className="h-3 w-3" />
+                  <span>{isRejected ? "Dismissed" : "Dismiss"}</span>
+                </button>
+              </>
+            )}
+
+            {showExecutionControls && onSetExecutionStatus && (
+              <select
+                value={currentExecStatus}
+                onChange={(event) =>
+                  onSetExecutionStatus(
+                    task.id,
+                    event.target.value as TaskStatus
+                  )
+                }
+                aria-label={`Execution status for ${task.title}`}
+                className={`tap-44 cursor-pointer border-0 bg-transparent p-0 text-base font-medium transition-colors sm:text-[11.5px] ${
+                  currentExecStatus === "completed"
+                    ? "text-primary"
+                    : currentExecStatus === "blocked"
+                    ? "text-warning"
+                    : "text-muted-foreground"
                 }`}
               >
-                <User className="w-3 h-3 text-muted-foreground" />
-                <span>
-                  {isUnassigned ? "Unassigned" : task.assignees.join(", ")}
-                </span>
-              </span>
-
-              {/* Date */}
-              <span
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border ${
-                  hasMissingOrAmbiguousDate
-                    ? "bg-danger-light/70 text-danger border-danger/20 font-medium"
-                    : "bg-primary-light/60 text-foreground border-primary/20 font-medium"
-                }`}
-              >
-                {hasMissingOrAmbiguousDate ? (
-                  <Clock className="w-3 h-3 text-danger" />
-                ) : (
-                  <Calendar className="w-3 h-3 text-primary" />
-                )}
-                <span>
-                  {task.deadline.date
-                    ? formatDateDisplay(task.deadline.date)
-                    : task.deadline.originalText || "No date"}
-                </span>
-              </span>
-
-              {/* Commitment Status */}
-              <span
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border font-medium ${
-                  task.commitmentStatus === "confirmed"
-                    ? "bg-primary-light/60 text-primary border-primary/20"
-                    : "bg-warning-light text-warning border-warning/20"
-                }`}
-              >
-                <Flag className="w-3 h-3" />
-                <span>
-                  {task.commitmentStatus === "proposed"
-                    ? "Proposed"
-                    : task.commitmentStatus === "unclear"
-                    ? "Unclear"
-                    : "Confirmed"}
-                </span>
-              </span>
-            </div>
-
-            {/* Source Link */}
-            {primaryEvidence && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (onSelect) onSelect();
-                  onInspectEvidence(primaryEvidence);
-                }}
-                className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
-                title="View verbatim source in transcript"
-              >
-                <Link2 className="w-3 h-3" />
-                <span>
-                  {task.evidence.length}{" "}
-                  {task.evidence.length === 1 ? "source" : "sources"}
-                </span>
-              </button>
+                <option value="todo">To do</option>
+                <option value="in_progress">In progress</option>
+                <option value="blocked">Blocked</option>
+                <option value="completed">Completed</option>
+              </select>
             )}
           </div>
         </div>
