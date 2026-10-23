@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import React, { FormEvent, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -73,10 +73,10 @@ export function AuthScreen({ mode }: { mode: "sign-in" | "sign-up" }) {
       <header className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-6 sm:px-8">
         <Brand />
         <Link
-          href="/#meeting-workspace"
+          href="/"
           className="inline-flex items-center gap-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-primary"
         >
-          <ArrowLeft className="h-4 w-4" /> Continue as guest
+          <ArrowLeft className="h-4 w-4" /> Back to workspace
         </Link>
       </header>
       <main
@@ -247,16 +247,23 @@ export function AuthScreen({ mode }: { mode: "sign-in" | "sign-up" }) {
                 ? "Your password is handled by Supabase Auth and is never stored in meeting records."
                 : "Connect the Tambayayong Supabase project to enable accounts."}
             </p>
-            <div className="my-6 flex items-center gap-3 text-[11px] text-muted-foreground">
-              <span className="h-px flex-1 bg-border" /> NO ACCOUNT NEEDED TO
-              GET STARTED <span className="h-px flex-1 bg-border" />
+            <div className="mt-6 border-t border-border pt-4 text-center text-xs text-muted-foreground">
+              {isSignUp ? (
+                <p>
+                  Already have an account?{" "}
+                  <Link href="/sign-in" className="font-semibold text-primary hover:underline">
+                    Sign in
+                  </Link>
+                </p>
+              ) : (
+                <p>
+                  Don&apos;t have an account?{" "}
+                  <Link href="/sign-up" className="font-semibold text-primary hover:underline">
+                    Sign up
+                  </Link>
+                </p>
+              )}
             </div>
-            <Link
-              href="/#meeting-workspace"
-              className="ui-button-secondary w-full justify-center"
-            >
-              Continue as guest <ArrowRight className="h-4 w-4" />
-            </Link>
           </section>
 
           <aside className="relative hidden flex-col justify-between overflow-hidden bg-[#173F32] p-10 text-white lg:flex">

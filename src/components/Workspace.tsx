@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { getAllCloudMeetings, saveCloudMeeting, CloudSyncError } from "@/lib/storage/supabase";
 import { didStorageOwnerChange } from "@/lib/storage/ownership";
@@ -48,7 +47,7 @@ export interface SaveErrorInfo {
 }
 
 export function Workspace() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const previousStorageOwner = useRef<string | null | undefined>(undefined);
   const [step, setStep] = useState<WorkspaceStep>("notes");
   const [currentMeeting, setCurrentMeeting] = useState<MeetingExtraction | null>(null);
@@ -189,29 +188,42 @@ export function Workspace() {
         id="start"
         className={`mx-auto w-full ${step === "notes" ? "max-w-3xl" : "max-w-4xl"}`}
       >
-        <div className="flex flex-wrap items-center justify-end gap-2 pb-3 sm:justify-end">
-          {!authLoading && (user ? (
-            <button type="button" className="workspace-top-action font-brand" onClick={() => void signOut().catch(() => setSaveError({ message: "Could not sign out. Please try again." }))}>Sign out</button>
-          ) : (
-            <Link href="/sign-in" className="workspace-top-action font-brand">Sign in</Link>
-          ))}
-          <button type="button" onClick={() => setHistoryOpen(true)} className="workspace-top-action flex-1 font-brand sm:flex-none" aria-label={savedCount > 0 ? `History, ${savedCount} saved` : "History"}>
-            <History className="h-4 w-4" aria-hidden="true" /><span>History</span>
-            {savedCount > 0 && <span className="font-brand text-[10px] font-semibold tabular-nums text-primary">{savedCount}</span>}
+        <div className="flex items-center justify-end gap-2 pb-3">
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(true)}
+            className="workspace-top-action flex-1 font-brand whitespace-nowrap sm:flex-none"
+            aria-label={savedCount > 0 ? `History, ${savedCount} saved` : "History"}
+          >
+            <History className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>History</span>
+            {savedCount > 0 && (
+              <span className="font-brand text-[10px] font-semibold tabular-nums text-primary">
+                {savedCount}
+              </span>
+            )}
           </button>
-          <button type="button" disabled={!Boolean(currentMeeting)} onClick={() => { setStep("share"); scrollToWorkspace(); }} className="workspace-top-action flex-1 font-brand sm:flex-none" title={currentMeeting ? "Open the share options" : "Analyze a meeting first, then export"} aria-label="Export">
-            <Download className="h-4 w-4" aria-hidden="true" /><span>Export</span>
+          <button
+            type="button"
+            disabled={!Boolean(currentMeeting)}
+            onClick={() => { setStep("share"); scrollToWorkspace(); }}
+            className="workspace-top-action flex-1 font-brand whitespace-nowrap sm:flex-none"
+            title={currentMeeting ? "Open the share options" : "Analyze a meeting first, then export"}
+            aria-label="Export"
+          >
+            <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>Export</span>
           </button>
           <span className="mx-1 hidden h-7 w-px bg-border sm:block" aria-hidden="true" />
           <button
             type="button"
             onClick={startNewMeeting}
             disabled={!currentMeeting && !intakeHasContent}
-            className="workspace-top-action flex-1 font-brand text-primary disabled:opacity-100 disabled:text-muted-foreground sm:flex-none sm:rounded-full sm:border sm:border-primary/40 sm:bg-primary-light/50 sm:px-4 sm:transition-colors sm:enabled:hover:bg-primary-light sm:disabled:border-border sm:disabled:bg-transparent"
+            className="workspace-top-action flex-1 font-brand whitespace-nowrap text-primary disabled:opacity-100 disabled:text-muted-foreground sm:flex-none sm:rounded-full sm:border sm:border-primary/40 sm:bg-primary-light/50 sm:px-4 sm:transition-colors sm:enabled:hover:bg-primary-light sm:disabled:border-border sm:disabled:bg-transparent"
             title={currentMeeting || intakeHasContent ? "New meeting" : "Nothing to clear yet"}
             aria-label="New meeting"
           >
-            <Plus className="h-4 w-4" aria-hidden="true" />
+            <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="sm:hidden">New</span>
             <span className="hidden sm:inline">New meeting</span>
           </button>
